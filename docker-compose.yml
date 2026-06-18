@@ -50,6 +50,22 @@ services:
       - "80:80"
     restart: always
 
+  caddy:
+    image: caddy:2.7-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
 volumes:
   pgdata:
   miniodata:
+  caddy_data:
+  caddy_config:
