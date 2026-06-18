@@ -1,7 +1,8 @@
 import WebApp from '@twa-dev/sdk';
 
 // Automatically points to the relative path when containerized with Nginx mapping, or falls back to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
 
 const getUserId = () => {
     // Safely extract the ID, providing a testing fallback when run outside of Telegram
