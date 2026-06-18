@@ -1,16 +1,28 @@
 @import "tailwindcss";
 
+/* Tailwind v4 theme configuration. This fully replaces the legacy tailwind.config.js */
 @theme {
   --color-background: #08080D;
   --color-card1: #1F1F23;
   --color-card2: #0B1D33;
   --color-card3: #1E3C5A;
-  --color-text-primary: #F7F5F0;
-  --color-text-secondary: #E8DCCA;
+  --color-textPrimary: #F7F5F0;
+  --color-textSecondary: #E8DCCA;
   --color-gold: #D4AF37;
 }
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-text-primary);
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-textPrimary);
+  }
+}
+
+/* Custom scrollbar hiding utility required for the HorizontalMusicSlider component */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

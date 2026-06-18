@@ -6,8 +6,11 @@ import './i18n'
 import App from './App.tsx'
 import WebApp from '@twa-dev/sdk'
 
-WebApp.ready();
-WebApp.expand(); // Forces the Mini App to full height for a premium feel
+// Safely verify the WebApp object exists before calling its methods
+if (WebApp.ready) {
+  WebApp.ready();
+  WebApp.expand(); // Forces the Mini App to full height for a premium feel
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
