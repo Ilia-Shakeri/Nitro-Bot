@@ -4,6 +4,11 @@ from datetime import datetime, timezone
 
 Base = declarative_base()
 
+def get_naive_utc():
+    # Strip the timezone info to create a naive UTC datetime
+    # This prevents the asyncpg offset mismatch with TIMESTAMP WITHOUT TIME ZONE
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 class User(Base):
     __tablename__ = "users"
 
@@ -12,7 +17,7 @@ class User(Base):
     first_name = Column(String, nullable=True)
     language_preference = Column(String, default="fa")
     credits = Column(Integer, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=get_naive_utc)
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -23,9 +28,7 @@ class Transaction(Base):
     status = Column(String, default="pending") 
     payment_method = Column(String, default="card") 
     receipt_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    user = relationship("User", backref="transactions")
+    created_at = Column(DateTime, default=get_naive_utc)
 
 class Release(Base):
     __tablename__ = "releases"
@@ -48,6 +51,6 @@ class Release(Base):
     
     # State tracking for the Selenium Bot worker
     status = Column(String, default="pending") 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=get_naive_utc)
 
     user = relationship("User", backref="releases")
