@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,6 +14,8 @@ from models import Base, User, Transaction, Release
 from bot import dp, bot, notify_admin_new_receipt
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost/nitrodb")
+MINI_APP_URL = os.getenv("MINI_APP_URL", "https://nitrobot.duckdns.org")
+SELENIUM_SECRET_KEY = os.getenv("SELENIUM_SECRET_KEY", "generate_a_secure_random_string_here")
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -49,9 +51,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Nitro Bot API", lifespan=lifespan)
 
+# Secure CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[MINI_APP_URL, "http://localhost:5173", "http://localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,7 +68,7 @@ async def get_user(tg_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalars().first()
     if not user:
-        user = User(telegram_id=tg_id, language_preference="en", credits=0)
+        user = User(telegram_id=tg_id, language_preference="fa", credits=0)
         db.add(user)
         await db.commit()
         await db.refresh(user)
@@ -91,6 +94,8 @@ async def create_release(
     mapping_spotify: str = Form(None),
     mapping_apple: str = Form(None),
     requires_new_profile: bool = Form(False),
+    is_edit: bool = Form(False),
+    copyright_requested: bool = Form(False),
     audio: UploadFile = File(...),
     cover: UploadFile = File(...),
     db: AsyncSession = Depends(get_db)
@@ -100,8 +105,12 @@ async def create_release(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.credits < 10:
-        raise HTTPException(status_code=400, detail="Not enough credits (10 required)")
+    # Dynamic Pricing Engine
+    base_cost = 1 if is_edit else 10
+    total_cost = base_cost + (2 if copyright_requested else 0)
+
+    if user.credits < total_cost:
+        raise HTTPException(status_code=400, detail=f"Not enough credits ({total_cost} required)")
 
     audio_key = f"releases/{tg_id}/{uuid.uuid4()}_{audio.filename}"
     cover_key = f"releases/{tg_id}/{uuid.uuid4()}_{cover.filename}"
@@ -120,18 +129,23 @@ async def create_release(
         release_date=release_date,
         mapping_spotify=mapping_spotify,
         mapping_apple=mapping_apple,
-        requires_new_profile=requires_new_profile
+        requires_new_profile=requires_new_profile,
+        is_edit=is_edit,
+        copyright_requested=copyright_requested,
+        status="pending"
     )
-    user.credits -= 10
+    
+    user.credits -= total_cost
 
     db.add(release)
     await db.commit()
-    return {"status": "ok", "release_id": release.id, "credits_left": user.credits}
+    return {"status": "ok", "release_id": release.id, "credits_left": user.credits, "cost_deducted": total_cost}
 
 @app.post("/transactions/receipt")
 async def submit_receipt(
     tg_id: int = Form(...),
     amount: int = Form(...),
+    payment_method: str = Form(...),
     receipt: UploadFile = File(...),
     db: AsyncSession = Depends(get_db)
 ):
@@ -142,12 +156,12 @@ async def submit_receipt(
 
     receipt_key = f"receipts/{tg_id}/{uuid.uuid4()}_{receipt.filename}"
     
-    # Prevent event loop blocking
     await asyncio.to_thread(s3_client.upload_fileobj, receipt.file, BUCKET_NAME, receipt_key)
 
     tx = Transaction(
         user_id=tg_id,
         amount=amount,
+        payment_method=payment_method,
         status="pending",
         receipt_url=receipt_key
     )
@@ -160,10 +174,34 @@ async def submit_receipt(
         s3_client.generate_presigned_url,
         'get_object',
         Params={'Bucket': BUCKET_NAME, 'Key': receipt_key},
-        ExpiresIn=86400 # URL valid for 24 hours
+        ExpiresIn=86400 
     )
 
-    # Trigger admin notification
-    await notify_admin_new_receipt(tx.id, amount, presigned_url)
-
+    await notify_admin_new_receipt(tx.id, amount, payment_method, presigned_url)
     return {"status": "ok", "transaction_id": tx.id}
+
+# ==========================================
+# Internal Worker Endpoints (For Selenium)
+# ==========================================
+@app.get("/internal/releases/pending")
+async def get_pending_releases(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
+    if authorization != f"Bearer {SELENIUM_SECRET_KEY}":
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    result = await db.execute(select(Release).where(Release.status == "pending"))
+    releases = result.scalars().all()
+    return releases
+
+@app.post("/internal/releases/{release_id}/status")
+async def update_release_status(release_id: int, status: str = Form(...), authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
+    if authorization != f"Bearer {SELENIUM_SECRET_KEY}":
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    result = await db.execute(select(Release).where(Release.id == release_id))
+    release = result.scalars().first()
+    if not release:
+        raise HTTPException(status_code=404, detail="Release not found")
+        
+    release.status = status
+    await db.commit()
+    return {"status": "updated"}

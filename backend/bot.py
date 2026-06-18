@@ -5,7 +5,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-# Prevent circular import issues by declaring a local session creation
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -58,7 +57,7 @@ async def cmd_start(message: types.Message):
     ))
     await message.answer(TRANSLATIONS[lang]["welcome"], reply_markup=builder.as_markup())
 
-async def notify_admin_new_receipt(tx_id: int, amount: int, receipt_url: str):
+async def notify_admin_new_receipt(tx_id: int, amount: int, payment_method: str, receipt_url: str):
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(text="Approve ✅", callback_data=f"tx_approve_{tx_id}"),
@@ -67,7 +66,7 @@ async def notify_admin_new_receipt(tx_id: int, amount: int, receipt_url: str):
     
     await bot.send_message(
         chat_id=ADMIN_GROUP_ID,
-        text=f"New Payment Receipt!\nTransaction ID: {tx_id}\nAmount: {amount} Nitro\nReceipt Link: {receipt_url}",
+        text=f"New Payment Receipt!\nTransaction ID: {tx_id}\nMethod: {payment_method.upper()}\nAmount: {amount} Nitro\nReceipt Link: {receipt_url}",
         reply_markup=builder.as_markup()
     )
 

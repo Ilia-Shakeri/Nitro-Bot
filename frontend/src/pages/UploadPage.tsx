@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
@@ -18,7 +17,9 @@ export const UploadPage = () => {
     releaseDate: '',
     spotifyUrl: '',
     appleUrl: '',
-    needsNewProfile: false
+    needsNewProfile: false,
+    isEdit: false,
+    copyrightRequested: false
   });
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -27,6 +28,14 @@ export const UploadPage = () => {
 
   const handleToggleProfile = () => {
     setFormData({ ...formData, needsNewProfile: !formData.needsNewProfile });
+  };
+
+  const handleToggleEdit = () => {
+    setFormData({ ...formData, isEdit: !formData.isEdit });
+  };
+
+  const handleToggleCopyright = () => {
+    setFormData({ ...formData, copyrightRequested: !formData.copyrightRequested });
   };
 
   const handleSubmit = async () => {
@@ -45,7 +54,10 @@ export const UploadPage = () => {
       form.append('release_date', formData.releaseDate);
       if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
       if (formData.appleUrl) form.append('mapping_apple', formData.appleUrl);
+      
       form.append('requires_new_profile', formData.needsNewProfile.toString());
+      form.append('is_edit', formData.isEdit.toString());
+      form.append('copyright_requested', formData.copyrightRequested.toString());
 
       await submitRelease(form);
       alert("Release submitted successfully!");
@@ -137,17 +149,11 @@ export const UploadPage = () => {
         </div>
 
         {/* 7. Mapping */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h3 className="text-gold font-semibold mb-2 text-sm">7. {t('Mapping')}</h3>
 
           <div className="flex items-center mb-4">
-            <input
-              type="checkbox"
-              id="newProfile"
-              checked={formData.needsNewProfile}
-              onChange={handleToggleProfile}
-              className="mr-2 rtl:ml-2 accent-gold w-4 h-4"
-            />
+            <input type="checkbox" id="newProfile" checked={formData.needsNewProfile} onChange={handleToggleProfile} className="mr-2 rtl:ml-2 accent-gold w-4 h-4" />
             <label htmlFor="newProfile" className="text-sm cursor-pointer">{t("I don't have a profile (Create one for me)")}</label>
           </div>
 
@@ -166,6 +172,18 @@ export const UploadPage = () => {
                 <input type="text" value={formData.appleUrl} onChange={(e) => setFormData({...formData, appleUrl: e.target.value})} className="bg-transparent border-none outline-none w-full text-white text-sm placeholder-gray-600" placeholder="https://music.apple.com/..." disabled={formData.needsNewProfile} />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* 8. Additional Options */}
+        <div className="mb-8 p-4 bg-card1 rounded-xl border border-gray-800">
+          <div className="flex items-center mb-3">
+            <input type="checkbox" id="isEdit" checked={formData.isEdit} onChange={handleToggleEdit} className="mr-2 rtl:ml-2 accent-gold w-4 h-4" />
+            <label htmlFor="isEdit" className="text-sm cursor-pointer">{t("Edit Previous Release (1 Nitro)")}</label>
+          </div>
+          <div className="flex items-center">
+            <input type="checkbox" id="copyrightRequested" checked={formData.copyrightRequested} onChange={handleToggleCopyright} className="mr-2 rtl:ml-2 accent-gold w-4 h-4" />
+            <label htmlFor="copyrightRequested" className="text-sm cursor-pointer text-gold">{t("Add Copyright Protection (+2 Nitro)")}</label>
           </div>
         </div>
 

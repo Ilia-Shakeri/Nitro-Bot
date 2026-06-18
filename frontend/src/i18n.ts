@@ -27,7 +27,13 @@ const resources = {
       "Apple Music": "Apple Music",
       "Let's Cook!": "Let's Cook!",
       "I don't have a profile (Create one for me)": "I don't have a profile (Create one for me)",
-      "Credits": "Credits"
+      "Credits": "Credits",
+      "Edit Previous Release (1 Nitro)": "Edit Previous Release (1 Nitro)",
+      "Add Copyright Protection (+2 Nitro)": "Add Copyright Protection (+2 Nitro)",
+      "Payment Method": "Payment Method",
+      "Card to Card": "Card to Card",
+      "Tether (USDT)": "Tether (USDT)",
+      "Submit Receipt": "Submit Receipt"
     }
   },
   fa: {
@@ -55,7 +61,13 @@ const resources = {
       "Apple Music": "اپل موزیک",
       "Let's Cook!": "بزن بریم!",
       "I don't have a profile (Create one for me)": "پروفایل ندارم (برام بسازید)",
-      "Credits": "اعتبار"
+      "Credits": "اعتبار",
+      "Edit Previous Release (1 Nitro)": "ویرایش ریلیز قبلی (۱ نیترو)",
+      "Add Copyright Protection (+2 Nitro)": "اضافه کردن کپی رایت (+۲ نیترو)",
+      "Payment Method": "روش پرداخت",
+      "Card to Card": "کارت به کارت",
+      "Tether (USDT)": "تتر (USDT)",
+      "Submit Receipt": "ثبت رسید"
     }
   }
 };
@@ -64,7 +76,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: "fa", // Persian default
+    lng: "fa", 
     fallbackLng: "en",
     interpolation: {
       escapeValue: false
