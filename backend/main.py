@@ -7,12 +7,15 @@ import os
 from pydantic import BaseModel
 import uuid
 import boto3
+import asyncio
+from contextlib import asynccontextmanager
 
 from models import Base, User, Transaction, Release
+from bot import dp, bot, notify_admin_new_receipt
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost/nitrodb")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 async def get_db():
@@ -28,7 +31,23 @@ s3_client = boto3.client(
 )
 BUCKET_NAME = "nitro-bot"
 
-app = FastAPI(title="Nitro Bot API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize S3 Bucket on startup
+    try:
+        await asyncio.to_thread(s3_client.create_bucket, Bucket=BUCKET_NAME)
+    except Exception:
+        pass 
+    
+    # Start Telegram bot polling
+    polling_task = asyncio.create_task(dp.start_polling(bot))
+    yield
+    
+    # Graceful shutdown
+    polling_task.cancel()
+    await bot.session.close()
+
+app = FastAPI(title="Nitro Bot API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,20 +60,11 @@ app.add_middleware(
 class UserLanguageUpdate(BaseModel):
     language: str
 
-@app.on_event("startup")
-async def startup_event():
-    # Attempt to create bucket if not exists
-    try:
-        s3_client.create_bucket(Bucket=BUCKET_NAME)
-    except Exception:
-        pass # Bucket might already exist
-
 @app.get("/users/{tg_id}")
 async def get_user(tg_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalars().first()
     if not user:
-        # Auto-create user for simplicity in this task
         user = User(telegram_id=tg_id, language_preference="en", credits=0)
         db.add(user)
         await db.commit()
@@ -96,9 +106,9 @@ async def create_release(
     audio_key = f"releases/{tg_id}/{uuid.uuid4()}_{audio.filename}"
     cover_key = f"releases/{tg_id}/{uuid.uuid4()}_{cover.filename}"
 
-    # Normally we'd use aiobotocore for async S3, using boto3 synchronously here for brevity
-    s3_client.upload_fileobj(audio.file, BUCKET_NAME, audio_key)
-    s3_client.upload_fileobj(cover.file, BUCKET_NAME, cover_key)
+    # Prevent event loop blocking during file upload
+    await asyncio.to_thread(s3_client.upload_fileobj, audio.file, BUCKET_NAME, audio_key)
+    await asyncio.to_thread(s3_client.upload_fileobj, cover.file, BUCKET_NAME, cover_key)
 
     release = Release(
         user_id=tg_id,
@@ -131,7 +141,9 @@ async def submit_receipt(
         raise HTTPException(status_code=404, detail="User not found")
 
     receipt_key = f"receipts/{tg_id}/{uuid.uuid4()}_{receipt.filename}"
-    s3_client.upload_fileobj(receipt.file, BUCKET_NAME, receipt_key)
+    
+    # Prevent event loop blocking
+    await asyncio.to_thread(s3_client.upload_fileobj, receipt.file, BUCKET_NAME, receipt_key)
 
     tx = Transaction(
         user_id=tg_id,
@@ -143,14 +155,15 @@ async def submit_receipt(
     await db.commit()
     await db.refresh(tx)
 
-    # Here we would normally trigger the Telegram bot to send a message to the admin group
-    # We will hook this up in bot.py and call it or rely on a shared queue/DB polling
+    # Generate a pre-signed URL for admins to securely view the receipt
+    presigned_url = await asyncio.to_thread(
+        s3_client.generate_presigned_url,
+        'get_object',
+        Params={'Bucket': BUCKET_NAME, 'Key': receipt_key},
+        ExpiresIn=86400 # URL valid for 24 hours
+    )
+
+    # Trigger admin notification
+    await notify_admin_new_receipt(tx.id, amount, presigned_url)
+
     return {"status": "ok", "transaction_id": tx.id}
-
-# Integrate bot into FastAPI lifespan
-import asyncio
-from bot import dp, bot
-
-@app.on_event("startup")
-async def start_bot():
-    asyncio.create_task(dp.start_polling(bot))

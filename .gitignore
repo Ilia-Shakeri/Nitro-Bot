@@ -3,3 +3,7 @@ backend/venv
 __pycache__
 node_modules
 dist
+
+design-refrence
+code_dumper.py
+full_Nitro-Bot_project_code.txt

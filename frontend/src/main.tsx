@@ -7,6 +7,7 @@ import App from './App.tsx'
 import WebApp from '@twa-dev/sdk'
 
 WebApp.ready();
+WebApp.expand(); // Forces the Mini App to full height for a premium feel
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

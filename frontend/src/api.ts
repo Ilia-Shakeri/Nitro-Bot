@@ -1,10 +1,15 @@
 import WebApp from '@twa-dev/sdk';
 
+// Automatically points to the relative path when containerized with Nginx mapping, or falls back to localhost
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const getUserId = () => {
-    // In production, this gets the ID from Telegram WebApp
-    return WebApp.initDataUnsafe?.user?.id || 123456789;
+    // Safely extract the ID, providing a testing fallback when run outside of Telegram
+    if (WebApp.initDataUnsafe && WebApp.initDataUnsafe.user) {
+        return WebApp.initDataUnsafe.user.id;
+    }
+    console.warn("Telegram WebApp user context not found. Using fallback ID.");
+    return 123456789;
 };
 
 export const fetchUser = async () => {

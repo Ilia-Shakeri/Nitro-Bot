@@ -5,26 +5,32 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from main import async_session
+# Prevent circular import issues by declaring a local session creation
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost/nitrodb")
+engine = create_async_engine(DATABASE_URL, echo=False)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 from models import User, Transaction
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8915255377:AAFaCAXBRklgb0vIAKP31QWPuCaCnC7-udc")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Translations could be loaded dynamically, hardcoded for brevity
 TRANSLATIONS = {
     "en": {
-        "welcome": "Welcome to Nitro Bot! Launch the Mini App to start.",
-        "tx_approved": "Your receipt for {} Nitro has been approved! Credits added.",
-        "tx_rejected": "Your receipt for {} Nitro was rejected. Please contact support."
+        "welcome": "Welcome to Nitro Bot!\nLaunch the Mini App to start.",
+        "tx_approved": "Your receipt for {} Nitro has been approved!\nCredits added.",
+        "tx_rejected": "Your receipt for {} Nitro was rejected.\nPlease contact support."
     },
     "fa": {
-        "welcome": "به ربات نیترو خوش آمدید! مینی‌اپ را باز کنید.",
-        "tx_approved": "رسید شما برای {} نیترو تایید شد! اعتبار اضافه شد.",
-        "tx_rejected": "رسید شما برای {} نیترو رد شد. لطفا با پشتیبانی تماس بگیرید."
+        "welcome": "به ربات نیترو خوش آمدید!\nمینی‌اپ را باز کنید.",
+        "tx_approved": "رسید شما برای {} نیترو تایید شد!\nاعتبار اضافه شد.",
+        "tx_rejected": "رسید شما برای {} نیترو رد شد.\nلطفا با پشتیبانی تماس بگیرید."
     }
 }
 
@@ -38,7 +44,7 @@ async def cmd_start(message: types.Message):
                 telegram_id=message.from_user.id,
                 username=message.from_user.username,
                 first_name=message.from_user.first_name,
-                language_preference="fa" # Default per instructions
+                language_preference="fa"
             )
             db.add(user)
             await db.commit()
@@ -58,11 +64,10 @@ async def notify_admin_new_receipt(tx_id: int, amount: int, receipt_url: str):
         types.InlineKeyboardButton(text="Approve ✅", callback_data=f"tx_approve_{tx_id}"),
         types.InlineKeyboardButton(text="Reject ❌", callback_data=f"tx_reject_{tx_id}")
     )
-    # Ideally send the actual photo using S3 presigned URL.
-    # For simplicity, sending message with inline buttons.
+    
     await bot.send_message(
         chat_id=ADMIN_GROUP_ID,
-        text=f"New Payment Receipt!\nTransaction ID: {tx_id}\nAmount: {amount} Nitro\nReceipt: {receipt_url}",
+        text=f"New Payment Receipt!\nTransaction ID: {tx_id}\nAmount: {amount} Nitro\nReceipt Link: {receipt_url}",
         reply_markup=builder.as_markup()
     )
 
