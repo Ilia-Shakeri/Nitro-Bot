@@ -40,6 +40,16 @@ export const submitRelease = async (formData: FormData) => {
     return res.json();
 };
 
+export const fetchTransactions = async (): Promise<{ id: number; amount: number; status: string; created_at: string }[]> => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/users/${getUserId()}/transactions`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+};
+
 export const submitReceipt = async (file: File, amount: number, paymentMethod: string) => {
     const formData = new FormData();
     formData.append('tg_id', getUserId().toString());

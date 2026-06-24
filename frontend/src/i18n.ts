@@ -33,7 +33,14 @@ const resources = {
       "Payment Method": "Payment Method",
       "Card to Card": "Card to Card",
       "Tether (USDT)": "Tether (USDT)",
-      "Submit Receipt": "Submit Receipt"
+      "Submit Receipt": "Submit Receipt",
+      "Switch to Light Mode": "Light Mode",
+      "Switch to Dark Mode": "Dark Mode",
+      "Contact Support": "Contact Support",
+      "Recent Transactions": "Recent Transactions",
+      "No transactions yet": "No transactions yet",
+      "Your Balance": "Your Balance",
+      "Nitro Credits": "Nitro Credits"
     }
   },
   fa: {
@@ -67,7 +74,14 @@ const resources = {
       "Payment Method": "روش پرداخت",
       "Card to Card": "کارت به کارت",
       "Tether (USDT)": "تتر (USDT)",
-      "Submit Receipt": "ثبت رسید"
+      "Submit Receipt": "ثبت رسید",
+      "Switch to Light Mode": "حالت روشن",
+      "Switch to Dark Mode": "حالت تاریک",
+      "Contact Support": "تیکت پشتیبانی",
+      "Recent Transactions": "تراکنش‌های اخیر",
+      "No transactions yet": "هنوز تراکنشی نیست",
+      "Your Balance": "موجودی شما",
+      "Nitro Credits": "اعتبار نیترو"
     }
   }
 };

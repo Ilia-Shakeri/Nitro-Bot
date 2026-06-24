@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Tailwind v4 theme configuration. This fully replaces the legacy tailwind.config.js */
 @theme {
   --color-background: #08080D;
   --color-card1: #1F1F23;
@@ -11,94 +10,35 @@
   --color-gold: #D4AF37;
 }
 
+/* Light mode overrides — applied when ThemeContext sets data-theme="light" on <html> */
+html[data-theme="light"] {
+  --color-background: #F5F2ED;
+  --color-card1: #EAE7E0;
+  --color-card2: #D8D4CC;
+  --color-card3: #C5C1B8;
+  --color-textPrimary: #1C1C1E;
+  --color-textSecondary: #6B6B70;
+}
+
 @layer base {
   body {
     background-color: var(--color-background);
     color: var(--color-textPrimary);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  /* Font family per direction */
-  [dir="rtl"] {
-    font-family: 'Vazirmatn', sans-serif;
-  }
-  [dir="ltr"] {
-    font-family: 'Inter', 'Helvetica Neue', sans-serif;
-  }
+  [dir="rtl"] { font-family: 'Vazirmatn', sans-serif; }
+  [dir="ltr"] { font-family: 'Inter', 'Helvetica Neue', sans-serif; }
+
+  button, [role="button"] { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
 }
 
-/* 3-level font role system */
 @layer utilities {
-  /* Level 1 – Titles: heavy weight, tight tracking */
-  .font-title {
-    font-weight: 900;
-    letter-spacing: -0.02em;
-  }
-  /* Level 2 – Descriptions, small titles, links: medium weight */
-  .font-ui {
-    font-weight: 500;
-  }
-  /* Level 3 – Auxiliary / caption text: light weight */
-  .font-light-ui {
-    font-weight: 300;
-  }
+  .font-title    { font-weight: 900; letter-spacing: -0.02em; }
+  .font-ui       { font-weight: 500; }
+  .font-light-ui { font-weight: 300; }
 }
 
-/* Persian calendar (react-multi-date-picker) – Nitro dark/gold theme */
-.nitro-cal {
-  background: #1F1F23 !important;
-  border: 1px solid rgba(212, 175, 55, 0.25) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
-  font-family: 'Vazirmatn', sans-serif !important;
-  color: #F7F5F0 !important;
-}
-.nitro-cal .rmdp-header {
-  background: transparent !important;
-}
-.nitro-cal .rmdp-header-values span {
-  color: #D4AF37 !important;
-  font-weight: 700 !important;
-}
-.nitro-cal .rmdp-arrow-container:hover {
-  background: rgba(212, 175, 55, 0.2) !important;
-  box-shadow: none !important;
-}
-.nitro-cal .rmdp-arrow {
-  border-color: #D4AF37 !important;
-}
-.nitro-cal .rmdp-week-day {
-  color: #D4AF37 !important;
-  font-weight: 600 !important;
-}
-.nitro-cal .rmdp-day span {
-  color: #F7F5F0 !important;
-}
-.nitro-cal .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
-  background: rgba(212, 175, 55, 0.25) !important;
-  color: #F7F5F0 !important;
-}
-.nitro-cal .rmdp-selected span {
-  background: #D4AF37 !important;
-  color: #08080D !important;
-  font-weight: 700 !important;
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5) !important;
-}
-.nitro-cal .rmdp-today span {
-  background: rgba(212, 175, 55, 0.18) !important;
-  color: #D4AF37 !important;
-}
-.nitro-cal .rmdp-disabled span {
-  color: #444 !important;
-}
-.nitro-cal .rmdp-day-hidden span {
-  color: transparent !important;
-}
-
-/* Custom scrollbar hiding utility required for the HorizontalMusicSlider component */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

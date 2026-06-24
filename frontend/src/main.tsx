@@ -6,10 +6,14 @@ import './i18n'
 import App from './App.tsx'
 import WebApp from '@twa-dev/sdk'
 
-// Safely verify the WebApp object exists before calling its methods
+// Remove any stale service workers (e.g. from old PWA builds) so they never intercept requests
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+}
+
 if (WebApp.ready) {
   WebApp.ready();
-  WebApp.expand(); // Forces the Mini App to full height for a premium feel
+  WebApp.expand();
 }
 
 createRoot(document.getElementById('root')!).render(
