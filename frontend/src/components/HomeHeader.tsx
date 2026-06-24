@@ -10,8 +10,8 @@ export const HomeHeader = ({ credits, onLangToggle, lang }: { credits: number, o
         <span className="text-white font-semibold text-sm mr-2">{credits.toLocaleString()} {t('Credits')}</span>
       </div>
       <div className="flex items-center space-x-3">
-        <button onClick={onLangToggle} className="text-xs bg-card1 border border-card3 text-textPrimary px-2 py-1 rounded">
-          {lang.toUpperCase()}
+        <button onClick={onLangToggle} className="text-xs bg-card1 border border-card3 text-textPrimary px-2 py-1 rounded font-ui">
+          {lang === 'fa' ? 'EN' : 'FA'}
         </button>
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center border border-gray-500 shadow-md">
           <span className="text-white font-bold">G</span>

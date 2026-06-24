@@ -16,6 +16,31 @@
     background-color: var(--color-background);
     color: var(--color-textPrimary);
   }
+
+  /* Font family per direction */
+  [dir="rtl"] {
+    font-family: 'Vazirmatn', sans-serif;
+  }
+  [dir="ltr"] {
+    font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  }
+}
+
+/* 3-level font role system */
+@layer utilities {
+  /* Level 1 – Titles: heavy weight, tight tracking */
+  .font-title {
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+  /* Level 2 – Descriptions, small titles, links: medium weight */
+  .font-ui {
+    font-weight: 500;
+  }
+  /* Level 3 – Auxiliary / caption text: light weight */
+  .font-light-ui {
+    font-weight: 300;
+  }
 }
 
 /* Custom scrollbar hiding utility required for the HorizontalMusicSlider component */

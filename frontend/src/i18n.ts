@@ -40,10 +40,10 @@ const resources = {
     translation: {
       "My Music": "موزیک‌های من",
       "Ordered by your most listened tracks": "مرتب شده بر اساس بیشترین شنیده شده",
-      "Drop Your Art": "هنر خود را رها کنید",
+      "Drop Your Art": "هنرت رو بنداز",
       "Upload audio, tracks or artwork": "آپلود صدا، ترک‌ها یا آثار هنری",
       "Nitro": "نیترو",
-      "Refill your credits and keep creating music.": "اعتبار خود را شارژ کنید و به خلق موسیقی ادامه دهید.",
+      "Refill your credits and keep creating music.": "نیترو هاتو بیشتر کن",
       "Balance": "موجودی: {{balance}}",
       "Refill Nitro": "شارژ نیترو",
       "Upload Your Art": "آپلود هنر شما",

@@ -13,8 +13,7 @@ export const UploadArtBox = ({ onClick }: { onClick?: () => void }) => {
         <div className="w-16 h-16 rounded-full border-2 border-gold flex items-center justify-center mb-4">
           <Plus className="text-gold w-8 h-8" strokeWidth={1.5} />
         </div>
-        <h3 className="font-bold text-lg mb-1">{t('Drop Your Art')}</h3>
-        <p className="text-sm text-textSecondary">{t('Upload audio, tracks or artwork')}</p>
+        <h3 className="font-title text-lg">{t('Drop Your Art')}</h3>
       </div>
     </div>
   );
