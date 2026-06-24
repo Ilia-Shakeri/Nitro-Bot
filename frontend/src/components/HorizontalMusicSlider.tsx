@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Eye } from 'lucide-react';
 
 export const HorizontalMusicSlider = () => {
-  const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'fa';
+  const { t } = useTranslation();
 
   const tracks = [
     { title: "Midnight Freq...", artist: "Arman Vale", listens: "18.4k", color: "bg-[#1E3C5A]" },
@@ -16,7 +15,6 @@ export const HorizontalMusicSlider = () => {
     <div className="w-full px-4 mb-8">
       <div className="flex items-center gap-2 mb-1">
         <h2 className="text-2xl font-title">{t('My Music')}</h2>
-        <span className="text-2xl font-title">{isRTL ? '<' : '>'}</span>
       </div>
       <p className="text-textSecondary text-sm font-ui mb-4">{t('Ordered by your most listened tracks')}</p>
 
