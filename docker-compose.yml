@@ -71,6 +71,7 @@ services:
     restart: always
     networks:
       - nitro_internal_net
+      - caddy_gateway_net
 
   frontend:
     build:
@@ -81,33 +82,14 @@ services:
     restart: always
     networks:
       - nitro_internal_net
-
-  caddy:
-    image: caddy:2-alpine
-    container_name: nitro-bot-caddy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - nitro_internal_net
+      - caddy_gateway_net
 
 volumes:
   pgdata:
   miniodata:
-  caddy_data:
-  caddy_config:
 
 networks:
   nitro_internal_net:
     name: nitro_internal_net
+  caddy_gateway_net:
+    external: true
