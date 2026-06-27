@@ -1,66 +1,54 @@
 import WebApp from '@twa-dev/sdk';
+import type { User, Transaction, Release } from './types/api';
 
 const isDev = import.meta.env.MODE === 'development';
-const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
+const BASE   = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
 
-const getUserId = () => {
-    if (WebApp.initDataUnsafe && WebApp.initDataUnsafe.user) {
-        return WebApp.initDataUnsafe.user.id;
-    }
-    console.warn("Telegram WebApp user context not found. Using fallback ID.");
-    return 123456789;
-};
+const authHeaders = (): HeadersInit => ({
+  'X-Telegram-Init-Data': WebApp.initData || '',
+});
 
-export const fetchUser = async () => {
-    const res = await fetch(`${API_BASE_URL}/users/${getUserId()}`);
-    if (!res.ok) throw new Error('Failed to fetch user');
-    return res.json();
-};
-
-export const updateLanguage = async (lang: string) => {
-    const res = await fetch(`${API_BASE_URL}/users/${getUserId()}/language`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language: lang })
-    });
-    return res.json();
-};
-
-export const submitRelease = async (formData: FormData) => {
-    formData.append('tg_id', getUserId().toString());
-    const res = await fetch(`${API_BASE_URL}/releases`, {
-        method: 'POST',
-        body: formData
-    });
-    
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Failed to submit release');
-    }
-    return res.json();
-};
-
-export const fetchTransactions = async (): Promise<{ id: number; amount: number; status: string; created_at: string }[]> => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/users/${getUserId()}/transactions`);
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: { ...authHeaders(), ...(init.headers ?? {}) },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`);
   }
-};
+  return res.json() as Promise<T>;
+}
 
-export const submitReceipt = async (file: File, amount: number, paymentMethod: string) => {
-    const formData = new FormData();
-    formData.append('tg_id', getUserId().toString());
-    formData.append('amount', amount.toString());
-    formData.append('payment_method', paymentMethod);
-    formData.append('receipt', file);
+export const getUser = () =>
+  request<User>('/users/me');
 
-    const res = await fetch(`${API_BASE_URL}/transactions/receipt`, {
-        method: 'POST',
-        body: formData
-    });
-    if (!res.ok) throw new Error('Failed to submit receipt');
-    return res.json();
+export const updateLanguage = (lang: string) =>
+  request<{ status: string; language: string }>('/users/me/language', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language: lang }),
+  });
+
+export const getTransactions = () =>
+  request<Transaction[]>('/users/me/transactions').catch((): Transaction[] => []);
+
+export const getReleases = () =>
+  request<Release[]>('/users/me/releases').catch((): Release[] => []);
+
+export const submitRelease = (formData: FormData) =>
+  request<{ status: string; release_id: number; credits_left: number; cost_deducted: number }>(
+    '/releases',
+    { method: 'POST', body: formData },
+  );
+
+export const submitReceipt = (file: File, amount: number, paymentMethod: string) => {
+  const form = new FormData();
+  form.append('amount', amount.toString());
+  form.append('payment_method', paymentMethod);
+  form.append('receipt', file);
+  return request<{ status: string; transaction_id: number }>('/transactions/receipt', {
+    method: 'POST',
+    body: form,
+  });
 };

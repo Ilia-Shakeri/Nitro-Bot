@@ -50,7 +50,7 @@ services:
       - nitro_internal_net
 
   backend:
-    build: 
+    build:
       context: ./backend
     container_name: nitro-bot-backend
     environment:
@@ -60,7 +60,9 @@ services:
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - BOT_TOKEN=${BOT_TOKEN}
       - ADMIN_GROUP_ID=${ADMIN_GROUP_ID}
+      - MINI_APP_URL=${MINI_APP_URL}
       - SELENIUM_SECRET_KEY=${SELENIUM_SECRET_KEY}
+      - SKIP_TELEGRAM_AUTH=${SKIP_TELEGRAM_AUTH:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -69,22 +71,43 @@ services:
     restart: always
     networks:
       - nitro_internal_net
-      - caddy_gateway_net
 
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: nitro-bot-frontend
     restart: always
     networks:
-      - caddy_gateway_net
+      - nitro_internal_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nitro-bot-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - nitro_internal_net
 
 volumes:
   pgdata:
   miniodata:
+  caddy_data:
+  caddy_config:
 
 networks:
   nitro_internal_net:
     name: nitro_internal_net
-  caddy_gateway_net:
-    external: true

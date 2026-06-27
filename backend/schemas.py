@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
+
+
+# ── Requests ──────────────────────────────────────────────────────────────────
+
+class UserLanguageUpdate(BaseModel):
+    language: str
+
+
+# ── ORM-backed responses (from_attributes lets FastAPI serialize ORM objects) ──
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    telegram_id: int
+    language_preference: str
+    credits: int
+
+
+class TransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    amount: int
+    status: str
+    created_at: datetime
+
+
+class ReleaseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    song_name: str
+    artist_name: str
+    status: str
+    cover_url: str
+    created_at: datetime
+
+
+class PendingReleaseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    song_name: str
+    artist_name: str
+    legal_name: str
+    release_date: str
+    track_url: str
+    cover_url: str
+    mapping_spotify: str | None
+    mapping_apple: str | None
+    requires_new_profile: bool
+    is_edit: bool
+    copyright_requested: bool
+    status: str
+    created_at: datetime
+
+
+# ── Plain responses ────────────────────────────────────────────────────────────
+
+class ReleaseCreateResponse(BaseModel):
+    status: str
+    release_id: int
+    credits_left: int
+    cost_deducted: int
+
+
+class ReceiptSubmitResponse(BaseModel):
+    status: str
+    transaction_id: int
+
+
+class LanguageResponse(BaseModel):
+    status: str
+    language: str
+
+
+class OkResponse(BaseModel):
+    status: str

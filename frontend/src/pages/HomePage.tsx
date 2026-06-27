@@ -1,39 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { HomeHeader } from '../components/HomeHeader';
 import { HorizontalMusicSlider } from '../components/HorizontalMusicSlider';
 import { UploadArtBox } from '../components/UploadArtBox';
 import { NitroCreditCard } from '../components/NitroCreditCard';
 import { PaymentModal } from '../components/PaymentModal';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { fetchUser, updateLanguage } from '../api';
+import { useUser } from '../context/UserContext';
+import { updateLanguage } from '../api';
 
 export const HomePage = () => {
-  const [lang, setLang] = useState('fa');
-  const [credits, setCredits] = useState(0);
+  const { user } = useUser();
+  const credits = user?.credits ?? 0;
+  const lang    = user?.language_preference ?? 'fa';
+
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [fading, setFading] = useState(false);
+  const [fading, setFading]               = useState(false);
 
   const navigate = useNavigate();
   const { i18n } = useTranslation();
-
-  useEffect(() => {
-    fetchUser()
-      .then(user => {
-        setCredits(user.credits);
-        if (user.language_preference) {
-          setLang(user.language_preference);
-          i18n.changeLanguage(user.language_preference);
-        }
-      })
-      .catch(console.error);
-  }, [i18n]);
 
   const toggleLang = async () => {
     setFading(true);
     await new Promise(r => setTimeout(r, 150));
     const newLang = lang === 'en' ? 'fa' : 'en';
-    setLang(newLang);
     i18n.changeLanguage(newLang);
     setFading(false);
     updateLanguage(newLang).catch(console.error);

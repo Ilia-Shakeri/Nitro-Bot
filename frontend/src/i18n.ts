@@ -40,7 +40,13 @@ const resources = {
       "Recent Transactions": "Recent Transactions",
       "No transactions yet": "No transactions yet",
       "Your Balance": "Your Balance",
-      "Nitro Credits": "Nitro Credits"
+      "Nitro Credits": "Nitro Credits",
+      "Nitro Amount": "Nitro Amount",
+      "Upload Receipt Screenshot": "Upload Receipt Screenshot",
+      "Receipt submitted successfully. Awaiting admin approval.": "Receipt submitted successfully. Awaiting admin approval.",
+      "No releases yet": "No releases yet",
+      "Please fill all required fields.": "Please fill all required fields.",
+      "Release submitted successfully!": "Release submitted successfully!"
     }
   },
   fa: {
@@ -81,7 +87,13 @@ const resources = {
       "Recent Transactions": "تراکنش‌های اخیر",
       "No transactions yet": "هنوز تراکنشی نیست",
       "Your Balance": "موجودی شما",
-      "Nitro Credits": "اعتبار نیترو"
+      "Nitro Credits": "اعتبار نیترو",
+      "Nitro Amount": "مقدار نیترو",
+      "Upload Receipt Screenshot": "آپلود تصویر رسید",
+      "Receipt submitted successfully. Awaiting admin approval.": "رسید با موفقیت ثبت شد. در انتظار تأیید ادمین.",
+      "No releases yet": "هنوز ریلیزی نیست",
+      "Please fill all required fields.": "لطفاً همه فیلدهای ضروری را پر کنید.",
+      "Release submitted successfully!": "ریلیز با موفقیت ارسال شد!"
     }
   }
 };

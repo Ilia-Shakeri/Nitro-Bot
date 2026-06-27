@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
-import { fetchTransactions } from '../api';
+import { getTransactions } from '../api';
 
 interface Tx { id: number; amount: number; status: string; created_at: string; }
 
@@ -18,7 +18,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
   const [txs, setTxs] = useState<Tx[]>([]);
 
   useEffect(() => {
-    if (isOpen) fetchTransactions().then(setTxs);
+    if (isOpen) getTransactions().then(setTxs);
   }, [isOpen]);
 
   if (!isOpen) return null;

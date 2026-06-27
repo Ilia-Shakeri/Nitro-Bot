@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
 import { Music, Image as ImageIcon, Calendar, User, AlignLeft } from 'lucide-react';
-import { submitRelease } from '../api';
+import { submitRelease, updateLanguage } from '../api';
+import { useUser } from '../context/UserContext';
+import { useToast } from '../context/ToastContext';
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const lang = i18n.language;
+  const { user, refreshUser } = useUser();
+  const { toast } = useToast();
+  const credits = user?.credits ?? 0;
 
   const [formData, setFormData] = useState({
     songName: '',
@@ -20,30 +25,30 @@ export const UploadPage = () => {
     appleUrl: '',
     needsNewProfile: false,
     isEdit: false,
-    copyrightRequested: false
+    copyrightRequested: false,
   });
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]     = useState(false);
 
-  const handleToggleProfile  = () => setFormData(f => ({ ...f, needsNewProfile:    !f.needsNewProfile }));
-  const handleToggleEdit     = () => setFormData(f => ({ ...f, isEdit:             !f.isEdit }));
+  const handleToggleProfile   = () => setFormData(f => ({ ...f, needsNewProfile:    !f.needsNewProfile }));
+  const handleToggleEdit      = () => setFormData(f => ({ ...f, isEdit:             !f.isEdit }));
   const handleToggleCopyright = () => setFormData(f => ({ ...f, copyrightRequested: !f.copyrightRequested }));
 
   const handleSubmit = async () => {
     if (!audioFile || !coverFile || !formData.songName || !formData.artistName) {
-      alert("Please fill all required fields and upload files.");
+      toast(t('Please fill all required fields.'), 'error');
       return;
     }
     setLoading(true);
     try {
       const form = new FormData();
-      form.append('audio', audioFile);
-      form.append('cover', coverFile);
-      form.append('song_name', formData.songName);
+      form.append('audio',    audioFile);
+      form.append('cover',    coverFile);
+      form.append('song_name',   formData.songName);
       form.append('artist_name', formData.artistName);
-      form.append('legal_name', formData.legalName);
+      form.append('legal_name',  formData.legalName);
       form.append('release_date', formData.releaseDate);
       if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
       if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
@@ -51,10 +56,11 @@ export const UploadPage = () => {
       form.append('is_edit',              formData.isEdit.toString());
       form.append('copyright_requested',  formData.copyrightRequested.toString());
       await submitRelease(form);
-      alert("Release submitted successfully!");
+      await refreshUser();
+      toast(t('Release submitted successfully!'), 'success');
       navigate('/');
-    } catch (e: any) {
-      alert(e.message);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Unknown error', 'error');
     } finally {
       setLoading(false);
     }
@@ -64,7 +70,15 @@ export const UploadPage = () => {
 
   return (
     <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
-      <HomeHeader credits={1240} onLangToggle={() => i18n.changeLanguage(lang === 'en' ? 'fa' : 'en')} lang={lang} />
+      <HomeHeader
+        credits={credits}
+        onLangToggle={() => {
+          const newLang = lang === 'en' ? 'fa' : 'en';
+          i18n.changeLanguage(newLang);
+          updateLanguage(newLang).catch(console.error);
+        }}
+        lang={lang}
+      />
 
       <div className="px-4 py-2">
         <h1 className="text-3xl font-title mb-2">{t('Upload Your Art')}</h1>
@@ -187,14 +201,14 @@ export const UploadPage = () => {
             <input type="checkbox" id="isEdit" checked={formData.isEdit} onChange={handleToggleEdit}
               className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
             <label htmlFor="isEdit" className="text-sm font-ui cursor-pointer">
-              {t("Edit Previous Release (1 Nitro)")}
+              {t('Edit Previous Release (1 Nitro)')}
             </label>
           </div>
           <div className="flex items-center">
             <input type="checkbox" id="copyrightRequested" checked={formData.copyrightRequested} onChange={handleToggleCopyright}
               className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
             <label htmlFor="copyrightRequested" className="text-sm font-ui cursor-pointer text-gold">
-              {t("Add Copyright Protection (+2 Nitro)")}
+              {t('Add Copyright Protection (+2 Nitro)')}
             </label>
           </div>
         </div>
