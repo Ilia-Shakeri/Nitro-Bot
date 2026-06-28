@@ -3,10 +3,28 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft } from 'lucide-react';
+import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Tag } from 'lucide-react';
 import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
+
+// Values MUST match the DMB genre autocomplete labels exactly — the Kontor worker
+// types these into the DMB form and selects the first matching result.
+// Confirm/extend this list against the live DMB genre catalog (plan Part G).
+const GENRES = [
+  'HipHop / Rap [Urban]',
+  'Pop',
+  'Rock',
+  'Electronic / Dance',
+  'R&B / Soul',
+  'Classical',
+  'Jazz',
+  'Folk',
+  'Country',
+  'Reggae',
+  'Metal',
+  'World',
+];
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
@@ -21,6 +39,7 @@ export const UploadPage = () => {
     artistName: '',
     legalName: '',
     releaseDate: '',
+    genre: '',
     spotifyUrl: '',
     appleUrl: '',
     needsNewProfile: false,
@@ -37,7 +56,15 @@ export const UploadPage = () => {
   const handleToggleCopyright = () => setFormData(f => ({ ...f, copyrightRequested: !f.copyrightRequested }));
 
   const handleSubmit = async () => {
-    if (!audioFile || !coverFile || !formData.songName || !formData.artistName) {
+    if (
+      !audioFile ||
+      !coverFile ||
+      !formData.songName ||
+      !formData.artistName ||
+      !formData.legalName ||
+      !formData.releaseDate ||
+      !formData.genre
+    ) {
       toast(t('Please fill all required fields.'), 'error');
       return;
     }
@@ -50,6 +77,7 @@ export const UploadPage = () => {
       form.append('artist_name', formData.artistName);
       form.append('legal_name',  formData.legalName);
       form.append('release_date', formData.releaseDate);
+      form.append('genre',        formData.genre);
       if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
       if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
       form.append('requires_new_profile', formData.needsNewProfile.toString());
@@ -157,11 +185,27 @@ export const UploadPage = () => {
               <PersianDatePicker onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))} />
             </div>
           </div>
+          <div>
+            <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Genre')}</h3>
+            <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
+              <Tag className="w-5 h-5 text-gray-500 me-3 flex-shrink-0" />
+              <select
+                value={formData.genre}
+                onChange={e => setFormData(f => ({ ...f, genre: e.target.value }))}
+                className="bg-transparent border-none outline-none w-full text-white font-ui appearance-none"
+              >
+                <option value="" disabled className="bg-[#111115]">{t('Select a genre')}</option>
+                {GENRES.map(g => (
+                  <option key={g} value={g} className="bg-[#111115]">{g}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* 7. Mapping */}
+        {/* 8. Mapping */}
         <div className="mb-6">
-          <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Mapping')}</h3>
+          <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Mapping')}</h3>
           <div className="flex items-center mb-4">
             <input type="checkbox" id="newProfile" checked={formData.needsNewProfile} onChange={handleToggleProfile}
               className="me-2 accent-gold w-4 h-4 flex-shrink-0" />

@@ -1,0 +1,11 @@
+# Robot Framework
+robotframework==7.0
+robotframework-seleniumlibrary==6.3.0
+robotframework-databaselibrary
+
+# Selenium (geckodriver is installed in the Docker image; Selenium Manager is a fallback)
+selenium==4.18.1
+
+# Bridge worker
+boto3
+requests

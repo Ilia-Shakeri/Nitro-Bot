@@ -33,6 +33,7 @@ class ReleaseOut(BaseModel):
     id: int
     song_name: str
     artist_name: str
+    genre: str | None
     status: str
     cover_url: str
     created_at: datetime
@@ -46,6 +47,7 @@ class PendingReleaseOut(BaseModel):
     artist_name: str
     legal_name: str
     release_date: str
+    genre: str | None
     track_url: str
     cover_url: str
     mapping_spotify: str | None

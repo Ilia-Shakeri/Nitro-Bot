@@ -41,6 +41,7 @@ class Release(Base):
     artist_name = Column(String, nullable=False)
     legal_name = Column(String, nullable=False)
     release_date = Column(String, nullable=False)
+    genre = Column(String, nullable=True)
     mapping_spotify = Column(String, nullable=True)
     mapping_apple = Column(String, nullable=True)
     requires_new_profile = Column(Boolean, default=False)
