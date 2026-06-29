@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone, Instagram } from 'lucide-react';
+import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone, AtSign } from 'lucide-react';
 import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
@@ -245,7 +245,7 @@ export const UploadPage = () => {
                   placeholder={t('Profile Phone')} />
               </div>
               <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                <Instagram className="w-5 h-5 text-gold me-3 flex-shrink-0" />
+                <AtSign className="w-5 h-5 text-gold me-3 flex-shrink-0" />
                 <input type="text" value={formData.profileInstagram}
                   onChange={e => setFormData(f => ({ ...f, profileInstagram: e.target.value }))}
                   dir="ltr"
