@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
 
-interface Props { balance: number; onRefillClick?: () => void; }
+interface Props { balance?: number; onRefillClick?: () => void; }
 
-export const NitroCreditCard = ({ balance, onRefillClick }: Props) => {
+export const NitroCreditCard = ({ onRefillClick }: Props) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'fa';
 
@@ -26,13 +26,9 @@ export const NitroCreditCard = ({ balance, onRefillClick }: Props) => {
 
           <div className="flex-1">
             <h2 className="text-3xl font-title text-gold mb-1">{t('Nitro')}</h2>
-            <p className="text-sm font-ui text-textSecondary mb-3 leading-relaxed">
+            <p className="text-sm font-ui text-textSecondary leading-relaxed">
               {t('Refill your credits and keep creating music.')}
             </p>
-            <div className="inline-flex items-center gap-2 bg-card3/30 border border-gold/20 rounded-full px-3 py-1">
-              <div className="w-3 h-3 bg-gold rounded-full shadow-[0_0_5px_#D4AF37] flex-shrink-0" />
-              <span className="text-xs font-ui">{t('Balance', { balance })}</span>
-            </div>
           </div>
         </div>
 

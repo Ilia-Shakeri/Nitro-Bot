@@ -80,7 +80,7 @@ const resources = {
       "Apple Music": "اپل موزیک",
       "Let's Cook!": "بزن بریم!",
       "I don't have a profile (Create one for me)": "پروفایل ندارم (برام بسازید)",
-      "Credits": "اعتبار",
+      "Credits": "نیترو",
       "Edit Previous Release (1 Nitro)": "ویرایش ریلیز قبلی (۱ نیترو)",
       "Add Copyright Protection (+2 Nitro)": "اضافه کردن کپی رایت (+۲ نیترو)",
       "Payment Method": "روش پرداخت",

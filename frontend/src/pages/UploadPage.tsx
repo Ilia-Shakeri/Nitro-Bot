@@ -137,9 +137,9 @@ export const UploadPage = () => {
             <h3 className="text-gold font-ui mb-2 text-sm">3. {t('Song Name')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
               <Music className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input type="text" value={formData.songName}
+              <input type="text" value={formData.songName} dir="ltr"
                 onChange={e => setFormData(f => ({ ...f, songName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary placeholder-textSecondary font-ui"
+                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
                 placeholder="Midnight Frequency" />
             </div>
           </div>
@@ -147,9 +147,9 @@ export const UploadPage = () => {
             <h3 className="text-gold font-ui mb-2 text-sm">4. {t('Artist Name')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
               <User className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input type="text" value={formData.artistName}
+              <input type="text" value={formData.artistName} dir="ltr"
                 onChange={e => setFormData(f => ({ ...f, artistName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary placeholder-textSecondary font-ui"
+                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
                 placeholder="Arman Vale" />
             </div>
           </div>
@@ -157,9 +157,9 @@ export const UploadPage = () => {
             <h3 className="text-gold font-ui mb-2 text-sm">5. {t('Legal Name')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
               <AlignLeft className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input type="text" value={formData.legalName}
+              <input type="text" value={formData.legalName} dir="ltr"
                 onChange={e => setFormData(f => ({ ...f, legalName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary placeholder-textSecondary font-ui"
+                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
                 placeholder="Arman V. Rahimi" />
             </div>
           </div>
@@ -199,7 +199,8 @@ export const UploadPage = () => {
                 <input type="text" value={formData.spotifyUrl}
                   onChange={e => setFormData(f => ({ ...f, spotifyUrl: e.target.value }))}
                   disabled={formData.needsNewProfile}
-                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui placeholder-textSecondary"
+                  dir="ltr"
+                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
                   placeholder="https://open.spotify.com/..." />
               </div>
             </div>
@@ -210,7 +211,8 @@ export const UploadPage = () => {
                 <input type="text" value={formData.appleUrl}
                   onChange={e => setFormData(f => ({ ...f, appleUrl: e.target.value }))}
                   disabled={formData.needsNewProfile}
-                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui placeholder-textSecondary"
+                  dir="ltr"
+                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
                   placeholder="https://music.apple.com/..." />
               </div>
             </div>

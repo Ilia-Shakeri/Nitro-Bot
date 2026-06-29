@@ -12,13 +12,13 @@ import { updateLanguage } from '../api';
 export const HomePage = () => {
   const { user } = useUser();
   const credits = user?.credits ?? 0;
-  const lang    = user?.language_preference ?? 'fa';
 
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [fading, setFading]               = useState(false);
 
   const navigate = useNavigate();
   const { i18n } = useTranslation();
+  const lang = i18n.language;
 
   const toggleLang = async () => {
     setFading(true);

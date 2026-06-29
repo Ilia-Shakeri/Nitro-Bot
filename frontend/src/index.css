@@ -114,3 +114,14 @@ html[data-theme="light"] {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-genre-drop { animation: genre-drop 0.2s ease-out forwards; }
+
+input::placeholder, textarea::placeholder {
+  color: #8A96A8;
+  opacity: 1;
+}
+
+[dir="rtl"] p.error-msg,
+[dir="rtl"] span.error-msg {
+  direction: rtl;
+  text-align: right;
+}

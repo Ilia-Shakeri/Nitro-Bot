@@ -46,7 +46,7 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
               onClick={() => setCreditsOpen(true)}
               className="flex items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition"
             >
-              <img src="/Logo/Nitro.png" alt="Nitro" className="w-4 h-4 object-contain select-none pointer-events-none flex-shrink-0" />
+              <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
               <span className="text-textPrimary font-ui text-sm">
                 {credits.toLocaleString()} {t('Credits')}
               </span>
