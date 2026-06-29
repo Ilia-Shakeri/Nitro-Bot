@@ -1,5 +1,49 @@
 @import "tailwindcss";
 
+/* ===== Local Vazir font (frontend/public/fonts/Vazir) =====
+   Served from web root: /fonts/Vazir/*. Forces mobile browsers to
+   render Vazir instead of a system fallback. */
+@font-face {
+  font-family: 'Vazir';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/Vazir/Vazir-Light.woff2') format('woff2'),
+       url('/fonts/Vazir/Vazir-Light.woff')  format('woff');
+}
+@font-face {
+  font-family: 'Vazir';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Vazir/Vazir-Regular.woff2') format('woff2'),
+       url('/fonts/Vazir/Vazir-Regular.woff')  format('woff');
+}
+@font-face {
+  font-family: 'Vazir';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Vazir/Vazir-Medium.woff2') format('woff2'),
+       url('/fonts/Vazir/Vazir-Medium.woff')  format('woff');
+}
+@font-face {
+  font-family: 'Vazir';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Vazir/Vazir-Bold.woff2') format('woff2'),
+       url('/fonts/Vazir/Vazir-Bold.woff')  format('woff');
+}
+@font-face {
+  font-family: 'Vazir';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/Vazir/Vazir-Black.woff2') format('woff2'),
+       url('/fonts/Vazir/Vazir-Black.woff')  format('woff');
+}
+
 @theme {
   --color-background: #08080D;
   --color-card1: #1F1F23;
@@ -8,27 +52,43 @@
   --color-textPrimary: #F7F5F0;
   --color-textSecondary: #E8DCCA;
   --color-gold: #D4AF37;
+  /* form surfaces — theme-aware so light mode stays coherent */
+  --color-inputBg: #111115;
+  --color-inputBorder: #2A2A33;
+  --color-cardGold: #1C1810;  /* premium card wash behind the gold logo */
+  --font-sans: 'Vazir', 'Inter', 'Helvetica Neue', sans-serif;
 }
 
-/* Light mode overrides — applied when ThemeContext sets data-theme="light" on <html> */
+/* Light mode overrides — applied when ThemeContext sets data-theme="light" on <html>.
+   Palette is STRICTLY white + gold + blue, mirroring dark-mode contrast logic:
+   near-black bg -> white bg, blue cards stay blue (lighter), gold accent unchanged,
+   off-white text -> deep-blue text. */
 html[data-theme="light"] {
-  --color-background: #F5F2ED;
-  --color-card1: #EAE7E0;
-  --color-card2: #D8D4CC;
-  --color-card3: #C5C1B8;
-  --color-textPrimary: #1C1C1E;
-  --color-textSecondary: #6B6B70;
+  --color-background: #FFFFFF;
+  --color-card1: #EAF1FB;   /* whisper blue (was dark gray) */
+  --color-card2: #D4E4F7;   /* light blue */
+  --color-card3: #A9C8EE;   /* blue */
+  --color-textPrimary: #0B1D33;   /* deep blue ink */
+  --color-textSecondary: #3C5A82; /* muted blue */
+  --color-gold: #C08A1E;          /* deeper gold for contrast on white */
+  --color-inputBg: #F4F8FE;       /* near-white blue tint */
+  --color-inputBorder: #A9C8EE;   /* blue */
+  --color-cardGold: #FBF3DA;      /* pale gold over white */
 }
 
 @layer base {
+  html, body {
+    font-family: 'Vazir', 'Inter', 'Helvetica Neue', sans-serif;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-textPrimary);
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  [dir="rtl"] { font-family: 'Vazirmatn', sans-serif; }
-  [dir="ltr"] { font-family: 'Inter', 'Helvetica Neue', sans-serif; }
+  /* both directions render Vazir (it ships full Latin glyphs too) */
+  [dir="rtl"], [dir="ltr"] { font-family: 'Vazir', 'Inter', sans-serif; }
 
   button, [role="button"] { cursor: pointer; }
   button:disabled { cursor: not-allowed; }
@@ -48,3 +108,9 @@ html[data-theme="light"] {
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 .animate-toast-in { animation: toast-in 0.2s ease-out forwards; }
+
+@keyframes genre-drop {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-genre-drop { animation: genre-drop 0.2s ease-out forwards; }

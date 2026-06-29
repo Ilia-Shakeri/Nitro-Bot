@@ -3,28 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Tag } from 'lucide-react';
+import { Music, Image as ImageIcon, Calendar, User, AlignLeft } from 'lucide-react';
 import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
-
-// Values MUST match the DMB genre autocomplete labels exactly — the Kontor worker
-// types these into the DMB form and selects the first matching result.
-// Confirm/extend this list against the live DMB genre catalog (plan Part G).
-const GENRES = [
-  'HipHop / Rap [Urban]',
-  'Pop',
-  'Rock',
-  'Electronic / Dance',
-  'R&B / Soul',
-  'Classical',
-  'Jazz',
-  'Folk',
-  'Country',
-  'Reggae',
-  'Metal',
-  'World',
-];
+import { GenreSelect } from '../components/GenreSelect';
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
@@ -40,6 +23,7 @@ export const UploadPage = () => {
     legalName: '',
     releaseDate: '',
     genre: '',
+    subGenre: '',
     spotifyUrl: '',
     appleUrl: '',
     needsNewProfile: false,
@@ -78,6 +62,7 @@ export const UploadPage = () => {
       form.append('legal_name',  formData.legalName);
       form.append('release_date', formData.releaseDate);
       form.append('genre',        formData.genre);
+      if (formData.subGenre) form.append('sub_genre', formData.subGenre);
       if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
       if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
       form.append('requires_new_profile', formData.needsNewProfile.toString());
@@ -150,56 +135,49 @@ export const UploadPage = () => {
         <div className="space-y-4 mb-6">
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">3. {t('Song Name')}</h3>
-            <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
-              <Music className="w-5 h-5 text-gray-500 me-3 flex-shrink-0" />
+            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+              <Music className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
               <input type="text" value={formData.songName}
                 onChange={e => setFormData(f => ({ ...f, songName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-white placeholder-gray-600 font-ui"
+                className="bg-transparent border-none outline-none w-full text-textPrimary placeholder-textSecondary font-ui"
                 placeholder="Midnight Frequency" />
             </div>
           </div>
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">4. {t('Artist Name')}</h3>
-            <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
-              <User className="w-5 h-5 text-gray-500 me-3 flex-shrink-0" />
+            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+              <User className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
               <input type="text" value={formData.artistName}
                 onChange={e => setFormData(f => ({ ...f, artistName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-white placeholder-gray-600 font-ui"
+                className="bg-transparent border-none outline-none w-full text-textPrimary placeholder-textSecondary font-ui"
                 placeholder="Arman Vale" />
             </div>
           </div>
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">5. {t('Legal Name')}</h3>
-            <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
-              <AlignLeft className="w-5 h-5 text-gray-500 me-3 flex-shrink-0" />
+            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+              <AlignLeft className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
               <input type="text" value={formData.legalName}
                 onChange={e => setFormData(f => ({ ...f, legalName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-white placeholder-gray-600 font-ui"
+                className="bg-transparent border-none outline-none w-full text-textPrimary placeholder-textSecondary font-ui"
                 placeholder="Arman V. Rahimi" />
             </div>
           </div>
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">6. {t('Release Date')}</h3>
-            <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
-              <Calendar className="w-5 h-5 text-gray-500 me-3 flex-shrink-0" />
+            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+              <Calendar className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
               <PersianDatePicker onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))} />
             </div>
           </div>
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Genre')}</h3>
-            <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
-              <Tag className="w-5 h-5 text-gray-500 me-3 flex-shrink-0" />
-              <select
-                value={formData.genre}
-                onChange={e => setFormData(f => ({ ...f, genre: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-white font-ui appearance-none"
-              >
-                <option value="" disabled className="bg-[#111115]">{t('Select a genre')}</option>
-                {GENRES.map(g => (
-                  <option key={g} value={g} className="bg-[#111115]">{g}</option>
-                ))}
-              </select>
-            </div>
+            <GenreSelect
+              genre={formData.genre}
+              subGenre={formData.subGenre}
+              onGenreChange={g => setFormData(f => ({ ...f, genre: g }))}
+              onSubGenreChange={s => setFormData(f => ({ ...f, subGenre: s }))}
+            />
           </div>
         </div>
 
@@ -216,23 +194,23 @@ export const UploadPage = () => {
           <div className={`space-y-3 transition-opacity ${formData.needsNewProfile ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
             <div>
               <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Spotify')}</p>
-              <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
+              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
                 <img src="/Logo/Spotify.png" alt="Spotify" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
                 <input type="text" value={formData.spotifyUrl}
                   onChange={e => setFormData(f => ({ ...f, spotifyUrl: e.target.value }))}
                   disabled={formData.needsNewProfile}
-                  className="bg-transparent border-none outline-none w-full text-white text-sm font-ui placeholder-gray-600"
+                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui placeholder-textSecondary"
                   placeholder="https://open.spotify.com/..." />
               </div>
             </div>
             <div>
               <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Apple Music')}</p>
-              <div className="bg-[#111115] border border-gray-800 rounded-lg p-3 flex items-center">
+              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
                 <img src="/Logo/AppleMusic.png" alt="Apple Music" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
                 <input type="text" value={formData.appleUrl}
                   onChange={e => setFormData(f => ({ ...f, appleUrl: e.target.value }))}
                   disabled={formData.needsNewProfile}
-                  className="bg-transparent border-none outline-none w-full text-white text-sm font-ui placeholder-gray-600"
+                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui placeholder-textSecondary"
                   placeholder="https://music.apple.com/..." />
               </div>
             </div>
@@ -240,7 +218,7 @@ export const UploadPage = () => {
         </div>
 
         {/* 8. Additional Options */}
-        <div className="mb-8 p-4 bg-card1 rounded-xl border border-gray-800">
+        <div className="mb-8 p-4 bg-card1 rounded-xl border border-inputBorder">
           <div className="flex items-center mb-3">
             <input type="checkbox" id="isEdit" checked={formData.isEdit} onChange={handleToggleEdit}
               className="me-2 accent-gold w-4 h-4 flex-shrink-0" />

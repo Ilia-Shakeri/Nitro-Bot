@@ -31,7 +31,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="bg-card1 w-full max-w-sm rounded-2xl p-6 border border-gold/20 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-gray-400 hover:text-white">
+        <button onClick={onClose} className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-textSecondary hover:text-textPrimary">
           <X className="w-6 h-6" />
         </button>
 
@@ -44,7 +44,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               type="number"
               value={amount}
               onChange={e => setAmount(Number(e.target.value))}
-              className="w-full bg-[#111115] border border-gray-800 rounded-lg p-3 text-white outline-none"
+              className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 text-textPrimary outline-none"
               min="1"
             />
           </div>
@@ -54,7 +54,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <select
               value={method}
               onChange={e => setMethod(e.target.value)}
-              className="w-full bg-[#111115] border border-gray-800 rounded-lg p-3 text-white outline-none appearance-none"
+              className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 text-textPrimary outline-none appearance-none"
             >
               <option value="card">{t('Card to Card')}</option>
               <option value="tether">{t('Tether (USDT)')}</option>

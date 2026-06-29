@@ -44,7 +44,7 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
           ) : (
             <button
               onClick={() => setCreditsOpen(true)}
-              className="flex items-center gap-2 bg-black/40 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition"
+              className="flex items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition"
             >
               <div className="w-3.5 h-3.5 bg-gold rounded-full shadow-[0_0_8px_#D4AF37] flex-shrink-0" />
               <span className="text-textPrimary font-ui text-sm">
@@ -65,11 +65,11 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
 
           <button
             onClick={() => setProfileOpen(true)}
-            className="w-10 h-10 rounded-full border border-gold/30 shadow-md hover:border-gold/70 hover:shadow-[0_0_12px_rgba(212,175,55,0.3)] transition overflow-hidden bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center"
+            className="w-10 h-10 rounded-full border border-gold/30 shadow-md hover:border-gold/70 hover:shadow-[0_0_12px_rgba(212,175,55,0.3)] transition overflow-hidden bg-gradient-to-br from-card3 to-card2 flex items-center justify-center"
           >
             {user?.photo_url
               ? <img src={user.photo_url} alt={user.first_name} className="w-full h-full object-cover" />
-              : <span className="text-white font-title">{initial}</span>
+              : <span className="text-textPrimary font-title">{initial}</span>
             }
           </button>
         </div>

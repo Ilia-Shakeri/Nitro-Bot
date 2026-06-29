@@ -107,7 +107,7 @@ export const PersianDatePicker = ({ onChange }: Props) => {
   return (
     <div className="relative w-full" ref={ref} dir="rtl">
       <button type="button" onClick={() => setOpen(o => !o)} className="w-full text-start bg-transparent border-none outline-none">
-        <span className={`font-ui text-sm ${sel ? 'text-white' : 'text-gray-500'}`}>{displayLabel}</span>
+        <span className={`font-ui text-sm ${sel ? 'text-textPrimary' : 'text-textSecondary'}`}>{displayLabel}</span>
       </button>
 
       {open && (
