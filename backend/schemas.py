@@ -25,6 +25,7 @@ class TransactionOut(BaseModel):
     id: int
     amount: int
     status: str
+    payment_method: str
     created_at: datetime
 
 

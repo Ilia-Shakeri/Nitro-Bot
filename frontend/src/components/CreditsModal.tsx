@@ -66,7 +66,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
                 {txs.slice(0, 10).map(tx => (
                   <div key={tx.id} className="flex justify-between items-center bg-background rounded-xl px-4 py-2">
                     <span className="font-light-ui text-xs text-textSecondary">
-                      {new Date(tx.created_at).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US')}
+                      {new Date(tx.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                     </span>
                     <span className={`font-ui text-sm ${tx.amount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {tx.amount >= 0 ? '+' : ''}{tx.amount}

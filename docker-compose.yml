@@ -26,13 +26,27 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-nitrodb}
       POSTGRES_USER: ${POSTGRES_USER:-nitro_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Image already gzips every dump — don't double-compress here.
+      # Take a dump the moment the service starts, then run on schedule.
+      BACKUP_ON_START: "TRUE"
       SCHEDULE: "@daily"
+      # Grandfather-father-son retention so old data is recoverable for months.
       BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      # Internal healthcheck server (fails if last backup is too old).
+      HEALTHCHECK_PORT: 8080
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./backups:/backups
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 1m
     networks:
       - nitro_internal_net
 
@@ -111,9 +125,13 @@ services:
     networks:
       - nitro_internal_net
 
+# Explicit names pin the volumes so a project-name change or `--build` can never
+# silently create fresh empty volumes. Data survives recreation forever.
 volumes:
   pgdata:
+    name: nitro_bot_pgdata
   miniodata:
+    name: nitro_bot_miniodata
 
 networks:
   nitro_internal_net:

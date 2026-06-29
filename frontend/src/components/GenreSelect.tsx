@@ -1,9 +1,7 @@
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tag, ChevronDown, ListTree } from 'lucide-react';
 
-// Primary genres MUST match the DMB genre autocomplete labels exactly (the Kontor
-// worker types the primary value into the DMB form). Subgenres are extra metadata
-// sent as `sub_genre`; an empty subgenre list means the genre has no nesting.
 export const GENRE_TREE: Record<string, string[]> = {
   'HipHop / Rap [Urban]': ['Trap', 'Drill', 'Boom Bap', 'Gangsta Rap', 'Conscious', 'Cloud Rap'],
   'Pop':                  ['Dance Pop', 'Synth Pop', 'Indie Pop', 'Electropop', 'K-Pop'],
@@ -26,10 +24,69 @@ interface Props {
   onSubGenreChange: (subGenre: string) => void;
 }
 
-const fieldClass =
-  'bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center transition-colors';
-const selectClass =
-  'bg-transparent border-none outline-none w-full text-textPrimary font-ui appearance-none';
+interface DropdownProps {
+  icon: React.ReactNode;
+  value: string;
+  placeholder: string;
+  options: string[];
+  onChange: (val: string) => void;
+}
+
+const CustomDropdown = ({ icon, value, placeholder, options, onChange }: DropdownProps) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={[
+          'w-full bg-inputBg border rounded-lg p-3 flex items-center gap-3 transition-all duration-200',
+          open ? 'border-gold/60 shadow-[0_0_0_2px_rgba(212,175,55,0.15)]' : 'border-inputBorder hover:border-gold/40',
+        ].join(' ')}
+      >
+        {icon}
+        <span className={`flex-1 text-start font-ui text-sm ${value ? 'text-textPrimary' : 'text-textSecondary'}`}>
+          {value || placeholder}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-textSecondary flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180 text-gold' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-1.5 z-50 w-full rounded-xl border border-gold/20 bg-card1 shadow-[0_8px_32px_rgba(0,0,0,0.65)] overflow-hidden">
+          <div className="max-h-52 overflow-y-auto hide-scrollbar py-1">
+            {options.map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { onChange(opt); setOpen(false); }}
+                className={[
+                  'w-full text-start px-4 py-2.5 text-sm font-ui transition-colors',
+                  value === opt
+                    ? 'text-gold bg-gold/10 font-ui'
+                    : 'text-textPrimary hover:bg-gold/10 hover:text-gold',
+                ].join(' ')}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const GenreSelect = ({ genre, subGenre, onGenreChange, onSubGenreChange }: Props) => {
   const { t } = useTranslation();
@@ -38,44 +95,23 @@ export const GenreSelect = ({ genre, subGenre, onGenreChange, onSubGenreChange }
 
   return (
     <div className="space-y-3">
-      {/* Primary genre */}
-      <div className={fieldClass}>
-        <Tag className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-        <select
-          value={genre}
-          onChange={e => {
-            onGenreChange(e.target.value);
-            onSubGenreChange(''); // reset child when parent changes
-          }}
-          className={selectClass}
-        >
-          <option value="" disabled className="bg-inputBg text-textPrimary">
-            {t('Select a genre')}
-          </option>
-          {Object.keys(GENRE_TREE).map(g => (
-            <option key={g} value={g} className="bg-inputBg text-textPrimary">{g}</option>
-          ))}
-        </select>
-        <ChevronDown className="w-4 h-4 text-textSecondary ms-2 flex-shrink-0" />
-      </div>
+      <CustomDropdown
+        icon={<Tag className="w-5 h-5 text-textSecondary flex-shrink-0" />}
+        value={genre}
+        placeholder={t('Select a genre')}
+        options={Object.keys(GENRE_TREE)}
+        onChange={val => { onGenreChange(val); onSubGenreChange(''); }}
+      />
 
-      {/* Secondary genre — mounts only when the parent has subgenres */}
       {hasSub && (
-        <div className={`${fieldClass} animate-genre-drop`}>
-          <ListTree className="w-5 h-5 text-gold me-3 flex-shrink-0" />
-          <select
+        <div className="animate-genre-drop">
+          <CustomDropdown
+            icon={<ListTree className="w-5 h-5 text-gold flex-shrink-0" />}
             value={subGenre}
-            onChange={e => onSubGenreChange(e.target.value)}
-            className={selectClass}
-          >
-            <option value="" className="bg-inputBg text-textPrimary">
-              {t('Select a subgenre')}
-            </option>
-            {subGenres.map(s => (
-              <option key={s} value={s} className="bg-inputBg text-textPrimary">{s}</option>
-            ))}
-          </select>
-          <ChevronDown className="w-4 h-4 text-textSecondary ms-2 flex-shrink-0" />
+            placeholder={t('Select a subgenre')}
+            options={subGenres}
+            onChange={onSubGenreChange}
+          />
         </div>
       )}
     </div>
