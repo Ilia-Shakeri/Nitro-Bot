@@ -25,7 +25,7 @@ export const NitroCreditCard = ({ onRefillClick }: Props) => {
           </div>
 
           <div className="flex-1">
-            <h2 className="text-3xl font-title text-gold mb-1">{t('Nitro')}</h2>
+            <h2 className="text-3xl font-title text-gold mb-3">{t('Nitro')}</h2>
             <p className="text-sm font-ui text-textSecondary leading-relaxed">
               {t('Refill your credits and keep creating music.')}
             </p>

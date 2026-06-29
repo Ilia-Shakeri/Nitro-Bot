@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft } from 'lucide-react';
+import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone, Instagram } from 'lucide-react';
 import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
@@ -29,6 +29,9 @@ export const UploadPage = () => {
     needsNewProfile: false,
     isEdit: false,
     copyrightRequested: false,
+    profileEmail: '',
+    profilePhone: '',
+    profileInstagram: '',
   });
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -63,8 +66,13 @@ export const UploadPage = () => {
       form.append('release_date', formData.releaseDate);
       form.append('genre',        formData.genre);
       if (formData.subGenre) form.append('sub_genre', formData.subGenre);
-      if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
-      if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
+      if (!formData.needsNewProfile) {
+        if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
+        if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
+      }
+      if (formData.profileEmail)     form.append('profile_email',     formData.profileEmail);
+      if (formData.profilePhone)     form.append('profile_phone',     formData.profilePhone);
+      if (formData.profileInstagram) form.append('profile_instagram', formData.profileInstagram);
       form.append('requires_new_profile', formData.needsNewProfile.toString());
       form.append('is_edit',              formData.isEdit.toString());
       form.append('copyright_requested',  formData.copyrightRequested.toString());
@@ -122,7 +130,7 @@ export const UploadPage = () => {
             className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8" />
           <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
             <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
-              <ImageIcon className="text-textPrimary w-6 h-6" />
+              <ImageIcon className="text-gold w-6 h-6" />
             </div>
             <div>
               <p className="font-ui">{coverFile ? coverFile.name : t('Drop cover art or choose file')}</p>
@@ -191,32 +199,61 @@ export const UploadPage = () => {
               {t("I don't have a profile (Create one for me)")}
             </label>
           </div>
-          <div className={`space-y-3 transition-opacity ${formData.needsNewProfile ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-            <div>
-              <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Spotify')}</p>
-              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                <img src="/Logo/Spotify.png" alt="Spotify" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
-                <input type="text" value={formData.spotifyUrl}
-                  onChange={e => setFormData(f => ({ ...f, spotifyUrl: e.target.value }))}
-                  disabled={formData.needsNewProfile}
-                  dir="ltr"
-                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                  placeholder="https://open.spotify.com/..." />
+
+          {!formData.needsNewProfile ? (
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Spotify')}</p>
+                <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+                  <img src="/Logo/Spotify.png" alt="Spotify" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
+                  <input type="text" value={formData.spotifyUrl}
+                    onChange={e => setFormData(f => ({ ...f, spotifyUrl: e.target.value }))}
+                    dir="ltr"
+                    className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
+                    placeholder="https://open.spotify.com/..." />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Apple Music')}</p>
+                <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+                  <img src="/Logo/AppleMusic.png" alt="Apple Music" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
+                  <input type="text" value={formData.appleUrl}
+                    onChange={e => setFormData(f => ({ ...f, appleUrl: e.target.value }))}
+                    dir="ltr"
+                    className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
+                    placeholder="https://music.apple.com/..." />
+                </div>
               </div>
             </div>
-            <div>
-              <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Apple Music')}</p>
+          ) : (
+            <div className="space-y-3 bg-gold/5 border border-gold/20 rounded-xl p-4">
+              <p className="text-xs font-ui text-gold mb-2">{t('New profile info needed')}</p>
               <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                <img src="/Logo/AppleMusic.png" alt="Apple Music" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
-                <input type="text" value={formData.appleUrl}
-                  onChange={e => setFormData(f => ({ ...f, appleUrl: e.target.value }))}
-                  disabled={formData.needsNewProfile}
+                <Mail className="w-5 h-5 text-gold me-3 flex-shrink-0" />
+                <input type="email" value={formData.profileEmail}
+                  onChange={e => setFormData(f => ({ ...f, profileEmail: e.target.value }))}
                   dir="ltr"
                   className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                  placeholder="https://music.apple.com/..." />
+                  placeholder={t('Profile Email')} />
+              </div>
+              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+                <Phone className="w-5 h-5 text-gold me-3 flex-shrink-0" />
+                <input type="tel" value={formData.profilePhone}
+                  onChange={e => setFormData(f => ({ ...f, profilePhone: e.target.value }))}
+                  dir="ltr"
+                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
+                  placeholder={t('Profile Phone')} />
+              </div>
+              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
+                <Instagram className="w-5 h-5 text-gold me-3 flex-shrink-0" />
+                <input type="text" value={formData.profileInstagram}
+                  onChange={e => setFormData(f => ({ ...f, profileInstagram: e.target.value }))}
+                  dir="ltr"
+                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
+                  placeholder={t('Profile Instagram')} />
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 8. Additional Options */}

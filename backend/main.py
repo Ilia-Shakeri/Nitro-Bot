@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import storage
 from bot import bot, dp
 from middleware import RateLimitMiddleware
-from routers import internal, releases, transactions, users
+from routers import internal, releases, transactions, users, support
 
 _MINI_APP_URL = os.getenv("MINI_APP_URL", "https://nitrobot.duckdns.org")
 
@@ -37,3 +37,4 @@ app.include_router(users.router)
 app.include_router(releases.router)
 app.include_router(transactions.router)
 app.include_router(internal.router)
+app.include_router(support.router)

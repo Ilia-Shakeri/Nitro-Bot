@@ -72,7 +72,7 @@ const CustomDropdown = ({ icon, value, placeholder, options, onChange }: Dropdow
                 type="button"
                 onClick={() => { onChange(opt); setOpen(false); }}
                 className={[
-                  'w-full text-start px-4 py-2.5 text-sm font-ui transition-colors',
+                  'w-full text-center px-4 py-2.5 text-sm font-ui transition-colors',
                   value === opt
                     ? 'text-gold bg-gold/10 font-ui'
                     : 'text-textPrimary hover:bg-gold/10 hover:text-gold',

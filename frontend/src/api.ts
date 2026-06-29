@@ -42,6 +42,13 @@ export const submitRelease = (formData: FormData) =>
     { method: 'POST', body: formData },
   );
 
+export const submitTicket = (subject: string, message: string) =>
+  request<{ status: string }>('/support/tickets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subject, message }),
+  });
+
 export const submitReceipt = (file: File, amount: number, paymentMethod: string) => {
   const form = new FormData();
   form.append('amount', amount.toString());

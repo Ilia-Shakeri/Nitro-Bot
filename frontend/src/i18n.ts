@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   en: {
     translation: {
-      "My Music": "My Music",
+      "My Music": "My Musics",
       "Ordered by your most listened tracks": "Ordered by your most listened tracks",
       "Drop Your Art": "Drop Your Art",
       "Upload audio, tracks or artwork": "Upload audio, tracks or artwork",
@@ -30,7 +30,7 @@ const resources = {
       "Apple Music": "Apple Music",
       "Let's Cook!": "Let's Cook!",
       "I don't have a profile (Create one for me)": "I don't have a profile (Create one for me)",
-      "Credits": "Credits",
+      "Credits": "Nitros",
       "Edit Previous Release (1 Nitro)": "Edit Previous Release (1 Nitro)",
       "Add Copyright Protection (+2 Nitro)": "Add Copyright Protection (+2 Nitro)",
       "Payment Method": "Payment Method",
@@ -49,7 +49,17 @@ const resources = {
       "Receipt submitted successfully. Awaiting admin approval.": "Receipt submitted successfully. Awaiting admin approval.",
       "No releases yet": "No releases yet",
       "Please fill all required fields.": "Please fill all required fields.",
-      "Release submitted successfully!": "Release submitted successfully!"
+      "Release submitted successfully!": "Release submitted successfully!",
+      "Contact Support": "Contact Support",
+      "Support": "Support",
+      "Write your message here...": "Write your message here...",
+      "Subject (optional)": "Subject (optional)",
+      "Send Ticket": "Send Ticket",
+      "Ticket sent successfully!": "Ticket sent successfully!",
+      "Profile Email": "Email Address",
+      "Profile Phone": "Phone Number",
+      "Profile Instagram": "Instagram Handle",
+      "New profile info needed": "We'll create your artist profile — please fill in your details below."
     }
   },
   fa: {
@@ -99,7 +109,17 @@ const resources = {
       "Receipt submitted successfully. Awaiting admin approval.": "رسید با موفقیت ثبت شد. در انتظار تأیید ادمین.",
       "No releases yet": "هنوز ریلیزی نیست",
       "Please fill all required fields.": "لطفاً همه فیلدهای ضروری را پر کنید.",
-      "Release submitted successfully!": "ریلیز با موفقیت ارسال شد!"
+      "Release submitted successfully!": "ریلیز با موفقیت ارسال شد!",
+      "Contact Support": "تیکت پشتیبانی",
+      "Support": "پشتیبانی",
+      "Write your message here...": "پیام خود را اینجا بنویسید...",
+      "Subject (optional)": "موضوع (اختیاری)",
+      "Send Ticket": "ارسال تیکت",
+      "Ticket sent successfully!": "تیکت با موفقیت ارسال شد!",
+      "Profile Email": "آدرس ایمیل",
+      "Profile Phone": "شماره تلفن",
+      "Profile Instagram": "اینستاگرام",
+      "New profile info needed": "پروفایل هنری شما ساخته می‌شود — اطلاعات زیر را پر کنید."
     }
   }
 };

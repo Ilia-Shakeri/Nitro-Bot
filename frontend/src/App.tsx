@@ -5,6 +5,7 @@ import { UserProvider } from './context/UserContext';
 import { ToastContainer } from './components/Toast';
 import { HomePage } from './pages/HomePage';
 import { UploadPage } from './pages/UploadPage';
+import { SupportPage } from './pages/SupportPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/upload" element={<UploadPage />} />
+            <Route path="/support" element={<SupportPage />} />
           </Routes>
           <ToastContainer />
         </UserProvider>

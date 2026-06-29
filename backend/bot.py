@@ -51,6 +51,19 @@ async def cmd_start(message: types.Message):
     await message.answer(_TRANSLATIONS[lang]["welcome"], reply_markup=builder.as_markup())
 
 
+async def notify_admin_new_ticket(tg_id: int, name: str, username: str, subject: str, message: str):
+    subj_line = f"Subject: {subject}\n" if subject else ""
+    await bot.send_message(
+        chat_id=ADMIN_GROUP_ID,
+        text=(
+            f"New Support Ticket!\n"
+            f"From: {name} ({username}) [ID:{tg_id}]\n"
+            f"{subj_line}"
+            f"\n{message}"
+        ),
+    )
+
+
 async def notify_admin_new_receipt(tx_id: int, amount: int, payment_method: str, receipt_url: str):
     builder = InlineKeyboardBuilder()
     builder.row(

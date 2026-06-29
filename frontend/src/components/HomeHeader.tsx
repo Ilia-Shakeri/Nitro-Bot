@@ -48,7 +48,7 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
             >
               <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
               <span className="text-textPrimary font-ui text-sm">
-                {credits.toLocaleString()} {t('Credits')}
+                {isRTL ? credits.toLocaleString('fa-IR') : credits.toLocaleString()} {t('Credits')}
               </span>
             </button>
           )}

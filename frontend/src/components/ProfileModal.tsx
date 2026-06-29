@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { X, Moon, Sun, LifeBuoy, TrendingUp, TrendingDown } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import WebApp from '@twa-dev/sdk';
@@ -11,6 +12,7 @@ interface Props { isOpen: boolean; onClose: () => void; }
 export const ProfileModal = ({ isOpen, onClose }: Props) => {
   const { t, i18n } = useTranslation();
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
   const isRTL = i18n.language === 'fa';
   const user = WebApp.initDataUnsafe?.user;
   const name = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : 'User';
@@ -21,7 +23,8 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
   const [releases, setReleases] = useState<Release[]>([]);
 
   const openSupport = () => {
-    try { WebApp.openTelegramLink('https://t.me/nitrobot_support'); } catch { /* noop */ }
+    onClose();
+    navigate('/support');
   };
 
   useEffect(() => {
