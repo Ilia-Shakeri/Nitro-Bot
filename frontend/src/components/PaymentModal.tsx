@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Upload } from 'lucide-react';
 import { submitReceipt } from '../api';
 import { useToast } from '../context/ToastContext';
+import { PaymentDetails } from './PaymentDetails';
 
 export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="bg-card1 w-full max-w-sm rounded-2xl p-6 border border-gold/20 relative">
+      <div className="bg-card1 w-full max-w-sm rounded-2xl p-6 border border-gold/20 relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-textSecondary hover:text-textPrimary">
           <X className="w-6 h-6" />
         </button>
@@ -57,9 +58,13 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 text-textPrimary outline-none appearance-none"
             >
               <option value="card">{t('Card to Card')}</option>
-              <option value="tether">{t('Tether (USDT)')}</option>
+              <option value="btc">{t('Bitcoin (BTC)')}</option>
+              <option value="usdt">{t('USDT (TRC20)')}</option>
             </select>
           </div>
+
+          {/* Destination details (card / crypto) with 1-click copy */}
+          <PaymentDetails method={method} />
 
           <div className="pt-2">
             <input

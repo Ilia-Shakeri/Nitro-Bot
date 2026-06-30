@@ -1,5 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { toFaNum } from './utils/faNum';
 
 const resources = {
   en: {
@@ -36,11 +37,23 @@ const resources = {
       "Payment Method": "Payment Method",
       "Card to Card": "Card to Card",
       "Tether (USDT)": "Tether (USDT)",
+      "Bitcoin (BTC)": "Bitcoin (BTC)",
+      "USDT (TRC20)": "USDT (TRC20)",
+      "Card Number": "Card Number",
+      "Card Holder": "Card Holder",
+      "Wallet Address": "Wallet Address",
+      "Network": "Network",
+      "Send the exact amount, then upload the transaction receipt below.": "Send the exact amount, then upload the transaction receipt below.",
+      "Copied to clipboard": "Copied to clipboard",
+      "Copy failed": "Copy failed",
       "Submit Receipt": "Submit Receipt",
       "Switch to Light Mode": "Light Mode",
       "Switch to Dark Mode": "Dark Mode",
       "Contact Support": "Contact Support",
       "Recent Transactions": "Recent Transactions",
+      "approved": "Approved",
+      "pending": "Pending",
+      "rejected": "Rejected",
       "No transactions yet": "No transactions yet",
       "Your Balance": "Your Balance",
       "Nitro Credits": "Nitro Credits",
@@ -95,11 +108,23 @@ const resources = {
       "Payment Method": "روش پرداخت",
       "Card to Card": "کارت به کارت",
       "Tether (USDT)": "تتر (USDT)",
+      "Bitcoin (BTC)": "بیت‌کوین (BTC)",
+      "USDT (TRC20)": "تتر (TRC20)",
+      "Card Number": "شماره کارت",
+      "Card Holder": "صاحب کارت",
+      "Wallet Address": "آدرس کیف پول",
+      "Network": "شبکه",
+      "Send the exact amount, then upload the transaction receipt below.": "مبلغ دقیق را واریز کنید، سپس رسید تراکنش را در پایین آپلود کنید.",
+      "Copied to clipboard": "در کلیپ‌بورد کپی شد",
+      "Copy failed": "کپی ناموفق بود",
       "Submit Receipt": "ثبت رسید",
       "Switch to Light Mode": "حالت روشن",
       "Switch to Dark Mode": "حالت تاریک",
       "Contact Support": "تیکت پشتیبانی",
       "Recent Transactions": "تراکنش‌های اخیر",
+      "approved": "تأیید شده",
+      "pending": "در انتظار",
+      "rejected": "رد شده",
       "No transactions yet": "هنوز تراکنشی نیست",
       "Your Balance": "موجودی شما",
       "Nitro Credits": "اعتبار نیترو",
@@ -126,10 +151,14 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: "fa", 
+    lng: "fa",
     fallbackLng: "en",
     interpolation: {
-      escapeValue: false
+      escapeValue: false,
+      // Convert digits in any interpolated value to Persian numerals in fa mode,
+      // so {{...}} placeholders never leak ASCII numbers into the UI.
+      format: (value, _format, lng) =>
+        lng?.startsWith('fa') ? toFaNum(String(value)) : String(value),
     }
   });
 

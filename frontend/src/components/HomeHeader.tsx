@@ -5,6 +5,7 @@ import { ArrowRight, ArrowLeft } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { ProfileModal } from './ProfileModal';
 import { CreditsModal } from './CreditsModal';
+import { localizeNumber } from '../utils/faNum';
 
 interface Props {
   credits: number;
@@ -27,9 +28,31 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
 
   return (
     <>
-      <div className="flex justify-between items-center py-4 px-4 w-full relative z-10">
+      {/* dir is forced LTR so the avatar + language toggle stay anchored to the
+          physical left of the header and never swap sides on RTL/LTR toggle. */}
+      <div dir="ltr" className="flex justify-between items-center py-4 px-4 w-full relative z-10">
 
-        {/* Left: back button (sub-pages) or credits badge (home) */}
+        {/* Left (always): user avatar + language toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setProfileOpen(true)}
+            className="w-10 h-10 rounded-full border border-gold/30 shadow-md hover:border-gold/70 hover:shadow-[0_0_12px_rgba(212,175,55,0.3)] transition overflow-hidden bg-gradient-to-br from-card3 to-card2 flex items-center justify-center flex-shrink-0"
+          >
+            {user?.photo_url
+              ? <img src={user.photo_url} alt={user.first_name} className="w-full h-full object-cover" />
+              : <span className="text-textPrimary font-title">{initial}</span>
+            }
+          </button>
+
+          <button
+            onClick={onLangToggle}
+            className="text-xs bg-card1 border border-card3 text-textPrimary px-3 py-1.5 rounded-lg font-ui hover:bg-card3/50 transition-all duration-200 active:scale-95"
+          >
+            {isRTL ? 'EN' : 'FA'}
+          </button>
+        </div>
+
+        {/* Right: back button (sub-pages) or credits badge (home) */}
         <div className="flex items-center gap-2">
           {!isHome ? (
             <button
@@ -48,30 +71,10 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
             >
               <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
               <span className="text-textPrimary font-ui text-sm">
-                {isRTL ? credits.toLocaleString('fa-IR') : credits.toLocaleString()} {t('Credits')}
+                {localizeNumber(credits, lang)} {t('Credits')}
               </span>
             </button>
           )}
-        </div>
-
-        {/* Right: language toggle + avatar */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onLangToggle}
-            className="text-xs bg-card1 border border-card3 text-textPrimary px-3 py-1.5 rounded-lg font-ui hover:bg-card3/50 transition-all duration-200 active:scale-95"
-          >
-            {isRTL ? 'EN' : 'FA'}
-          </button>
-
-          <button
-            onClick={() => setProfileOpen(true)}
-            className="w-10 h-10 rounded-full border border-gold/30 shadow-md hover:border-gold/70 hover:shadow-[0_0_12px_rgba(212,175,55,0.3)] transition overflow-hidden bg-gradient-to-br from-card3 to-card2 flex items-center justify-center"
-          >
-            {user?.photo_url
-              ? <img src={user.photo_url} alt={user.first_name} className="w-full h-full object-cover" />
-              : <span className="text-textPrimary font-title">{initial}</span>
-            }
-          </button>
         </div>
       </div>
 

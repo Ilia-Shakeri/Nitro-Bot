@@ -4,8 +4,33 @@ import type { User, Transaction, Release } from './types/api';
 const isDev = import.meta.env.MODE === 'development';
 const BASE   = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
 
+/**
+ * Resolve the signed Telegram initData string used to authenticate the user.
+ * Order of preference:
+ *   1. WebApp.initData from the SDK (already a signed query string).
+ *   2. window.Telegram.WebApp.initData — covers cases where the SDK singleton
+ *      is initialised before Telegram injects the global (StrictMode re-mounts).
+ *   3. Rebuild a query string from initDataUnsafe as a last resort. This is NOT
+ *      signed, so it only authenticates when the backend runs with
+ *      SKIP_TELEGRAM_AUTH=true (local dev); in production it fails closed.
+ */
+const getInitData = (): string => {
+  if (WebApp.initData) return WebApp.initData;
+
+  const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
+  if (tg?.initData) return tg.initData;
+
+  const unsafe = WebApp.initDataUnsafe as Record<string, unknown> | undefined;
+  if (unsafe && Object.keys(unsafe).length > 0) {
+    return Object.entries(unsafe)
+      .map(([k, v]) => `${k}=${encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : String(v))}`)
+      .join('&');
+  }
+  return '';
+};
+
 const authHeaders = (): HeadersInit => ({
-  'X-Telegram-Init-Data': WebApp.initData || '',
+  'X-Telegram-Init-Data': getInitData(),
 });
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

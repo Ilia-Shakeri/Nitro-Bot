@@ -37,10 +37,17 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
   if (!isOpen) return null;
 
   const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    new Date(iso).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   const statusLabel = (s: string) =>
-    s === 'approved' ? 'تایید شده' : s === 'pending' ? 'در انتظار' : s === 'rejected' ? 'رد شده' : s;
+    s === 'approved' ? 'تایید شده'
+      : s === 'pending' ? 'در انتظار'
+      : s === 'rejected' ? 'رد شده'
+      : s === 'staging' ? 'در حال بررسی'
+      : s === 'processing' ? 'در حال پردازش'
+      : s === 'completed' ? 'منتشر شده'
+      : s === 'failed' ? 'ناموفق'
+      : s;
 
   const statusColor = (s: string) =>
     s === 'approved' ? 'text-emerald-400' : s === 'pending' ? 'text-amber-400' : 'text-rose-400';
@@ -145,12 +152,14 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
                       <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-ui text-textPrimary">
-                          +{tx.amount.toLocaleString()} نیترو
+                          +{tx.amount.toLocaleString('fa-IR')} نیترو
                         </p>
                         <p className="text-xs font-light-ui text-textSecondary">
                           {fmtDate(tx.created_at)}
                           {' · '}
-                          {tx.payment_method === 'tether' ? 'تتر' : 'کارت بانکی'}
+                          {tx.payment_method === 'usdt' || tx.payment_method === 'tether' ? 'تتر (USDT)'
+                            : tx.payment_method === 'btc' ? 'بیت‌کوین (BTC)'
+                            : 'کارت بانکی'}
                         </p>
                       </div>
                       <span className={`text-xs font-ui flex-shrink-0 ${statusColor(tx.status)}`}>

@@ -11,6 +11,10 @@ from bot import notify_admin_new_receipt
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
+# card = Blu Bank card-to-card, btc = Bitcoin, usdt = Tether TRC20.
+# "tether" kept for backwards compatibility with older clients.
+ALLOWED_PAYMENT_METHODS = {"card", "btc", "usdt", "tether"}
+
 
 @router.post("/receipt", response_model=ReceiptSubmitResponse)
 async def submit_receipt(
@@ -22,8 +26,11 @@ async def submit_receipt(
 ):
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
-    if payment_method not in ("card", "tether"):
-        raise HTTPException(status_code=400, detail="Invalid payment method. Allowed: card, tether")
+    if payment_method not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid payment method. Allowed: {', '.join(sorted(ALLOWED_PAYMENT_METHODS))}",
+        )
 
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalars().first()
@@ -44,6 +51,15 @@ async def submit_receipt(
     await db.commit()
     await db.refresh(tx)
 
-    presigned_url = await storage.presign(receipt_key)
-    await notify_admin_new_receipt(tx.id, amount, payment_method, presigned_url)
+    # Forward the actual receipt image (uploaded by bytes — MinIO's internal URL is
+    # not reachable by Telegram's servers) plus submitter details to the admin group.
+    submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
+    await notify_admin_new_receipt(
+        tx_id=tx.id,
+        amount=amount,
+        payment_method=payment_method,
+        submitter=submitter,
+        receipt_bytes=receipt_bytes,
+        receipt_filename=receipt.filename or "receipt.jpg",
+    )
     return {"status": "ok", "transaction_id": tx.id}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { getTransactions } from '../api';
+import { localizeNumber, toFaNum } from '../utils/faNum';
 
 interface Tx { id: number; amount: number; status: string; created_at: string; }
 
@@ -50,7 +51,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
           {/* Balance card */}
           <div className="bg-background rounded-2xl p-5 border border-gold/20 text-center">
             <p className="text-sm font-ui text-textSecondary mb-1">{t('Your Balance')}</p>
-            <p className="text-4xl font-title text-gold">{balance.toLocaleString()}</p>
+            <p className="text-4xl font-title text-gold">{localizeNumber(balance, i18n.language)}</p>
             <p className="text-xs font-light-ui text-textSecondary mt-1">{t('Nitro Credits')}</p>
           </div>
 
@@ -66,13 +67,13 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
                 {txs.slice(0, 10).map(tx => (
                   <div key={tx.id} className="flex justify-between items-center bg-background rounded-xl px-4 py-2">
                     <span className="font-light-ui text-xs text-textSecondary">
-                      {new Date(tx.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      {new Date(tx.created_at).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                     </span>
                     <span className={`font-ui text-sm ${tx.amount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {tx.amount >= 0 ? '+' : ''}{tx.amount}
+                      {tx.amount >= 0 ? '+' : '-'}{isRTL ? toFaNum(Math.abs(tx.amount)) : Math.abs(tx.amount)}
                     </span>
                     <span className={`font-light-ui text-xs ${tx.status === 'approved' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {tx.status}
+                      {t(tx.status)}
                     </span>
                   </div>
                 ))}

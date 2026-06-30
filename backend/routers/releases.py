@@ -7,6 +7,7 @@ from database import get_db
 from models import User, Release
 from schemas import ReleaseCreateResponse
 import storage
+from bot import notify_admin_new_release
 
 router = APIRouter(prefix="/releases", tags=["releases"])
 
@@ -41,8 +42,12 @@ async def create_release(
     audio_bytes = await storage.read_audio(audio)
     cover_bytes = await storage.read_image(cover)
 
-    audio_key = await storage.upload(audio_bytes, f"releases/{tg_id}", audio.filename or "audio")
-    cover_key = await storage.upload(cover_bytes, f"releases/{tg_id}", cover.filename or "cover")
+    # Media processing in-process (no n8n): WAV for the worker, square >=3000px cover.
+    wav_bytes = await storage.convert_audio_to_wav(audio_bytes)
+    cover_bytes, cover_ext = await storage.process_cover(cover_bytes)
+
+    audio_key = await storage.upload(wav_bytes, f"releases/{tg_id}", "track.wav")
+    cover_key = await storage.upload(cover_bytes, f"releases/{tg_id}", f"cover.{cover_ext}")
 
     release = Release(
         user_id=tg_id,
@@ -58,12 +63,28 @@ async def create_release(
         requires_new_profile=requires_new_profile,
         is_edit=is_edit,
         copyright_requested=copyright_requested,
-        status="pending",
+        # Staging phase: 'staging' is intentionally NOT 'pending', so the
+        # DMB-automation worker (which polls status == 'pending') never picks it up.
+        status="staging",
     )
     user.credits -= total_cost
     db.add(release)
     await db.commit()
     await db.refresh(release)
+
+    # Send the staged release to the admin Order topic for manual review.
+    submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
+    await notify_admin_new_release(
+        release_id=release.id,
+        song_name=song_name,
+        artist_name=artist_name,
+        genre=genre,
+        release_date=release_date,
+        cost=total_cost,
+        submitter=submitter,
+        cover_bytes=cover_bytes,
+        cover_filename=f"cover.{cover_ext}",
+    )
     return {
         "status": "ok",
         "release_id": release.id,
