@@ -79,5 +79,11 @@ class LanguageResponse(BaseModel):
     language: str
 
 
+class UsdtRateOut(BaseModel):
+    # Live USDT price in Toman, used to compute the crypto amount for a top-up.
+    rate_toman: int
+    cached: bool
+
+
 class OkResponse(BaseModel):
     status: str

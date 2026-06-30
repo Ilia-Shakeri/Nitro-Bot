@@ -74,6 +74,9 @@ export const submitTicket = (subject: string, message: string) =>
     body: JSON.stringify({ subject, message }),
   });
 
+export const getUsdtRate = () =>
+  request<{ rate_toman: number; cached: boolean }>('/transactions/usdt-rate');
+
 export const submitReceipt = (file: File, amount: number, paymentMethod: string) => {
   const form = new FormData();
   form.append('amount', amount.toString());

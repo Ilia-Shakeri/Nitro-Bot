@@ -1,5 +1,8 @@
 import logging
+import os
+import time
 
+import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -7,7 +10,7 @@ from sqlalchemy.future import select
 from auth import get_tg_id
 from database import get_db
 from models import User, Transaction
-from schemas import ReceiptSubmitResponse
+from schemas import ReceiptSubmitResponse, UsdtRateOut
 import storage
 from bot import notify_admin_new_receipt
 
@@ -18,6 +21,56 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 # card = Blu Bank card-to-card, btc = Bitcoin, usdt = Tether TRC20.
 # "tether" kept for backwards compatibility with older clients.
 ALLOWED_PAYMENT_METHODS = {"card", "btc", "usdt", "tether"}
+
+# Live USDT/Toman rate proxy. We fetch server-side (no browser CORS / geo issues)
+# and cache the result so a burst of clients never hammers the exchange.
+# `or` (not getenv default) so an empty value from compose still falls back.
+_RATE_URL = os.getenv("USDT_RATE_URL") or \
+    "https://api.nobitex.ir/market/stats?srcCurrency=usdt&dstCurrency=rls"
+_RATE_TTL_SECONDS = 60
+# Optional manual fallback (Toman) used only when the exchange is unreachable
+# and nothing is cached yet. 0 disables it (the endpoint then returns 503).
+try:
+    _RATE_FALLBACK = int(os.getenv("USDT_TOMAN_FALLBACK") or "0")
+except ValueError:
+    _RATE_FALLBACK = 0
+_rate_cache: dict[str, float] = {"rate": 0.0, "ts": 0.0}
+
+
+async def _fetch_usdt_toman() -> int:
+    """Fetch the latest USDT price and return it in Toman (Rial / 10)."""
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        resp = await client.get(_RATE_URL)
+        resp.raise_for_status()
+        data = resp.json()
+    stat = data.get("stats", {}).get("usdt-rls", {})
+    raw = stat.get("latest") or stat.get("bestSell")
+    if raw is None:
+        raise ValueError("rate field missing in exchange response")
+    toman = int(float(raw) / 10)
+    if toman <= 0:
+        raise ValueError("exchange returned a non-positive rate")
+    return toman
+
+
+@router.get("/usdt-rate", response_model=UsdtRateOut)
+async def usdt_rate():
+    now = time.time()
+    if _rate_cache["rate"] > 0 and (now - _rate_cache["ts"]) < _RATE_TTL_SECONDS:
+        return {"rate_toman": int(_rate_cache["rate"]), "cached": True}
+    try:
+        rate = await _fetch_usdt_toman()
+        _rate_cache["rate"] = float(rate)
+        _rate_cache["ts"] = now
+        return {"rate_toman": rate, "cached": False}
+    except Exception:
+        logger.exception("Failed to fetch USDT/Toman rate")
+        # Serve a stale cached value if we have one, else the manual fallback.
+        if _rate_cache["rate"] > 0:
+            return {"rate_toman": int(_rate_cache["rate"]), "cached": True}
+        if _RATE_FALLBACK > 0:
+            return {"rate_toman": _RATE_FALLBACK, "cached": True}
+        raise HTTPException(status_code=503, detail="Exchange rate unavailable")
 
 
 @router.post("/receipt", response_model=ReceiptSubmitResponse)

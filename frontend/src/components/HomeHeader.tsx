@@ -70,8 +70,10 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
               className="flex items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition"
             >
               <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
+              {/* Persian shows the live count ([logo] [count] Nitro); English shows
+                  the label only ([logo] Nitro), per the dashboard spec. */}
               <span className="text-textPrimary font-ui text-sm">
-                {localizeNumber(credits, lang)} {t('Credits')}
+                {isRTL ? `${localizeNumber(credits, lang)} ${t('Nitro')}` : t('Nitro')}
               </span>
             </button>
           )}
