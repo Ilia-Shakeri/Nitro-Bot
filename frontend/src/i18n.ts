@@ -1,6 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { toFaNum } from './utils/faNum';
 
 const resources = {
   en: {
@@ -155,10 +154,6 @@ i18n
     fallbackLng: "en",
     interpolation: {
       escapeValue: false,
-      // Convert digits in any interpolated value to Persian numerals in fa mode,
-      // so {{...}} placeholders never leak ASCII numbers into the UI.
-      format: (value, _format, lng) =>
-        lng?.startsWith('fa') ? toFaNum(String(value)) : String(value),
     }
   });
 

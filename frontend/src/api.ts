@@ -20,7 +20,7 @@ const getInitData = (): string => {
   const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
   if (tg?.initData) return tg.initData;
 
-  const unsafe = WebApp.initDataUnsafe as Record<string, unknown> | undefined;
+  const unsafe = WebApp.initDataUnsafe as unknown as Record<string, unknown> | undefined;
   if (unsafe && Object.keys(unsafe).length > 0) {
     return Object.entries(unsafe)
       .map(([k, v]) => `${k}=${encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : String(v))}`)
