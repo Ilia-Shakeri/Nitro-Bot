@@ -1,6 +1,9 @@
 {$DOMAIN_NAME} {
+    # NOTE: /internal/* is intentionally NOT exposed here. The DMB worker reaches
+    # those endpoints over the private Docker network (backend:8000); publishing
+    # them would put the worker bridge behind only a bearer secret on the open web.
     @api {
-        path /users/* /releases/* /transactions/* /internal/* /support/*
+        path /users/* /releases/* /transactions/* /support/*
     }
     handle @api {
         reverse_proxy backend:8000 {

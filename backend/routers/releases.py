@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -8,6 +10,8 @@ from models import User, Release
 from schemas import ReleaseCreateResponse
 import storage
 from bot import notify_admin_new_release
+
+logger = logging.getLogger("nitro.releases")
 
 router = APIRouter(prefix="/releases", tags=["releases"])
 
@@ -73,18 +77,23 @@ async def create_release(
     await db.refresh(release)
 
     # Send the staged release to the admin Order topic for manual review.
+    # The DB is already committed (credits deducted), so a Telegram failure must
+    # NOT surface as an error — that would make the user retry and pay twice.
     submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
-    await notify_admin_new_release(
-        release_id=release.id,
-        song_name=song_name,
-        artist_name=artist_name,
-        genre=genre,
-        release_date=release_date,
-        cost=total_cost,
-        submitter=submitter,
-        cover_bytes=cover_bytes,
-        cover_filename=f"cover.{cover_ext}",
-    )
+    try:
+        await notify_admin_new_release(
+            release_id=release.id,
+            song_name=song_name,
+            artist_name=artist_name,
+            genre=genre,
+            release_date=release_date,
+            cost=total_cost,
+            submitter=submitter,
+            cover_bytes=cover_bytes,
+            cover_filename=f"cover.{cover_ext}",
+        )
+    except Exception:
+        logger.exception("Failed to notify admin of release %s", release.id)
     return {
         "status": "ok",
         "release_id": release.id,

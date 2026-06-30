@@ -9,6 +9,9 @@ from schemas import UserOut, TransactionOut, ReleaseOut, LanguageResponse, UserL
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+# Languages the mini-app actually ships; anything else is rejected as bad input.
+_SUPPORTED_LANGUAGES = {"en", "fa"}
+
 
 @router.get("/me", response_model=UserOut)
 async def get_user(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends(get_db)):
@@ -28,6 +31,11 @@ async def update_language(
     tg_id: int = Depends(get_tg_id),
     db: AsyncSession = Depends(get_db),
 ):
+    if body.language not in _SUPPORTED_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported language. Allowed: {', '.join(sorted(_SUPPORTED_LANGUAGES))}",
+        )
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalars().first()
     if not user:

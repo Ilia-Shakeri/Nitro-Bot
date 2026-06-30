@@ -1,3 +1,4 @@
+import hmac
 import os
 
 from fastapi import APIRouter, Depends, Form, Header, HTTPException
@@ -8,14 +9,20 @@ from database import get_db
 from models import Release
 from schemas import PendingReleaseOut, OkResponse
 
-_SECRET = os.getenv("SELENIUM_SECRET_KEY", "generate_a_secure_random_string_here")
+_SECRET = os.getenv("SELENIUM_SECRET_KEY", "")
 _ALLOWED_STATUSES = {"pending", "processing", "completed", "failed"}
+# Placeholder values shipped in .env templates — never accept these as a real key.
+_INSECURE_SECRETS = {"", "YOUR_SECURE_GENERATED_SELENIUM_TOKEN", "generate_a_secure_random_string_here"}
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
 
 def _require_secret(authorization: str = Header(None)) -> None:
-    if authorization != f"Bearer {_SECRET}":
+    # Fail closed: if the secret was never configured, reject everything rather
+    # than authenticating callers against a well-known placeholder token.
+    if _SECRET in _INSECURE_SECRETS:
+        raise HTTPException(status_code=503, detail="Internal API secret not configured")
+    if not authorization or not hmac.compare_digest(authorization, f"Bearer {_SECRET}"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 

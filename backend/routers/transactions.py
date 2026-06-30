@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -8,6 +10,8 @@ from models import User, Transaction
 from schemas import ReceiptSubmitResponse
 import storage
 from bot import notify_admin_new_receipt
+
+logger = logging.getLogger("nitro.transactions")
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -53,13 +57,18 @@ async def submit_receipt(
 
     # Forward the actual receipt image (uploaded by bytes — MinIO's internal URL is
     # not reachable by Telegram's servers) plus submitter details to the admin group.
+    # Transaction is already persisted; a Telegram failure must not 500 the
+    # request, or the user would resubmit and create a duplicate receipt.
     submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
-    await notify_admin_new_receipt(
-        tx_id=tx.id,
-        amount=amount,
-        payment_method=payment_method,
-        submitter=submitter,
-        receipt_bytes=receipt_bytes,
-        receipt_filename=receipt.filename or "receipt.jpg",
-    )
+    try:
+        await notify_admin_new_receipt(
+            tx_id=tx.id,
+            amount=amount,
+            payment_method=payment_method,
+            submitter=submitter,
+            receipt_bytes=receipt_bytes,
+            receipt_filename=receipt.filename or "receipt.jpg",
+        )
+    except Exception:
+        logger.exception("Failed to notify admin of receipt %s", tx.id)
     return {"status": "ok", "transaction_id": tx.id}

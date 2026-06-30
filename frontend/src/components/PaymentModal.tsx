@@ -16,7 +16,9 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   if (!isOpen) return null;
 
   const handleUpload = async () => {
-    if (!receipt || amount <= 0) return;
+    // Guard against an empty/invalid number input producing NaN, which would
+    // slip past `<= 0` and be rejected by the backend as a bad request.
+    if (!receipt || !Number.isFinite(amount) || amount <= 0) return;
     setLoading(true);
     try {
       await submitReceipt(receipt, amount, method);
