@@ -7,6 +7,7 @@ from sqlalchemy.future import select
 from auth import get_tg_id
 from database import get_db
 from models import User, Release
+from pricing import release_cost
 from schemas import ReleaseCreateResponse
 import storage
 from bot import notify_admin_new_release
@@ -14,10 +15,6 @@ from bot import notify_admin_new_release
 logger = logging.getLogger("nitro.releases")
 
 router = APIRouter(prefix="/releases", tags=["releases"])
-
-NEW_RELEASE_COST = 10
-EDIT_RELEASE_COST = 2
-COPYRIGHT_COST = 1
 
 
 @router.post("", response_model=ReleaseCreateResponse)
@@ -42,8 +39,7 @@ async def create_release(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    base_cost = EDIT_RELEASE_COST if is_edit else NEW_RELEASE_COST
-    total_cost = base_cost + (COPYRIGHT_COST if copyright_requested else 0)
+    total_cost = release_cost(is_edit, requires_new_profile, copyright_requested)
     if user.credits < total_cost:
         raise HTTPException(status_code=400, detail=f"Not enough credits ({total_cost} required)")
 

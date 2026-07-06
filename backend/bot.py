@@ -1,5 +1,6 @@
 import os
 import re
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
@@ -12,6 +13,7 @@ from models import User, Transaction, SupportMessage, SupportTicket, get_naive_u
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
+APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-usd-pricing-v2")
 
 
 def _topic(env_name: str) -> int | None:
@@ -46,6 +48,25 @@ _TRANSLATIONS = {
 }
 
 
+def _mini_app_url() -> str:
+    """Return the Mini App URL with a deploy version to bypass Telegram webview cache."""
+    raw = os.getenv("MINI_APP_URL", "https://example.com").strip()
+    parts = urlsplit(raw)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["v"] = APP_VERSION
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+async def configure_menu_button() -> None:
+    """Update the persistent Telegram menu button to the current Mini App URL."""
+    await bot.set_chat_menu_button(
+        menu_button=types.MenuButtonWebApp(
+            text="Open Mini App",
+            web_app=types.WebAppInfo(url=_mini_app_url()),
+        )
+    )
+
+
 async def _user_lang(tg_id: int) -> str:
     """Look up a user's language preference, defaulting to Farsi."""
     async with AsyncSessionLocal() as db:
@@ -75,10 +96,15 @@ async def cmd_start(message: types.Message):
     builder.row(
         types.InlineKeyboardButton(
             text="Open Mini App",
-            web_app=types.WebAppInfo(url=os.getenv("MINI_APP_URL", "https://example.com")),
+            web_app=types.WebAppInfo(url=_mini_app_url()),
         )
     )
     await message.answer(_TRANSLATIONS[lang]["welcome"], reply_markup=builder.as_markup())
+
+
+@dp.message(Command("version"))
+async def cmd_version(message: types.Message):
+    await message.answer(f"Mini App version: {APP_VERSION}\n{_mini_app_url()}")
 
 
 async def notify_admin_new_ticket(ticket_id: int, tg_id: int, name: str, username: str, subject: str, message: str):

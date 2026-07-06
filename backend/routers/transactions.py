@@ -10,6 +10,7 @@ from sqlalchemy.future import select
 from auth import get_tg_id
 from database import get_db
 from models import User, Transaction, Release
+from pricing import release_cost
 from schemas import LedgerOut, ReceiptSubmitResponse, UsdtRateOut
 import storage
 from bot import notify_admin_new_receipt
@@ -17,10 +18,6 @@ from bot import notify_admin_new_receipt
 logger = logging.getLogger("nitro.transactions")
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-
-NEW_RELEASE_COST = 10
-EDIT_RELEASE_COST = 2
-COPYRIGHT_COST = 1
 
 # card = Blu Bank card-to-card, btc = Bitcoin, usdt = Tether TRC20.
 # "tether" kept for backwards compatibility with older clients.
@@ -94,9 +91,7 @@ async def get_ledger(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends
         for tx in tx_result.scalars().all()
     ]
     for release in release_result.scalars().all():
-        cost = EDIT_RELEASE_COST if release.is_edit else NEW_RELEASE_COST
-        if release.copyright_requested:
-            cost += COPYRIGHT_COST
+        cost = release_cost(release.is_edit, release.requires_new_profile, release.copyright_requested)
         entries.append(
             {
                 "id": f"release-{release.id}",

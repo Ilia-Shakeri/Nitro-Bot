@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { localizeNumber, toFaNum } from '../utils/faNum';
 import { PaymentDetails } from './PaymentDetails';
 
-const NITRO_PRICE_TOMAN = 50_000;
+const NITRO_PRICE_USD = 1;
 
 export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, i18n } = useTranslation();
@@ -22,11 +22,12 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   const isCrypto = method === 'usdt';
   const validAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
-  const totalToman = validAmount * NITRO_PRICE_TOMAN;
-  const cryptoAmount = isCrypto && rate && rate > 0 ? totalToman / rate : null;
+  const totalUsd = validAmount * NITRO_PRICE_USD;
+  const totalToman = rate && rate > 0 ? totalUsd * rate : null;
+  const cryptoAmount = isCrypto && rate && rate > 0 ? totalUsd : null;
 
   useEffect(() => {
-    if (!isCrypto) return;
+    if (!isOpen) return;
     let cancelled = false;
     const load = async () => {
       setRateLoading(true);
@@ -45,7 +46,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     };
     load();
     return () => { cancelled = true; };
-  }, [isCrypto]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -92,11 +93,13 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3 space-y-1">
             <div className="flex items-center justify-between text-xs text-textSecondary">
               <span>{t('Unit Price')}</span>
-              <span dir="ltr">{localizeNumber(NITRO_PRICE_TOMAN, lang)} {t('Toman')}</span>
+              <span dir="ltr">{localizeNumber(NITRO_PRICE_USD, lang)} USD</span>
             </div>
             <div className="flex items-center justify-between text-sm font-semibold text-textPrimary">
               <span>{t('Total')}</span>
-              <span dir="ltr">{localizeNumber(totalToman, lang)} {t('Toman')}</span>
+              <span dir="ltr">
+                {totalToman !== null ? `${localizeNumber(totalToman, lang)} ${t('Toman')}` : t('Rate unavailable')}
+              </span>
             </div>
           </div>
 
@@ -115,23 +118,21 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             </div>
           </div>
 
-          {isCrypto && (
-            <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-textSecondary">{t('Live USD Rate')}</span>
-                {rateLoading ? (
-                  <span className="text-sm text-textSecondary">...</span>
-                ) : rate ? (
-                  <span dir="ltr" className="text-sm font-bold text-gold">
-                    {localizeNumber(rate, lang)} {t('Toman')} / USDT
-                  </span>
-                ) : (
-                  <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
-                )}
-              </div>
-              {rateError && <p className="text-[11px] text-red-400 mt-1">{t('Exchange fallback notice')}</p>}
+          <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-textSecondary">{t('Live USD Rate')}</span>
+              {rateLoading ? (
+                <span className="text-sm text-textSecondary">...</span>
+              ) : rate ? (
+                <span dir="ltr" className="text-sm font-bold text-gold">
+                  {localizeNumber(rate, lang)} {t('Toman')} / USDT
+                </span>
+              ) : (
+                <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
+              )}
             </div>
-          )}
+            {rateError && <p className="text-[11px] text-red-400 mt-1">{t('Exchange fallback notice')}</p>}
+          </div>
 
           <PaymentDetails method={method} />
 

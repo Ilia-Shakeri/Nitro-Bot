@@ -9,6 +9,41 @@ import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
 import { GenreSelect } from '../components/GenreSelect';
 
+const NEW_RELEASE_WITH_PROFILE_COST = 10;
+const NEW_RELEASE_WITHOUT_PROFILE_COST = 8;
+const EDIT_RELEASE_COST = 2;
+const COPYRIGHT_COST = 1;
+
+const Toggle = ({
+  id,
+  checked,
+  onChange,
+  label,
+  tone = 'default',
+}: {
+  id: string;
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+  tone?: 'default' | 'gold';
+}) => (
+  <button
+    type="button"
+    id={id}
+    role="switch"
+    aria-checked={checked}
+    onClick={onChange}
+    className="w-full flex items-center justify-between gap-3 bg-background rounded-2xl px-4 py-3 border border-inputBorder hover:bg-card3/20 transition"
+  >
+    <span className={`text-sm font-ui text-start ${tone === 'gold' ? 'text-gold' : 'text-textPrimary'}`}>
+      {label}
+    </span>
+    <span className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-gold' : 'bg-card3'}`}>
+      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${checked ? 'right-1' : 'left-1'}`} />
+    </span>
+  </button>
+);
+
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -191,12 +226,13 @@ export const UploadPage = () => {
         {/* 8. Mapping */}
         <div className="mb-6">
           <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Mapping')}</h3>
-          <div className="flex items-center mb-4">
-            <input type="checkbox" id="newProfile" checked={formData.needsNewProfile} onChange={handleToggleProfile}
-              className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
-            <label htmlFor="newProfile" className="text-sm font-ui cursor-pointer">
-              {t("I don't have a profile (Create one for me)")}
-            </label>
+          <div className="mb-4">
+            <Toggle
+              id="newProfile"
+              checked={formData.needsNewProfile}
+              onChange={handleToggleProfile}
+              label={t("I don't have a profile (Create one for me)")}
+            />
           </div>
 
           {!formData.needsNewProfile ? (
@@ -247,26 +283,26 @@ export const UploadPage = () => {
           )}
         </div>
 
-        {/* 8. Additional Options */}
         <div className="mb-8 p-4 bg-card1 rounded-xl border border-inputBorder">
-          <div className="flex items-center mb-3">
-            <input type="checkbox" id="isEdit" checked={formData.isEdit} onChange={handleToggleEdit}
-              className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
-            <label htmlFor="isEdit" className="text-sm font-ui cursor-pointer">
-              {t('Edit Previous Release (2 Nitros)')}
-            </label>
-          </div>
-          <div className="flex items-center">
-            <input type="checkbox" id="copyrightRequested" checked={formData.copyrightRequested} onChange={handleToggleCopyright}
-              className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
-            <label htmlFor="copyrightRequested" className="text-sm font-ui cursor-pointer text-gold">
-              {t('Add Copyright Protection (+1 Nitro)')}
-            </label>
+          <div className="space-y-3">
+            <Toggle
+              id="isEdit"
+              checked={formData.isEdit}
+              onChange={handleToggleEdit}
+              label={t('Edit Previous Release (2 Nitros)')}
+            />
+            <Toggle
+              id="copyrightRequested"
+              checked={formData.copyrightRequested}
+              onChange={handleToggleCopyright}
+              label={t('Add Copyright Protection (+1 Nitro)')}
+              tone="gold"
+            />
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-ui">
-            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('New Release')}<br /><span className="text-gold">10 {t('Nitro')}</span></div>
-            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('Edit')}<br /><span className="text-gold">2 {t('Nitro')}</span></div>
-            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('Copyright')}<br /><span className="text-gold">1 {t('Nitro')}</span></div>
+            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('No Profile Needed')}<br /><span className="text-gold">{NEW_RELEASE_WITHOUT_PROFILE_COST} {t('Nitro')}</span></div>
+            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('New Profile')}<br /><span className="text-gold">{NEW_RELEASE_WITH_PROFILE_COST} {t('Nitro')}</span></div>
+            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('Edit')} / {t('Copyright')}<br /><span className="text-gold">{EDIT_RELEASE_COST} / {COPYRIGHT_COST}</span></div>
           </div>
         </div>
 

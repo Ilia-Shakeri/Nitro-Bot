@@ -1,10 +1,13 @@
 {
-  "release": "2026-07-06-nitro-feature-pack",
+  "release": "2026-07-06-usd-pricing-v2",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
     "support-ticket-history",
     "nitro-ledger",
-    "release-edit-entry"
+    "release-edit-entry",
+    "telegram-menu-cache-buster",
+    "ios-style-toggles",
+    "usd-nitro-pricing"
   ]
 }
