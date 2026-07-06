@@ -40,7 +40,7 @@ export const HorizontalMusicSlider = () => {
                 <button
                   type="button"
                   aria-label={t('Edit')}
-                  onClick={() => navigate(`/upload?edit=${r.id}`)}
+                  onClick={() => navigate(`/edit/${r.id}`)}
                   className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-gold text-background flex items-center justify-center shadow-md hover:opacity-90"
                 >
                   <Edit3 className="w-4 h-4" />

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
 import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone } from 'lucide-react';
@@ -8,46 +8,16 @@ import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
 import { GenreSelect } from '../components/GenreSelect';
+import { FormToggle } from '../components/FormToggle';
+import { NitroCostSummary } from '../components/NitroCostSummary';
 
 const NEW_RELEASE_WITH_PROFILE_COST = 10;
 const NEW_RELEASE_WITHOUT_PROFILE_COST = 8;
-const EDIT_RELEASE_COST = 2;
 const COPYRIGHT_COST = 1;
-
-const Toggle = ({
-  id,
-  checked,
-  onChange,
-  label,
-  tone = 'default',
-}: {
-  id: string;
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-  tone?: 'default' | 'gold';
-}) => (
-  <button
-    type="button"
-    id={id}
-    role="switch"
-    aria-checked={checked}
-    onClick={onChange}
-    className="w-full flex items-center justify-between gap-3 bg-background rounded-2xl px-4 py-3 border border-inputBorder hover:bg-card3/20 transition"
-  >
-    <span className={`text-sm font-ui text-start ${tone === 'gold' ? 'text-gold' : 'text-textPrimary'}`}>
-      {label}
-    </span>
-    <span className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-gold' : 'bg-card3'}`}>
-      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${checked ? 'right-1' : 'left-1'}`} />
-    </span>
-  </button>
-);
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const lang = i18n.language;
   const { user, refreshUser } = useUser();
   const { toast } = useToast();
@@ -63,7 +33,6 @@ export const UploadPage = () => {
     spotifyUrl: '',
     appleUrl: '',
     needsNewProfile: false,
-    isEdit: Boolean(searchParams.get('edit')),
     copyrightRequested: false,
     profileEmail: '',
     profilePhone: '',
@@ -74,7 +43,6 @@ export const UploadPage = () => {
   const [loading, setLoading]     = useState(false);
 
   const handleToggleProfile   = () => setFormData(f => ({ ...f, needsNewProfile:    !f.needsNewProfile }));
-  const handleToggleEdit      = () => setFormData(f => ({ ...f, isEdit:             !f.isEdit }));
   const handleToggleCopyright = () => setFormData(f => ({ ...f, copyrightRequested: !f.copyrightRequested }));
 
   const handleSubmit = async () => {
@@ -108,7 +76,7 @@ export const UploadPage = () => {
       if (formData.profileEmail)     form.append('profile_email',     formData.profileEmail);
       if (formData.profilePhone)     form.append('profile_phone',     formData.profilePhone);
       form.append('requires_new_profile', formData.needsNewProfile.toString());
-      form.append('is_edit',              formData.isEdit.toString());
+      form.append('is_edit',              'false');
       form.append('copyright_requested',  formData.copyrightRequested.toString());
       await submitRelease(form);
       await refreshUser();
@@ -122,6 +90,14 @@ export const UploadPage = () => {
   };
 
   const isRTL = lang === 'fa';
+  const baseCost = formData.needsNewProfile ? NEW_RELEASE_WITH_PROFILE_COST : NEW_RELEASE_WITHOUT_PROFILE_COST;
+  const costItems = [
+    {
+      label: formData.needsNewProfile ? t('New profile release cost') : t('New release cost'),
+      amount: baseCost,
+    },
+    ...(formData.copyrightRequested ? [{ label: t('Copyright protection cost'), amount: COPYRIGHT_COST }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -212,7 +188,7 @@ export const UploadPage = () => {
               <PersianDatePicker onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))} />
             </div>
           </div>
-          <div>
+          <div className="relative z-40">
             <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Genre')}</h3>
             <GenreSelect
               genre={formData.genre}
@@ -224,10 +200,10 @@ export const UploadPage = () => {
         </div>
 
         {/* 8. Mapping */}
-        <div className="mb-6">
+        <div className="mb-6 relative z-0">
           <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Mapping')}</h3>
           <div className="mb-4">
-            <Toggle
+            <FormToggle
               id="newProfile"
               checked={formData.needsNewProfile}
               onChange={handleToggleProfile}
@@ -285,13 +261,7 @@ export const UploadPage = () => {
 
         <div className="mb-8 p-4 bg-card1 rounded-xl border border-inputBorder">
           <div className="space-y-3">
-            <Toggle
-              id="isEdit"
-              checked={formData.isEdit}
-              onChange={handleToggleEdit}
-              label={t('Edit Previous Release (2 Nitros)')}
-            />
-            <Toggle
+            <FormToggle
               id="copyrightRequested"
               checked={formData.copyrightRequested}
               onChange={handleToggleCopyright}
@@ -299,11 +269,7 @@ export const UploadPage = () => {
               tone="gold"
             />
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-ui">
-            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('No Profile Needed')}<br /><span className="text-gold">{NEW_RELEASE_WITHOUT_PROFILE_COST} {t('Nitro')}</span></div>
-            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('New Profile')}<br /><span className="text-gold">{NEW_RELEASE_WITH_PROFILE_COST} {t('Nitro')}</span></div>
-            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('Edit')} / {t('Copyright')}<br /><span className="text-gold">{EDIT_RELEASE_COST} / {COPYRIGHT_COST}</span></div>
-          </div>
+          <NitroCostSummary items={costItems} />
         </div>
 
         {/* Submit */}

@@ -27,6 +27,7 @@ async def create_release(
     genre: str = Form(...),
     mapping_spotify: str | None = Form(None),
     mapping_apple: str | None = Form(None),
+    edited_release_id: int | None = Form(None),
     requires_new_profile: bool = Form(False),
     is_edit: bool = Form(False),
     copyright_requested: bool = Form(False),

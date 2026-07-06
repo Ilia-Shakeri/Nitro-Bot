@@ -1,5 +1,5 @@
 {
-  "release": "2026-07-06-usd-pricing-v2",
+  "release": "2026-07-06-edit-page-v3",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
@@ -8,6 +8,8 @@
     "release-edit-entry",
     "telegram-menu-cache-buster",
     "ios-style-toggles",
-    "usd-nitro-pricing"
+    "usd-nitro-pricing",
+    "dedicated-edit-page",
+    "nitro-cost-summary"
   ]
 }

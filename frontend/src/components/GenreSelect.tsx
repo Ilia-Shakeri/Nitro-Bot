@@ -45,7 +45,7 @@ const CustomDropdown = ({ icon, value, placeholder, options, onChange }: Dropdow
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative z-[70]" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -64,7 +64,7 @@ const CustomDropdown = ({ icon, value, placeholder, options, onChange }: Dropdow
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1.5 z-50 w-full rounded-xl border border-gold/20 bg-card1 shadow-[0_8px_32px_rgba(0,0,0,0.65)] overflow-hidden">
+        <div className="absolute top-full mt-1.5 z-[120] w-full rounded-xl border border-gold/20 bg-card1 shadow-[0_8px_32px_rgba(0,0,0,0.65)] overflow-hidden">
           <div className="max-h-52 overflow-y-auto hide-scrollbar py-1">
             {options.map(opt => (
               <button
@@ -94,7 +94,7 @@ export const GenreSelect = ({ genre, subGenre, onGenreChange, onSubGenreChange }
   const hasSub = subGenres.length > 0;
 
   return (
-    <div className="space-y-3">
+    <div className="relative z-[70] space-y-3">
       <CustomDropdown
         icon={<Tag className="w-5 h-5 text-textSecondary flex-shrink-0" />}
         value={genre}
@@ -104,7 +104,7 @@ export const GenreSelect = ({ genre, subGenre, onGenreChange, onSubGenreChange }
       />
 
       {hasSub && (
-        <div className="animate-genre-drop">
+        <div className="relative z-[80] animate-genre-drop">
           <CustomDropdown
             icon={<ListTree className="w-5 h-5 text-gold flex-shrink-0" />}
             value={subGenre}

@@ -13,7 +13,7 @@ from models import User, Transaction, SupportMessage, SupportTicket, get_naive_u
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
-APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-usd-pricing-v2")
+APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-edit-page-v3")
 
 
 def _topic(env_name: str) -> int | None:
