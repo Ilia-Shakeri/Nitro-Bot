@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlignLeft, Calendar, Image as ImageIcon, Music, User } from 'lucide-react';
@@ -7,9 +7,10 @@ import { GenreSelect } from '../components/GenreSelect';
 import { HomeHeader } from '../components/HomeHeader';
 import { NitroCostSummary } from '../components/NitroCostSummary';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { submitRelease, updateLanguage } from '../api';
+import { getReleases, submitRelease, updateLanguage } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
+import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
 
 const EDIT_RELEASE_COST = 2;
 const COPYRIGHT_COST = 1;
@@ -36,6 +37,51 @@ export const EditPage = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [prefillLoading, setPrefillLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const releases = await getReleases();
+      const release = releases.find(item => String(item.id) === String(id));
+      if (cancelled) return;
+      if (!release) {
+        toast(t('Source release not found'), 'error');
+        setPrefillLoading(false);
+        return;
+      }
+      setFormData({
+        songName: release.song_name,
+        artistName: release.artist_name,
+        legalName: release.legal_name,
+        releaseDate: release.release_date,
+        genre: release.genre ?? '',
+        subGenre: '',
+        copyrightRequested: false,
+      });
+      setPrefillLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [id, t, toast]);
+
+  const handleAudioFile = (file?: File) => {
+    if (!file) return;
+    if (!/\.(mp3|wav)$/i.test(file.name)) {
+      toast(allowedMusicMessage(t), 'error');
+      return;
+    }
+    setAudioFile(file);
+  };
+
+  const handleCoverFile = (file?: File) => {
+    if (!file) return;
+    if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      toast(allowedCoverMessage(t), 'error');
+      return;
+    }
+    setCoverFile(file);
+  };
 
   const costItems = [
     { label: t('Edit release cost'), amount: EDIT_RELEASE_COST },
@@ -43,29 +89,21 @@ export const EditPage = () => {
   ];
 
   const handleSubmit = async () => {
-    if (
-      !audioFile ||
-      !coverFile ||
-      !formData.songName ||
-      !formData.artistName ||
-      !formData.legalName ||
-      !formData.releaseDate ||
-      !formData.genre
-    ) {
-      toast(t('Please fill all required fields.'), 'error');
+    if (!id) {
+      toast(t('Edited release id is required'), 'error');
       return;
     }
 
     setLoading(true);
     try {
       const form = new FormData();
-      form.append('audio', audioFile);
-      form.append('cover', coverFile);
-      form.append('song_name', formData.songName);
-      form.append('artist_name', formData.artistName);
-      form.append('legal_name', formData.legalName);
-      form.append('release_date', formData.releaseDate);
-      form.append('genre', formData.genre);
+      if (audioFile) form.append('audio', audioFile);
+      if (coverFile) form.append('cover', coverFile);
+      if (formData.songName) form.append('song_name', formData.songName);
+      if (formData.artistName) form.append('artist_name', formData.artistName);
+      if (formData.legalName) form.append('legal_name', formData.legalName);
+      if (formData.releaseDate) form.append('release_date', formData.releaseDate);
+      if (formData.genre) form.append('genre', formData.genre);
       if (formData.subGenre) form.append('sub_genre', formData.subGenre);
       if (id) form.append('edited_release_id', id);
       form.append('requires_new_profile', 'false');
@@ -76,7 +114,7 @@ export const EditPage = () => {
       toast(t('Edit submitted successfully!'), 'success');
       navigate('/');
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Unknown error', 'error');
+      toast(errorText(e, t), 'error');
     } finally {
       setLoading(false);
     }
@@ -101,11 +139,11 @@ export const EditPage = () => {
         </p>
 
         <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">1. MP3/WAV File</h3>
+          <h3 className="text-gold font-ui mb-2">1. {t('Audio File')}</h3>
           <input
             type="file"
-            accept="audio/*"
-            onChange={e => setAudioFile(e.target.files?.[0] ?? null)}
+            onChange={e => handleAudioFile(e.target.files?.[0])}
+            accept=".mp3,.wav,audio/mpeg,audio/wav"
             className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8"
           />
           <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
@@ -120,11 +158,11 @@ export const EditPage = () => {
         </div>
 
         <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">2. Cover Art</h3>
+          <h3 className="text-gold font-ui mb-2">2. {t('Cover Art')}</h3>
           <input
             type="file"
-            accept="image/*"
-            onChange={e => setCoverFile(e.target.files?.[0] ?? null)}
+            onChange={e => handleCoverFile(e.target.files?.[0])}
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
             className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8"
           />
           <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
@@ -213,7 +251,7 @@ export const EditPage = () => {
         <div className="pb-8">
           <button
             onClick={handleSubmit}
-            disabled={loading}
+                disabled={loading || prefillLoading}
             className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50"
           >
             <span className="text-lg">{loading ? '...' : t('Submit Edit')}</span>

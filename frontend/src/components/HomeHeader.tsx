@@ -46,7 +46,7 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
 
           <button
             onClick={onLangToggle}
-            className="text-xs bg-card1 border border-card3 text-textPrimary px-3 py-1.5 rounded-lg font-ui hover:bg-card3/50 transition-all duration-200 active:scale-95"
+            className="w-11 text-center text-xs bg-card1 border border-card3 text-textPrimary px-3 py-1.5 rounded-lg font-ui hover:bg-card3/50 transition-all duration-200 active:scale-95"
           >
             {isRTL ? 'EN' : 'FA'}
           </button>

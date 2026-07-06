@@ -23,11 +23,10 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 # "tether" kept for backwards compatibility with older clients.
 ALLOWED_PAYMENT_METHODS = {"card", "btc", "usdt", "tether"}
 
-# Live USDT/Toman rate proxy. We fetch server-side (no browser CORS / geo issues)
-# and cache the result so a burst of clients never hammers the exchange.
-# `or` (not getenv default) so an empty value from compose still falls back.
-_RATE_URL = os.getenv("USDT_RATE_URL") or \
-    "https://api.nobitex.ir/market/stats?srcCurrency=usdt&dstCurrency=rls"
+_NOBITEX_ORDERBOOK_URL = os.getenv("NOBITEX_ORDERBOOK_URL") or \
+    "https://api.nobitex.ir/v2/orderbook/USDTIRT"
+_WALLEX_MARKETS_URL = os.getenv("WALLEX_MARKETS_URL") or \
+    "https://api.wallex.ir/v1/markets"
 _RATE_TTL_SECONDS = 60
 # Optional manual fallback (Toman) used only when the exchange is unreachable
 # and nothing is cached yet. 0 disables it (the endpoint then returns 503).
@@ -38,20 +37,71 @@ except ValueError:
 _rate_cache: dict[str, float] = {"rate": 0.0, "ts": 0.0}
 
 
-async def _fetch_usdt_toman() -> int:
-    """Fetch the latest USDT price and return it in Toman (Rial / 10)."""
-    async with httpx.AsyncClient(timeout=8.0) as client:
-        resp = await client.get(_RATE_URL)
-        resp.raise_for_status()
-        data = resp.json()
-    stat = data.get("stats", {}).get("usdt-rls", {})
-    raw = stat.get("latest") or stat.get("bestSell")
-    if raw is None:
-        raise ValueError("rate field missing in exchange response")
-    toman = int(float(raw) / 10)
-    if toman <= 0:
+def _read_first_price(levels: list) -> int:
+    if not levels:
+        raise ValueError("orderbook has no price levels")
+    first = levels[0]
+    raw = first[0] if isinstance(first, list | tuple) else first.get("price")
+    price = int(float(raw))
+    if price <= 0:
         raise ValueError("exchange returned a non-positive rate")
-    return toman
+    return price
+
+
+async def _fetch_nobitex_usdt_irt(client: httpx.AsyncClient) -> int:
+    resp = await client.get(_NOBITEX_ORDERBOOK_URL)
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") not in {None, "ok"}:
+        raise ValueError("nobitex returned a failed status")
+    return _read_first_price(data.get("asks") or data.get("bids") or [])
+
+
+def _find_wallex_usdt_price(payload: object) -> int:
+    markets = payload.get("result", {}).get("symbols") if isinstance(payload, dict) else None
+    if markets is None and isinstance(payload, dict):
+        markets = payload.get("symbols") or payload.get("markets") or payload.get("result")
+    if isinstance(markets, dict):
+        iterable = markets.values()
+    elif isinstance(markets, list):
+        iterable = markets
+    else:
+        raise ValueError("wallex response has no markets")
+
+    for market in iterable:
+        if not isinstance(market, dict):
+            continue
+        symbol = str(market.get("symbol") or market.get("name") or "").upper()
+        base = str(market.get("baseAsset") or market.get("baseCurrency") or "").upper()
+        quote = str(market.get("quoteAsset") or market.get("quoteCurrency") or "").upper()
+        if symbol in {"USDTIRT", "USDTTMN"} or (base == "USDT" and quote in {"IRT", "TMN"}):
+            raw = (
+                market.get("stats", {}).get("lastPrice")
+                or market.get("stats", {}).get("bidPrice")
+                or market.get("lastPrice")
+                or market.get("bidPrice")
+                or market.get("price")
+            )
+            price = int(float(raw))
+            if price > 0:
+                return price
+    raise ValueError("wallex USDT/IRT market not found")
+
+
+async def _fetch_wallex_usdt_irt(client: httpx.AsyncClient) -> int:
+    resp = await client.get(_WALLEX_MARKETS_URL)
+    resp.raise_for_status()
+    return _find_wallex_usdt_price(resp.json())
+
+
+async def _fetch_usdt_toman() -> int:
+    """Fetch the latest USDT price in Toman from Nobitex, then Wallex."""
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            return await _fetch_nobitex_usdt_irt(client)
+        except Exception:
+            logger.exception("Nobitex USDT/IRT fetch failed; trying Wallex")
+            return await _fetch_wallex_usdt_irt(client)
 
 
 @router.get("/usdt-rate", response_model=UsdtRateOut)

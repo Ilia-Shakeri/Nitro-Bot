@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LifeBuoy, Send } from 'lucide-react';
 import { HomeHeader } from '../components/HomeHeader';
-import { useUser } from '../context/UserContext';
+import { submitTicket, updateLanguage } from '../api';
 import { useToast } from '../context/ToastContext';
-import { submitTicket } from '../api';
-import { updateLanguage } from '../api';
+import { useUser } from '../context/UserContext';
+import { errorText } from '../utils/formMessages';
 
 export const SupportPage = () => {
   const { t, i18n } = useTranslation();
@@ -13,13 +13,12 @@ export const SupportPage = () => {
   const { user } = useUser();
   const { toast } = useToast();
   const credits = user?.credits ?? 0;
+  const isRTL = lang === 'fa';
 
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-
-  const isRTL = lang === 'fa';
 
   const handleSend = async () => {
     if (!message.trim()) return;
@@ -31,7 +30,7 @@ export const SupportPage = () => {
       setSubject('');
       setMessage('');
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Error sending ticket', 'error');
+      toast(errorText(e, t), 'error');
     } finally {
       setLoading(false);
     }
@@ -55,9 +54,7 @@ export const SupportPage = () => {
           <h1 className="text-3xl font-title">{t('Support')}</h1>
         </div>
         <p className="text-sm font-ui text-textSecondary mb-8 leading-relaxed">
-          {isRTL
-            ? 'مشکل یا سوالی داری؟ تیکت بزن، تیم پشتیبانی در کمترین زمان جواب می‌ده.'
-            : 'Have a question or issue? Send a ticket and the support team will get back to you shortly.'}
+          {t('support_intro')}
         </p>
 
         <div className="space-y-4">
@@ -69,20 +66,20 @@ export const SupportPage = () => {
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
                 className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder={isRTL ? 'موضوع تیکت...' : 'Ticket subject...'}
+                placeholder="Ticket subject..."
               />
             </div>
           </div>
 
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">{isRTL ? 'پیام *' : 'Message *'}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">{t('Message *')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3">
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 rows={6}
                 className="bg-transparent border-none outline-none w-full text-textPrimary font-ui resize-none"
-                placeholder={t('Write your message here...')}
+                placeholder="Write your message here..."
               />
             </div>
           </div>
@@ -95,7 +92,7 @@ export const SupportPage = () => {
             className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center gap-3 shadow-lg hover:opacity-90 disabled:opacity-50 transition-opacity active:scale-[0.98]"
           >
             <Send className="w-5 h-5" />
-            <span className="text-lg">{loading ? '...' : t('Send Ticket')}</span>
+            <span className="text-lg">{loading ? t('Processing...') : t('Send Ticket')}</span>
           </button>
         </div>
 

@@ -4,6 +4,7 @@ import { ChevronDown, Upload, X } from 'lucide-react';
 import { getUsdtRate, submitReceipt } from '../api';
 import { useToast } from '../context/ToastContext';
 import { localizeNumber, toFaNum } from '../utils/faNum';
+import { errorText } from '../utils/formMessages';
 import { PaymentDetails } from './PaymentDetails';
 
 const NITRO_PRICE_USD = 1;
@@ -63,7 +64,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       toast(t('Receipt submitted successfully. Awaiting admin approval.'), 'success');
       onClose();
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Unknown error', 'error');
+      toast(errorText(e, t), 'error');
     } finally {
       setLoading(false);
     }
@@ -183,7 +184,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 disabled={loading || !receipt}
                 className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 mt-4"
               >
-                {loading ? 'Processing...' : t('Submit Receipt')}
+                {loading ? t('Processing...') : t('Submit Receipt')}
               </button>
             </>
           )}

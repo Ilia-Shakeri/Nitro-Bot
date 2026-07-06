@@ -13,7 +13,7 @@ from models import User, Transaction, SupportMessage, SupportTicket, get_naive_u
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
-APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-edit-page-v3")
+APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-edit-prefill-v4")
 
 
 def _topic(env_name: str) -> int | None:
@@ -174,10 +174,10 @@ async def notify_admin_new_release(
     release_date: str,
     cost: int,
     submitter: str,
-    audio_bytes: bytes,
-    audio_filename: str,
-    cover_bytes: bytes,
-    cover_filename: str,
+    audio_bytes: bytes | None,
+    audio_filename: str | None,
+    cover_bytes: bytes | None,
+    cover_filename: str | None,
 ):
     """Post a staged release as one media group in the Order topic."""
     caption = (
@@ -190,20 +190,45 @@ async def notify_admin_new_release(
         f"Release date: {release_date}\n"
         f"Cost: {cost} Nitro"
     )
+    if not audio_bytes and not cover_bytes:
+        await bot.send_message(
+            chat_id=ADMIN_GROUP_ID,
+            message_thread_id=ORDER_TOPIC_ID,
+            text=caption + "\nMedia: unchanged from source release",
+        )
+        return
     try:
+        media = []
+        if audio_bytes and audio_filename:
+            media.append(InputMediaAudio(media=BufferedInputFile(audio_bytes, filename=audio_filename), caption=caption))
+        if cover_bytes and cover_filename:
+            media.append(InputMediaPhoto(media=BufferedInputFile(cover_bytes, filename=cover_filename)))
+        if len(media) == 1 and audio_bytes and audio_filename:
+            await bot.send_document(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=ORDER_TOPIC_ID,
+                document=BufferedInputFile(audio_bytes, filename=audio_filename),
+                caption=caption,
+            )
+            return
+        if len(media) == 1 and cover_bytes and cover_filename:
+            await bot.send_photo(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=ORDER_TOPIC_ID,
+                photo=BufferedInputFile(cover_bytes, filename=cover_filename),
+                caption=caption,
+            )
+            return
         await bot.send_media_group(
             chat_id=ADMIN_GROUP_ID,
             message_thread_id=ORDER_TOPIC_ID,
-            media=[
-                InputMediaAudio(media=BufferedInputFile(audio_bytes, filename=audio_filename), caption=caption),
-                InputMediaPhoto(media=BufferedInputFile(cover_bytes, filename=cover_filename)),
-            ],
+            media=media,
         )
     except Exception:
         await bot.send_document(
             chat_id=ADMIN_GROUP_ID,
             message_thread_id=ORDER_TOPIC_ID,
-            document=BufferedInputFile(audio_bytes, filename=audio_filename),
+            document=BufferedInputFile(audio_bytes or cover_bytes or b"", filename=audio_filename or cover_filename or "release.bin"),
             caption=caption,
         )
 

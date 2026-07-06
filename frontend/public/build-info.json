@@ -1,5 +1,5 @@
 {
-  "release": "2026-07-06-edit-page-v3",
+  "release": "2026-07-06-edit-prefill-v4",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
@@ -10,6 +10,9 @@
     "ios-style-toggles",
     "usd-nitro-pricing",
     "dedicated-edit-page",
-    "nitro-cost-summary"
+    "nitro-cost-summary",
+    "partial-edit-submissions",
+    "localized-errors",
+    "nobitex-wallex-rate-fallback"
   ]
 }

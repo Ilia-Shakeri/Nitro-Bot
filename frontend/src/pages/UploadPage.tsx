@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone } from 'lucide-react';
+import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail } from 'lucide-react';
 import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
 import { GenreSelect } from '../components/GenreSelect';
 import { FormToggle } from '../components/FormToggle';
 import { NitroCostSummary } from '../components/NitroCostSummary';
+import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
 
 const NEW_RELEASE_WITH_PROFILE_COST = 10;
 const NEW_RELEASE_WITHOUT_PROFILE_COST = 8;
@@ -35,7 +36,6 @@ export const UploadPage = () => {
     needsNewProfile: false,
     copyrightRequested: false,
     profileEmail: '',
-    profilePhone: '',
   });
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -44,6 +44,24 @@ export const UploadPage = () => {
 
   const handleToggleProfile   = () => setFormData(f => ({ ...f, needsNewProfile:    !f.needsNewProfile }));
   const handleToggleCopyright = () => setFormData(f => ({ ...f, copyrightRequested: !f.copyrightRequested }));
+
+  const handleAudioFile = (file?: File) => {
+    if (!file) return;
+    if (!/\.(mp3|wav)$/i.test(file.name)) {
+      toast(allowedMusicMessage(t), 'error');
+      return;
+    }
+    setAudioFile(file);
+  };
+
+  const handleCoverFile = (file?: File) => {
+    if (!file) return;
+    if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      toast(allowedCoverMessage(t), 'error');
+      return;
+    }
+    setCoverFile(file);
+  };
 
   const handleSubmit = async () => {
     if (
@@ -56,6 +74,10 @@ export const UploadPage = () => {
       !formData.genre
     ) {
       toast(t('Please fill all required fields.'), 'error');
+      return;
+    }
+    if (formData.needsNewProfile && !formData.profileEmail.trim()) {
+      toast(t('Profile email is required.'), 'error');
       return;
     }
     setLoading(true);
@@ -74,7 +96,6 @@ export const UploadPage = () => {
         if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
       }
       if (formData.profileEmail)     form.append('profile_email',     formData.profileEmail);
-      if (formData.profilePhone)     form.append('profile_phone',     formData.profilePhone);
       form.append('requires_new_profile', formData.needsNewProfile.toString());
       form.append('is_edit',              'false');
       form.append('copyright_requested',  formData.copyrightRequested.toString());
@@ -83,7 +104,7 @@ export const UploadPage = () => {
       toast(t('Release submitted successfully!'), 'success');
       navigate('/');
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Unknown error', 'error');
+      toast(errorText(e, t), 'error');
     } finally {
       setLoading(false);
     }
@@ -119,8 +140,8 @@ export const UploadPage = () => {
 
         {/* 1. MP3/WAV */}
         <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">1. MP3/WAV File</h3>
-          <input type="file" accept="audio/*" onChange={e => setAudioFile(e.target.files?.[0] ?? null)}
+          <h3 className="text-gold font-ui mb-2">1. {t('Audio File')}</h3>
+          <input type="file" accept=".mp3,.wav,audio/mpeg,audio/wav" onChange={e => handleAudioFile(e.target.files?.[0])}
             className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8" />
           <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
             <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
@@ -135,8 +156,8 @@ export const UploadPage = () => {
 
         {/* 2. Cover Art */}
         <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">2. Cover Art</h3>
-          <input type="file" accept="image/*" onChange={e => setCoverFile(e.target.files?.[0] ?? null)}
+          <h3 className="text-gold font-ui mb-2">2. {t('Cover Art')}</h3>
+          <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={e => handleCoverFile(e.target.files?.[0])}
             className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8" />
           <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
             <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
@@ -246,14 +267,6 @@ export const UploadPage = () => {
                   dir="ltr"
                   className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
                   placeholder={t('Profile Email')} />
-              </div>
-              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                <Phone className="w-5 h-5 text-gold me-3 flex-shrink-0" />
-                <input type="tel" value={formData.profilePhone}
-                  onChange={e => setFormData(f => ({ ...f, profilePhone: e.target.value }))}
-                  dir="ltr"
-                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                  placeholder={t('Profile Phone')} />
               </div>
             </div>
           )}

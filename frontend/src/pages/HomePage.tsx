@@ -22,16 +22,16 @@ export const HomePage = () => {
 
   const toggleLang = async () => {
     setFading(true);
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 180));
     const newLang = lang === 'en' ? 'fa' : 'en';
-    i18n.changeLanguage(newLang);
-    setFading(false);
+    await i18n.changeLanguage(newLang);
+    window.requestAnimationFrame(() => setFading(false));
     updateLanguage(newLang).catch(console.error);
   };
 
   return (
     <div
-      className="min-h-screen bg-background max-w-md mx-auto relative overflow-hidden flex flex-col"
+      className={`min-h-screen bg-background max-w-md mx-auto relative overflow-hidden flex flex-col transition-[opacity,transform] duration-300 ease-out ${fading ? 'opacity-0 scale-[0.985]' : 'opacity-100 scale-100'}`}
       dir={lang === 'fa' ? 'rtl' : 'ltr'}
     >
       <div className="absolute top-0 right-0 w-64 h-64 bg-card3/20 blur-[100px] rounded-full pointer-events-none" />
@@ -44,7 +44,7 @@ export const HomePage = () => {
       />
 
       <div
-        className={`flex-1 overflow-y-auto pb-4 pt-2 transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}
+        className="flex-1 overflow-y-auto pb-4 pt-2"
       >
         <HorizontalMusicSlider />
         <UploadArtBox onClick={() => navigate('/upload')} />

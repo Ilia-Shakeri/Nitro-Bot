@@ -31,16 +31,16 @@ _AUDIO_SIGS: list[tuple[bytes, bytes | None]] = [
     (b"\xff\xf3", None),
     (b"\xff\xf2", None),
     (b"ID3",      None),
-    (b"fLaC",     None),
     (b"RIFF",     b"WAVE"),
 ]
 _IMAGE_SIGS: list[tuple[bytes, bytes | None]] = [
     (b"\xff\xd8\xff",       None),
     (b"\x89PNG\r\n\x1a\n", None),
     (b"RIFF",               b"WEBP"),
-    (b"GIF87a",             None),
-    (b"GIF89a",             None),
 ]
+
+_AUDIO_EXTENSIONS = {".mp3", ".wav"}
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def _sig_match(header: bytes, sigs: list[tuple[bytes, bytes | None]]) -> bool:
@@ -54,6 +54,9 @@ def _sig_match(header: bytes, sigs: list[tuple[bytes, bytes | None]]) -> bool:
 
 
 async def read_audio(file: UploadFile, max_mb: int = 50) -> bytes:
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in _AUDIO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Music file must be MP3 or WAV")
     content = await file.read()
     if not _sig_match(content[:12], _AUDIO_SIGS):
         raise HTTPException(status_code=400, detail="Invalid audio file type")
@@ -63,6 +66,9 @@ async def read_audio(file: UploadFile, max_mb: int = 50) -> bytes:
 
 
 async def read_image(file: UploadFile, max_mb: int = 10) -> bytes:
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in _IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Cover image must be JPG, PNG, or WEBP")
     content = await file.read()
     if not _sig_match(content[:12], _IMAGE_SIGS):
         raise HTTPException(status_code=400, detail="Invalid image file type")

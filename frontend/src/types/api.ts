@@ -40,7 +40,12 @@ export interface Release {
   id: number;
   song_name: string;
   artist_name: string;
+  legal_name: string;
+  release_date: string;
   genre: string | null;
+  mapping_spotify: string | null;
+  mapping_apple: string | null;
+  requires_new_profile: boolean;
   status: string;
   cover_url: string;
   is_edit: boolean;

@@ -60,7 +60,12 @@ class ReleaseOut(BaseModel):
     id: int
     song_name: str
     artist_name: str
+    legal_name: str
+    release_date: str
     genre: str | None
+    mapping_spotify: str | None
+    mapping_apple: str | None
+    requires_new_profile: bool
     status: str
     cover_url: str
     is_edit: bool
