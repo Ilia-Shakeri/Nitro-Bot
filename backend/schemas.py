@@ -29,6 +29,32 @@ class TransactionOut(BaseModel):
     created_at: datetime
 
 
+class LedgerOut(BaseModel):
+    id: str
+    amount: int
+    direction: str
+    title: str
+    status: str
+    created_at: datetime
+
+
+class SupportMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    sender: str
+    message: str
+    created_at: datetime
+
+
+class SupportTicketOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    subject: str
+    status: str
+    created_at: datetime
+    messages: list[SupportMessageOut]
+
+
 class ReleaseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -37,6 +63,8 @@ class ReleaseOut(BaseModel):
     genre: str | None
     status: str
     cover_url: str
+    is_edit: bool
+    copyright_requested: bool
     created_at: datetime
 
 

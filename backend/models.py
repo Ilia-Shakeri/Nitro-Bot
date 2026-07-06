@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy.orm import backref, declarative_base, relationship
 from datetime import datetime, timezone
 
 Base = declarative_base()
@@ -29,6 +29,29 @@ class Transaction(Base):
     payment_method = Column(String, default="card") 
     receipt_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_naive_utc)
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    subject = Column(String, default="")
+    status = Column(String, default="open")
+    created_at = Column(DateTime, default=get_naive_utc)
+    updated_at = Column(DateTime, default=get_naive_utc)
+
+    user = relationship("User", backref="support_tickets")
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticket_id = Column(Integer, ForeignKey("support_tickets.id"), nullable=False)
+    sender = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=get_naive_utc)
+
+    ticket = relationship("SupportTicket", backref=backref("messages", order_by="SupportMessage.created_at"))
 
 class Release(Base):
     __tablename__ = "releases"

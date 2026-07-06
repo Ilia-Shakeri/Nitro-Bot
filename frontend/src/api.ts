@@ -1,5 +1,5 @@
 import WebApp from '@twa-dev/sdk';
-import type { User, Transaction, Release } from './types/api';
+import type { User, Transaction, Release, LedgerEntry, SupportTicket } from './types/api';
 
 const isDev = import.meta.env.MODE === 'development';
 const BASE   = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
@@ -58,6 +58,9 @@ export const updateLanguage = (lang: string) =>
 export const getTransactions = () =>
   request<Transaction[]>('/users/me/transactions').catch((): Transaction[] => []);
 
+export const getLedger = () =>
+  request<LedgerEntry[]>('/transactions/ledger').catch((): LedgerEntry[] => []);
+
 export const getReleases = () =>
   request<Release[]>('/users/me/releases').catch((): Release[] => []);
 
@@ -73,6 +76,9 @@ export const submitTicket = (subject: string, message: string) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subject, message }),
   });
+
+export const getTickets = () =>
+  request<SupportTicket[]>('/support/tickets').catch((): SupportTicket[] => []);
 
 export const getUsdtRate = () =>
   request<{ rate_toman: number; cached: boolean }>('/transactions/usdt-rate');

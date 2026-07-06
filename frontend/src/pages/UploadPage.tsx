@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone, AtSign } from 'lucide-react';
+import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail, Phone } from 'lucide-react';
 import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
@@ -12,6 +12,7 @@ import { GenreSelect } from '../components/GenreSelect';
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const lang = i18n.language;
   const { user, refreshUser } = useUser();
   const { toast } = useToast();
@@ -27,11 +28,10 @@ export const UploadPage = () => {
     spotifyUrl: '',
     appleUrl: '',
     needsNewProfile: false,
-    isEdit: false,
+    isEdit: Boolean(searchParams.get('edit')),
     copyrightRequested: false,
     profileEmail: '',
     profilePhone: '',
-    profileInstagram: '',
   });
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -72,7 +72,6 @@ export const UploadPage = () => {
       }
       if (formData.profileEmail)     form.append('profile_email',     formData.profileEmail);
       if (formData.profilePhone)     form.append('profile_phone',     formData.profilePhone);
-      if (formData.profileInstagram) form.append('profile_instagram', formData.profileInstagram);
       form.append('requires_new_profile', formData.needsNewProfile.toString());
       form.append('is_edit',              formData.isEdit.toString());
       form.append('copyright_requested',  formData.copyrightRequested.toString());
@@ -244,14 +243,6 @@ export const UploadPage = () => {
                   className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
                   placeholder={t('Profile Phone')} />
               </div>
-              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                <AtSign className="w-5 h-5 text-gold me-3 flex-shrink-0" />
-                <input type="text" value={formData.profileInstagram}
-                  onChange={e => setFormData(f => ({ ...f, profileInstagram: e.target.value }))}
-                  dir="ltr"
-                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                  placeholder={t('Profile Instagram')} />
-              </div>
             </div>
           )}
         </div>
@@ -262,15 +253,20 @@ export const UploadPage = () => {
             <input type="checkbox" id="isEdit" checked={formData.isEdit} onChange={handleToggleEdit}
               className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
             <label htmlFor="isEdit" className="text-sm font-ui cursor-pointer">
-              {t('Edit Previous Release (1 Nitro)')}
+              {t('Edit Previous Release (2 Nitros)')}
             </label>
           </div>
           <div className="flex items-center">
             <input type="checkbox" id="copyrightRequested" checked={formData.copyrightRequested} onChange={handleToggleCopyright}
               className="me-2 accent-gold w-4 h-4 flex-shrink-0" />
             <label htmlFor="copyrightRequested" className="text-sm font-ui cursor-pointer text-gold">
-              {t('Add Copyright Protection (+2 Nitro)')}
+              {t('Add Copyright Protection (+1 Nitro)')}
             </label>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-ui">
+            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('New Release')}<br /><span className="text-gold">10 {t('Nitro')}</span></div>
+            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('Edit')}<br /><span className="text-gold">2 {t('Nitro')}</span></div>
+            <div className="rounded-lg bg-background p-2 text-textSecondary">{t('Copyright')}<br /><span className="text-gold">1 {t('Nitro')}</span></div>
           </div>
         </div>
 

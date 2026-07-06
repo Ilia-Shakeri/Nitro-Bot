@@ -9,14 +9,18 @@ from sqlalchemy.future import select
 
 from auth import get_tg_id
 from database import get_db
-from models import User, Transaction
-from schemas import ReceiptSubmitResponse, UsdtRateOut
+from models import User, Transaction, Release
+from schemas import LedgerOut, ReceiptSubmitResponse, UsdtRateOut
 import storage
 from bot import notify_admin_new_receipt
 
 logger = logging.getLogger("nitro.transactions")
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+NEW_RELEASE_COST = 10
+EDIT_RELEASE_COST = 2
+COPYRIGHT_COST = 1
 
 # card = Blu Bank card-to-card, btc = Bitcoin, usdt = Tether TRC20.
 # "tether" kept for backwards compatibility with older clients.
@@ -71,6 +75,39 @@ async def usdt_rate():
         if _RATE_FALLBACK > 0:
             return {"rate_toman": _RATE_FALLBACK, "cached": True}
         raise HTTPException(status_code=503, detail="Exchange rate unavailable")
+
+
+@router.get("/ledger", response_model=list[LedgerOut])
+async def get_ledger(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends(get_db)):
+    tx_result = await db.execute(select(Transaction).where(Transaction.user_id == tg_id))
+    release_result = await db.execute(select(Release).where(Release.user_id == tg_id))
+
+    entries = [
+        {
+            "id": f"tx-{tx.id}",
+            "amount": tx.amount,
+            "direction": "credit",
+            "title": f"Nitro top-up ({tx.payment_method})",
+            "status": tx.status,
+            "created_at": tx.created_at,
+        }
+        for tx in tx_result.scalars().all()
+    ]
+    for release in release_result.scalars().all():
+        cost = EDIT_RELEASE_COST if release.is_edit else NEW_RELEASE_COST
+        if release.copyright_requested:
+            cost += COPYRIGHT_COST
+        entries.append(
+            {
+                "id": f"release-{release.id}",
+                "amount": cost,
+                "direction": "debit",
+                "title": f"{release.song_name} - {release.artist_name}",
+                "status": release.status,
+                "created_at": release.created_at,
+            }
+        )
+    return sorted(entries, key=lambda item: item["created_at"], reverse=True)
 
 
 @router.post("/receipt", response_model=ReceiptSubmitResponse)

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Edit3, Eye } from 'lucide-react';
 import { getReleases } from '../api';
 import type { Release } from '../types/api';
 
 export const HorizontalMusicSlider = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [releases, setReleases] = useState<Release[]>([]);
 
   useEffect(() => {
@@ -35,6 +37,14 @@ export const HorizontalMusicSlider = () => {
                   <Eye className="w-3 h-3" />
                   {r.status}
                 </div>
+                <button
+                  type="button"
+                  aria-label={t('Edit')}
+                  onClick={() => navigate(`/upload?edit=${r.id}`)}
+                  className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-gold text-background flex items-center justify-center shadow-md hover:opacity-90"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
               </div>
               <h3 className="text-sm font-ui truncate text-right rtl:text-right ltr:text-left">{r.song_name}</h3>
               <p className="text-xs font-light-ui text-textSecondary truncate text-right rtl:text-right ltr:text-left">{r.artist_name}</p>

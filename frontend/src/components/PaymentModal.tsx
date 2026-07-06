@@ -1,31 +1,28 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Upload, ChevronDown } from 'lucide-react';
-import { submitReceipt, getUsdtRate } from '../api';
+import { ChevronDown, Upload, X } from 'lucide-react';
+import { getUsdtRate, submitReceipt } from '../api';
 import { useToast } from '../context/ToastContext';
-import { PaymentDetails } from './PaymentDetails';
 import { localizeNumber, toFaNum } from '../utils/faNum';
+import { PaymentDetails } from './PaymentDetails';
 
-/** Fiat unit price: 1 Nitro = 500,000 Toman. */
-const NITRO_PRICE_TOMAN = 500_000;
+const NITRO_PRICE_TOMAN = 50_000;
 
 export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { toast } = useToast();
-  const [amount, setAmount]   = useState(10);
-  const [method, setMethod]   = useState('card');
+  const [amount, setAmount] = useState(10);
+  const [method, setMethod] = useState('card');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Live USDT/Toman rate, fetched only while a crypto method is selected.
-  const [rate, setRate]               = useState<number | null>(null);
+  const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
-  const [rateError, setRateError]     = useState(false);
+  const [rateError, setRateError] = useState(false);
 
-  const isCrypto    = method === 'btc' || method === 'usdt';
+  const isCrypto = method === 'usdt';
   const validAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
-  const totalToman  = validAmount * NITRO_PRICE_TOMAN;
+  const totalToman = validAmount * NITRO_PRICE_TOMAN;
   const cryptoAmount = isCrypto && rate && rate > 0 ? totalToman / rate : null;
 
   useEffect(() => {
@@ -38,7 +35,10 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
         const r = await getUsdtRate();
         if (!cancelled) setRate(r.rate_toman);
       } catch {
-        if (!cancelled) setRateError(true);
+        if (!cancelled) {
+          setRate(null);
+          setRateError(true);
+        }
       } finally {
         if (!cancelled) setRateLoading(false);
       }
@@ -49,15 +49,12 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   if (!isOpen) return null;
 
-  // Format a decimal crypto amount with locale-correct digits.
   const fmtDecimal = (v: number) => {
-    const s = v.toFixed(2);
+    const s = v.toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
     return lang.startsWith('fa') ? toFaNum(s) : s;
   };
 
   const handleUpload = async () => {
-    // Guard against an empty/invalid number input producing NaN, which would
-    // slip past `<= 0` and be rejected by the backend as a bad request.
     if (!receipt || !Number.isFinite(amount) || amount <= 0) return;
     setLoading(true);
     try {
@@ -92,7 +89,6 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             />
           </div>
 
-          {/* Fiat pricing: unit price + live total in Toman */}
           <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3 space-y-1">
             <div className="flex items-center justify-between text-xs text-textSecondary">
               <span>{t('Unit Price')}</span>
@@ -113,43 +109,49 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 pr-9 rtl:pr-3 rtl:pl-9 text-textPrimary text-center outline-none appearance-none cursor-pointer focus:border-gold/50 transition-colors"
               >
                 <option value="card">{t('Card to Card')}</option>
-                <option value="btc">{t('Bitcoin (BTC)')}</option>
                 <option value="usdt">{t('USDT (TRC20)')}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute top-1/2 -translate-y-1/2 right-3 rtl:right-auto rtl:left-3 w-4 h-4 text-textSecondary" />
             </div>
           </div>
 
-          {/* Destination details (card / crypto) with 1-click copy */}
+          {isCrypto && (
+            <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-textSecondary">{t('Live USD Rate')}</span>
+                {rateLoading ? (
+                  <span className="text-sm text-textSecondary">...</span>
+                ) : rate ? (
+                  <span dir="ltr" className="text-sm font-bold text-gold">
+                    {localizeNumber(rate, lang)} {t('Toman')} / USDT
+                  </span>
+                ) : (
+                  <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
+                )}
+              </div>
+              {rateError && <p className="text-[11px] text-red-400 mt-1">{t('Exchange fallback notice')}</p>}
+            </div>
+          )}
+
           <PaymentDetails method={method} />
 
           {isCrypto ? (
             <>
-              {/* Crypto amount to pay, derived from the live USDT/Toman rate */}
               <div className="bg-gold/5 border border-gold/25 rounded-xl p-3 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-textSecondary">{t('Amount to Pay')}</span>
                   {rateLoading ? (
-                    <span className="text-sm text-textSecondary">…</span>
+                    <span className="text-sm text-textSecondary">...</span>
                   ) : cryptoAmount !== null ? (
                     <span dir="ltr" className="text-base font-bold text-gold">
-                      {fmtDecimal(cryptoAmount)} {method === 'usdt' ? 'USDT' : 'USD'}
+                      {fmtDecimal(cryptoAmount)} USDT
                     </span>
                   ) : (
                     <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
                   )}
                 </div>
-                {rate && !rateError && (
-                  <p dir="ltr" className="text-[11px] text-textSecondary text-right rtl:text-left">
-                    {t('Live rate')}: {localizeNumber(rate, lang)} {t('Toman')} / USDT
-                  </p>
-                )}
-                {method === 'btc' && cryptoAmount !== null && (
-                  <p className="text-[11px] text-textSecondary">{t('Send the equivalent value in BTC.')}</p>
-                )}
               </div>
 
-              {/* Crypto is auto-verified: no receipt upload, just an info notice */}
               <p className="text-xs text-textSecondary leading-relaxed bg-card2/50 border border-card3 rounded-xl p-3">
                 {t('crypto_processing_notice')}
               </p>

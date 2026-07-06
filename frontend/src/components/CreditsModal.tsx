@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
-import { getTransactions } from '../api';
+import { TrendingDown, TrendingUp, X } from 'lucide-react';
+import { getLedger } from '../api';
 import { localizeNumber, toFaNum } from '../utils/faNum';
-
-interface Tx { id: number; amount: number; status: string; created_at: string; }
+import type { LedgerEntry } from '../types/api';
 
 interface Props {
   isOpen: boolean;
@@ -16,10 +15,10 @@ interface Props {
 export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'fa';
-  const [txs, setTxs] = useState<Tx[]>([]);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
 
   useEffect(() => {
-    if (isOpen) getTransactions().then(setTxs);
+    if (isOpen) getLedger().then(setLedger);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -58,23 +57,32 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
           {/* Transactions */}
           <div>
             <p className="text-sm font-ui text-textSecondary mb-2">{t('Recent Transactions')}</p>
-            {txs.length === 0 ? (
+            {ledger.length === 0 ? (
               <p className="text-center font-light-ui text-sm text-textSecondary py-3">
                 {t('No transactions yet')}
               </p>
             ) : (
               <div className="space-y-1.5 max-h-44 overflow-y-auto hide-scrollbar">
-                {txs.slice(0, 10).map(tx => (
-                  <div key={tx.id} className="flex justify-between items-center bg-background rounded-xl px-4 py-2">
-                    <span className="font-light-ui text-xs text-textSecondary">
-                      {new Date(tx.created_at).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </span>
-                    <span className={`font-ui text-sm ${tx.amount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {tx.amount >= 0 ? '+' : '-'}{isRTL ? toFaNum(Math.abs(tx.amount)) : Math.abs(tx.amount)}
-                    </span>
-                    <span className={`font-light-ui text-xs ${tx.status === 'approved' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {t(tx.status)}
-                    </span>
+                {ledger.slice(0, 12).map(item => (
+                  <div key={item.id} className="flex items-center gap-3 bg-background rounded-xl px-4 py-2">
+                    {item.direction === 'credit'
+                      ? <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      : <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-ui text-sm text-textPrimary truncate">{item.title}</p>
+                      <p className="font-light-ui text-xs text-textSecondary">
+                        {new Date(item.created_at).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="text-end">
+                      <p className={`font-ui text-sm ${item.direction === 'credit' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {item.direction === 'credit' ? '+' : '-'}{isRTL ? toFaNum(item.amount) : item.amount}
+                      </p>
+                      <p className={`font-light-ui text-xs ${item.status === 'approved' || item.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {t(item.status)}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
