@@ -40,6 +40,7 @@ export interface Release {
   id: number;
   song_name: string;
   artist_name: string;
+  producers: string | null;
   legal_name: string;
   release_date: string;
   genre: string | null;

@@ -22,6 +22,7 @@ async def create_release(
     tg_id: int = Depends(get_tg_id),
     song_name: str | None = Form(None),
     artist_name: str | None = Form(None),
+    producers: str | None = Form(None),
     legal_name: str | None = Form(None),
     release_date: str | None = Form(None),
     genre: str | None = Form(None),
@@ -58,6 +59,9 @@ async def create_release(
 
     final_song_name = song_name or source_release.song_name
     final_artist_name = artist_name or source_release.artist_name
+    final_producers = producers if producers is not None else (
+        source_release.producers if source_release else None
+    )
     final_legal_name = legal_name or source_release.legal_name
     final_release_date = release_date or source_release.release_date
     final_genre = genre or source_release.genre
@@ -94,6 +98,7 @@ async def create_release(
         cover_url=cover_key,
         song_name=final_song_name,
         artist_name=final_artist_name,
+        producers=final_producers,
         legal_name=final_legal_name,
         release_date=final_release_date,
         genre=final_genre,
@@ -120,6 +125,7 @@ async def create_release(
             release_id=release.id,
             song_name=final_song_name,
             artist_name=final_artist_name,
+            producers=final_producers,
             genre=final_genre or "",
             release_date=final_release_date,
             cost=total_cost,

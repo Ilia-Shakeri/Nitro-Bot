@@ -62,6 +62,7 @@ class Release(Base):
     cover_url = Column(String, nullable=False)
     song_name = Column(String, nullable=False)
     artist_name = Column(String, nullable=False)
+    producers = Column(Text, nullable=True)
     legal_name = Column(String, nullable=False)
     release_date = Column(String, nullable=False)
     genre = Column(String, nullable=True)

@@ -10,6 +10,7 @@ import { useToast } from '../context/ToastContext';
 import { GenreSelect } from '../components/GenreSelect';
 import { FormToggle } from '../components/FormToggle';
 import { NitroCostSummary } from '../components/NitroCostSummary';
+import { ProducerTagInput } from '../components/ProducerTagInput';
 import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
 
 const NEW_RELEASE_WITH_PROFILE_COST = 10;
@@ -27,6 +28,7 @@ export const UploadPage = () => {
   const [formData, setFormData] = useState({
     songName: '',
     artistName: '',
+    producers: [] as string[],
     legalName: '',
     releaseDate: '',
     genre: '',
@@ -87,6 +89,7 @@ export const UploadPage = () => {
       form.append('cover',    coverFile);
       form.append('song_name',   formData.songName);
       form.append('artist_name', formData.artistName);
+      form.append('producers', JSON.stringify(formData.producers));
       form.append('legal_name',  formData.legalName);
       form.append('release_date', formData.releaseDate);
       form.append('genre',        formData.genre);
@@ -192,6 +195,10 @@ export const UploadPage = () => {
                 placeholder="Arman Vale" />
             </div>
           </div>
+          <ProducerTagInput
+            producers={formData.producers}
+            onChange={producers => setFormData(f => ({ ...f, producers }))}
+          />
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">5. {t('Legal Name')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">

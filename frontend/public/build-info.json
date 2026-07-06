@@ -1,5 +1,5 @@
 {
-  "release": "2026-07-06-edit-prefill-v4",
+  "release": "2026-07-06-producers-convert-v5",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
@@ -13,6 +13,8 @@
     "nitro-cost-summary",
     "partial-edit-submissions",
     "localized-errors",
-    "nobitex-wallex-rate-fallback"
+    "nobitex-wallex-rate-fallback",
+    "producer-tag-input",
+    "async-media-conversion"
   ]
 }

@@ -60,6 +60,7 @@ class ReleaseOut(BaseModel):
     id: int
     song_name: str
     artist_name: str
+    producers: str | None
     legal_name: str
     release_date: str
     genre: str | None
@@ -79,6 +80,7 @@ class PendingReleaseOut(BaseModel):
     user_id: int
     song_name: str
     artist_name: str
+    producers: str | None
     legal_name: str
     release_date: str
     genre: str | None

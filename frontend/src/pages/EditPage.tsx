@@ -7,6 +7,7 @@ import { GenreSelect } from '../components/GenreSelect';
 import { HomeHeader } from '../components/HomeHeader';
 import { NitroCostSummary } from '../components/NitroCostSummary';
 import { PersianDatePicker } from '../components/PersianDatePicker';
+import { ProducerTagInput } from '../components/ProducerTagInput';
 import { getReleases, submitRelease, updateLanguage } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
@@ -14,6 +15,16 @@ import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/fo
 
 const EDIT_RELEASE_COST = 2;
 const COPYRIGHT_COST = 1;
+
+const parseProducers = (raw: string | null) => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(item => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 
 export const EditPage = () => {
   const { t, i18n } = useTranslation();
@@ -28,6 +39,7 @@ export const EditPage = () => {
   const [formData, setFormData] = useState({
     songName: '',
     artistName: '',
+    producers: [] as string[],
     legalName: '',
     releaseDate: '',
     genre: '',
@@ -53,6 +65,7 @@ export const EditPage = () => {
       setFormData({
         songName: release.song_name,
         artistName: release.artist_name,
+        producers: parseProducers(release.producers),
         legalName: release.legal_name,
         releaseDate: release.release_date,
         genre: release.genre ?? '',
@@ -101,6 +114,7 @@ export const EditPage = () => {
       if (coverFile) form.append('cover', coverFile);
       if (formData.songName) form.append('song_name', formData.songName);
       if (formData.artistName) form.append('artist_name', formData.artistName);
+      form.append('producers', JSON.stringify(formData.producers));
       if (formData.legalName) form.append('legal_name', formData.legalName);
       if (formData.releaseDate) form.append('release_date', formData.releaseDate);
       if (formData.genre) form.append('genre', formData.genre);
@@ -205,6 +219,10 @@ export const EditPage = () => {
               />
             </div>
           </div>
+          <ProducerTagInput
+            producers={formData.producers}
+            onChange={producers => setFormData(f => ({ ...f, producers }))}
+          />
           <div>
             <h3 className="text-gold font-ui mb-2 text-sm">5. {t('Legal Name')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
@@ -251,10 +269,10 @@ export const EditPage = () => {
         <div className="pb-8">
           <button
             onClick={handleSubmit}
-                disabled={loading || prefillLoading}
+            disabled={loading || prefillLoading}
             className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50"
           >
-            <span className="text-lg">{loading ? '...' : t('Submit Edit')}</span>
+            <span className="text-lg">{loading ? t('Processing...') : t('Submit Edit')}</span>
           </button>
         </div>
       </div>

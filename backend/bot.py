@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram import Bot, Dispatcher, F, types
@@ -13,7 +14,7 @@ from models import User, Transaction, SupportMessage, SupportTicket, get_naive_u
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
-APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-edit-prefill-v4")
+APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-producers-convert-v5")
 
 
 def _topic(env_name: str) -> int | None:
@@ -170,6 +171,7 @@ async def notify_admin_new_release(
     release_id: int,
     song_name: str,
     artist_name: str,
+    producers: str | None,
     genre: str,
     release_date: str,
     cost: int,
@@ -180,12 +182,21 @@ async def notify_admin_new_release(
     cover_filename: str | None,
 ):
     """Post a staged release as one media group in the Order topic."""
+    producer_text = "-"
+    if producers:
+        try:
+            parsed = json.loads(producers)
+            if isinstance(parsed, list) and parsed:
+                producer_text = ", ".join(str(item) for item in parsed)
+        except Exception:
+            producer_text = producers
     caption = (
         f"New Release (Staging)\n"
         f"Release ID: {release_id}\n"
         f"From: {submitter}\n"
         f"Song: {song_name}\n"
         f"Artist: {artist_name}\n"
+        f"Producers: {producer_text}\n"
         f"Genre: {genre}\n"
         f"Release date: {release_date}\n"
         f"Cost: {cost} Nitro"
