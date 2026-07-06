@@ -1,0 +1,10 @@
+{
+  "release": "2026-07-06-nitro-feature-pack",
+  "features": [
+    "nitro-service-pricing",
+    "nobitex-usdt-rate",
+    "support-ticket-history",
+    "nitro-ledger",
+    "release-edit-entry"
+  ]
+}
