@@ -182,7 +182,7 @@ async def notify_admin_new_release(
     cover_bytes: bytes | None,
     cover_filename: str | None,
 ):
-    """Post a staged release as one media group in the Order topic."""
+    # Format the producer list for the caption
     producer_text = "-"
     if producers:
         try:
@@ -191,6 +191,8 @@ async def notify_admin_new_release(
                 producer_text = ", ".join(str(item) for item in parsed)
         except Exception:
             producer_text = producers
+
+    # Build the caption text
     caption = (
         f"New Release (Staging)\n"
         f"Release ID: {release_id}\n"
@@ -202,6 +204,8 @@ async def notify_admin_new_release(
         f"Release date: {release_date}\n"
         f"Cost: {cost} Nitro"
     )
+
+    # Handle cases where no media was uploaded
     if not audio_bytes and not cover_bytes:
         await bot.send_message(
             chat_id=ADMIN_GROUP_ID,
@@ -209,21 +213,21 @@ async def notify_admin_new_release(
             text=caption + "\nMedia: unchanged from source release",
         )
         return
+
     try:
-        media = []
+        # Send a single audio message and attach the cover as a thumbnail
         if audio_bytes and audio_filename:
-            media.append(InputMediaAudio(media=BufferedInputFile(audio_bytes, filename=audio_filename), caption=caption))
-        if cover_bytes and cover_filename:
-            media.append(InputMediaPhoto(media=BufferedInputFile(cover_bytes, filename=cover_filename)))
-        if len(media) == 1 and audio_bytes and audio_filename:
-            await bot.send_document(
+            await bot.send_audio(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=ORDER_TOPIC_ID,
-                document=BufferedInputFile(audio_bytes, filename=audio_filename),
+                audio=BufferedInputFile(audio_bytes, filename=audio_filename),
+                thumbnail=BufferedInputFile(cover_bytes, filename=cover_filename) if cover_bytes else None,
                 caption=caption,
             )
             return
-        if len(media) == 1 and cover_bytes and cover_filename:
+
+        # Fallback if only the cover image exists
+        if cover_bytes and cover_filename:
             await bot.send_photo(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=ORDER_TOPIC_ID,
@@ -231,12 +235,9 @@ async def notify_admin_new_release(
                 caption=caption,
             )
             return
-        await bot.send_media_group(
-            chat_id=ADMIN_GROUP_ID,
-            message_thread_id=ORDER_TOPIC_ID,
-            media=media,
-        )
+
     except Exception:
+        # Final fallback to ensure the message is delivered if Telegram rejects the thumbnail
         fallback_data = audio_bytes or cover_bytes
         fallback_name = audio_filename or cover_filename or "release.bin"
         if fallback_data:
@@ -244,15 +245,8 @@ async def notify_admin_new_release(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=ORDER_TOPIC_ID,
                 document=BufferedInputFile(fallback_data, filename=fallback_name),
-                caption=caption,
+                caption=caption + "\nMedia upload failed — files unavailable",
             )
-        else:
-            await bot.send_message(
-                chat_id=ADMIN_GROUP_ID,
-                message_thread_id=ORDER_TOPIC_ID,
-                text=caption + "\nMedia upload failed — files unavailable",
-            )
-
 
 async def _append_status(message: types.Message, suffix: str) -> None:
     """Append a status line to a group message when Telegram allows editing."""
