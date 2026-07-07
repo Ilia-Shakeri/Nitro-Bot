@@ -9,8 +9,12 @@ from database import get_db
 from models import User, SupportMessage, SupportTicket, get_naive_utc
 from bot import notify_admin_new_ticket
 from schemas import OkResponse, SupportTicketOut
+from fastapi import HTTPException
 
 router = APIRouter(prefix="/support", tags=["support"])
+
+_MAX_SUBJECT_LEN = 200
+_MAX_MESSAGE_LEN = 4000
 
 
 class TicketCreate(BaseModel):
@@ -43,16 +47,26 @@ async def create_ticket(
     username = f"@{user.username}" if user and user.username else f"ID:{tg_id}"
     name = user.first_name or "Unknown" if user else "Unknown"
 
+    subject_text = body.subject.strip()[:_MAX_SUBJECT_LEN]
+    message_text = body.message.strip()
+    if not message_text:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if len(message_text) > _MAX_MESSAGE_LEN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message too long (max {_MAX_MESSAGE_LEN} characters)",
+        )
+
     ticket = SupportTicket(
         user_id=tg_id,
-        subject=body.subject.strip(),
+        subject=subject_text,
         status="open",
         updated_at=get_naive_utc(),
     )
     db.add(ticket)
     await db.flush()
-    db.add(SupportMessage(ticket_id=ticket.id, sender="user", message=body.message.strip()))
+    db.add(SupportMessage(ticket_id=ticket.id, sender="user", message=message_text))
     await db.commit()
 
-    await notify_admin_new_ticket(ticket.id, tg_id, name, username, body.subject, body.message)
+    await notify_admin_new_ticket(ticket.id, tg_id, name, username, subject_text, message_text)
     return {"status": "ok"}

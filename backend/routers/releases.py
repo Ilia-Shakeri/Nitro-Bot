@@ -1,11 +1,14 @@
 import logging
+import asyncio
+
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from auth import get_tg_id
-from database import get_db
+from database import get_db, AsyncSessionLocal
 from models import User, Release
 from pricing import release_cost
 from schemas import ReleaseCreateResponse
@@ -15,6 +18,73 @@ from bot import notify_admin_new_release
 logger = logging.getLogger("nitro.releases")
 
 router = APIRouter(prefix="/releases", tags=["releases"])
+
+
+async def _background_convert_and_notify(
+    release_id: int,
+    tg_id: int,
+    submitter: str,
+    audio_key_tmp: str | None,
+    cover_key_tmp: str | None,
+    final_song_name: str,
+    final_artist_name: str,
+    final_producers: str | None,
+    final_genre: str,
+    final_release_date: str,
+    total_cost: int,
+):
+    try:
+        wav_bytes = None
+        cover_bytes = None
+        audio_key_final = audio_key_tmp
+        cover_key_final = cover_key_tmp
+
+        if audio_key_tmp and audio_key_tmp.endswith('.tmp'):
+            audio_bytes_raw = await storage.download(audio_key_tmp)
+            wav_bytes = await storage.convert_audio_to_wav(audio_bytes_raw)
+            audio_key_final = await storage.upload(wav_bytes, f"releases/{tg_id}", "track.wav")
+
+        if cover_key_tmp and cover_key_tmp.endswith('.tmp'):
+            cover_bytes_raw = await storage.download(cover_key_tmp)
+            cover_bytes, _ = await storage.process_cover(cover_bytes_raw)
+            cover_key_final = await storage.upload(cover_bytes, f"releases/{tg_id}", "cover.png")
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Release).where(Release.id == release_id))
+            release = result.scalars().first()
+            if release:
+                if audio_key_final:
+                    release.track_url = audio_key_final
+                if cover_key_final:
+                    release.cover_url = cover_key_final
+                release.status = "pending"
+                await db.commit()
+
+        await notify_admin_new_release(
+            release_id=release_id,
+            song_name=final_song_name,
+            artist_name=final_artist_name,
+            producers=final_producers,
+            genre=final_genre or "",
+            release_date=final_release_date,
+            cost=total_cost,
+            submitter=submitter,
+            audio_bytes=wav_bytes,
+            audio_filename="track.wav" if wav_bytes else None,
+            cover_bytes=cover_bytes,
+            cover_filename="cover.png" if cover_bytes else None,
+        )
+    except Exception:
+        logger.exception("Background conversion failed for release %s", release_id)
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(select(Release).where(Release.id == release_id))
+                release = result.scalars().first()
+                if release and release.status == "staging":
+                    release.status = "failed"
+                    await db.commit()
+        except Exception:
+            logger.exception("Failed to mark release %s as failed", release_id)
 
 
 @router.post("", response_model=ReleaseCreateResponse)
@@ -65,6 +135,12 @@ async def create_release(
     final_legal_name = legal_name or source_release.legal_name
     final_release_date = release_date or source_release.release_date
     final_genre = genre or source_release.genre
+
+    try:
+        datetime.strptime(final_release_date, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Release date must be YYYY-MM-DD format")
+
     final_mapping_spotify = mapping_spotify if mapping_spotify is not None else (
         source_release.mapping_spotify if source_release else None
     )
@@ -76,26 +152,25 @@ async def create_release(
     if user.credits < total_cost:
         raise HTTPException(status_code=400, detail=f"Not enough credits ({total_cost} required)")
 
-    wav_bytes = None
-    cover_bytes = None
-    cover_ext = None
+    audio_key = None
+    cover_key = None
+
     if audio:
-        audio_bytes = await storage.read_audio(audio)
-        wav_bytes = await storage.convert_audio_to_wav(audio_bytes)
-        audio_key = await storage.upload(wav_bytes, f"releases/{tg_id}", "track.wav")
+        audio_bytes_raw = await storage.read_audio(audio)
+        audio_key = await storage.upload(audio_bytes_raw, f"releases/{tg_id}", "track.tmp")
     else:
-        audio_key = source_release.track_url
+        audio_key = source_release.track_url if source_release else None
+
     if cover:
-        raw_cover_bytes = await storage.read_image(cover)
-        cover_bytes, cover_ext = await storage.process_cover(raw_cover_bytes)
-        cover_key = await storage.upload(cover_bytes, f"releases/{tg_id}", f"cover.{cover_ext}")
+        cover_bytes_raw = await storage.read_image(cover)
+        cover_key = await storage.upload(cover_bytes_raw, f"releases/{tg_id}", "cover.tmp")
     else:
-        cover_key = source_release.cover_url
+        cover_key = source_release.cover_url if source_release else None
 
     release = Release(
         user_id=tg_id,
-        track_url=audio_key,
-        cover_url=cover_key,
+        track_url=audio_key or "",
+        cover_url=cover_key or "",
         song_name=final_song_name,
         artist_name=final_artist_name,
         producers=final_producers,
@@ -107,8 +182,6 @@ async def create_release(
         requires_new_profile=requires_new_profile,
         is_edit=is_edit,
         copyright_requested=copyright_requested,
-        # Staging phase: 'staging' is intentionally NOT 'pending', so the
-        # DMB-automation worker (which polls status == 'pending') never picks it up.
         status="staging",
     )
     user.credits -= total_cost
@@ -116,27 +189,24 @@ async def create_release(
     await db.commit()
     await db.refresh(release)
 
-    # Send the staged release to the admin Order topic for manual review.
-    # The DB is already committed (credits deducted), so a Telegram failure must
-    # NOT surface as an error — that would make the user retry and pay twice.
     submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
-    try:
-        await notify_admin_new_release(
+
+    asyncio.create_task(
+        _background_convert_and_notify(
             release_id=release.id,
-            song_name=final_song_name,
-            artist_name=final_artist_name,
-            producers=final_producers,
-            genre=final_genre or "",
-            release_date=final_release_date,
-            cost=total_cost,
+            tg_id=tg_id,
             submitter=submitter,
-            audio_bytes=wav_bytes,
-            audio_filename="track.wav" if wav_bytes else None,
-            cover_bytes=cover_bytes,
-            cover_filename=f"cover.{cover_ext}" if cover_bytes and cover_ext else None,
+            audio_key_tmp=audio_key if audio else None,
+            cover_key_tmp=cover_key if cover else None,
+            final_song_name=final_song_name,
+            final_artist_name=final_artist_name,
+            final_producers=final_producers,
+            final_genre=final_genre or "",
+            final_release_date=final_release_date,
+            total_cost=total_cost,
         )
-    except Exception:
-        logger.exception("Failed to notify admin of release %s", release.id)
+    )
+
     return {
         "status": "ok",
         "release_id": release.id,

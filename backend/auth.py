@@ -51,5 +51,5 @@ async def get_tg_id(x_telegram_init_data: str = Header(None)) -> int:
     try:
         user_data = json.loads(parsed.get("user", "{}"))
         return int(user_data["id"])
-    except (KeyError, ValueError, TypeError):
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         raise HTTPException(status_code=401, detail="Invalid user data in Telegram auth")

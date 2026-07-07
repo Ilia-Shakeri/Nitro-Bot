@@ -96,6 +96,13 @@ async def presign(key: str, expires: int = 86400) -> str:
     )
 
 
+async def download(key: str) -> bytes:
+    def _download():
+        obj = _client.get_object(Bucket=BUCKET_NAME, Key=key)
+        return obj["Body"].read()
+    return await asyncio.to_thread(_download)
+
+
 async def ensure_bucket() -> None:
     try:
         await asyncio.to_thread(_client.create_bucket, Bucket=BUCKET_NAME)

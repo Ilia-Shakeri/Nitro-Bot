@@ -69,11 +69,12 @@ async def configure_menu_button() -> None:
 
 
 async def _user_lang(tg_id: int) -> str:
-    """Look up a user's language preference, defaulting to Farsi."""
+    """Look up user language preference, default to Farsi if not found."""
     async with AsyncSessionLocal() as db:
         res = await db.execute(select(User).where(User.telegram_id == tg_id))
         user = res.scalars().first()
-    return user.language_preference if user else "fa"
+    lang = user.language_preference if user else "fa"
+    return lang if lang in _TRANSLATIONS else "fa"
 
 
 @dp.message(Command("start"))
@@ -236,12 +237,21 @@ async def notify_admin_new_release(
             media=media,
         )
     except Exception:
-        await bot.send_document(
-            chat_id=ADMIN_GROUP_ID,
-            message_thread_id=ORDER_TOPIC_ID,
-            document=BufferedInputFile(audio_bytes or cover_bytes or b"", filename=audio_filename or cover_filename or "release.bin"),
-            caption=caption,
-        )
+        fallback_data = audio_bytes or cover_bytes
+        fallback_name = audio_filename or cover_filename or "release.bin"
+        if fallback_data:
+            await bot.send_document(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=ORDER_TOPIC_ID,
+                document=BufferedInputFile(fallback_data, filename=fallback_name),
+                caption=caption,
+            )
+        else:
+            await bot.send_message(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=ORDER_TOPIC_ID,
+                text=caption + "\nMedia upload failed — files unavailable",
+            )
 
 
 async def _append_status(message: types.Message, suffix: str) -> None:

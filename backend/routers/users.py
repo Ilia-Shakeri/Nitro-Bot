@@ -6,6 +6,7 @@ from auth import get_tg_id
 from database import get_db
 from models import User, Transaction, Release
 from schemas import UserOut, TransactionOut, ReleaseOut, LanguageResponse, UserLanguageUpdate
+import storage
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -62,4 +63,10 @@ async def get_releases(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depen
         .where(Release.user_id == tg_id)
         .order_by(Release.created_at.desc())
     )
-    return result.scalars().all()
+    releases = result.scalars().all()
+    import asyncio
+    async def presign_cover(release):
+        if release.cover_url:
+            release.cover_url = await storage.presign(release.cover_url)
+    await asyncio.gather(*[presign_cover(r) for r in releases])
+    return releases

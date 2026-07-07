@@ -16,15 +16,12 @@ logger = logging.getLogger("nitro.bot")
 
 
 async def _run_polling() -> None:
-    """Long-poll Telegram, auto-restarting on transient network errors so a
-    single failure never silently kills the bot for the rest of the process."""
-    # Clear any stale webhook (a webhook and long-polling cannot coexist) and
-    # drop the backlog so we don't reprocess old updates after a redeploy.
+    """Long-poll Telegram with auto-restart on network errors."""
     await bot.delete_webhook(drop_pending_updates=True)
     while True:
         try:
             await dp.start_polling(bot, handle_signals=False)
-            return  # clean shutdown (task cancelled)
+            return
         except asyncio.CancelledError:
             raise
         except Exception:

@@ -101,7 +101,11 @@ async def _fetch_usdt_toman() -> int:
             return await _fetch_nobitex_usdt_irt(client)
         except Exception:
             logger.exception("Nobitex USDT/IRT fetch failed; trying Wallex")
-            return await _fetch_wallex_usdt_irt(client)
+            try:
+                return await _fetch_wallex_usdt_irt(client)
+            except Exception:
+                logger.exception("Wallex USDT/IRT fetch also failed")
+                raise
 
 
 @router.get("/usdt-rate", response_model=UsdtRateOut)
