@@ -1,5 +1,11 @@
 node_modules
 dist
+.vite
+coverage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
 .env
 .env.*
 *.local

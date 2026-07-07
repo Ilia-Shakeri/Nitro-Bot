@@ -1,9 +1,11 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 FROM node:20-alpine AS build
 WORKDIR /app
+ENV npm_config_audit=false \
+    npm_config_fund=false
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    npm ci --prefer-offline --no-audit --no-fund
 COPY . .
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
