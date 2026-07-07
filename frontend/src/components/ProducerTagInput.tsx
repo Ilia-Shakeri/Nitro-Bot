@@ -5,9 +5,10 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   producers: string[];
   onChange: (producers: string[]) => void;
+  labelPrefix?: string;
 }
 
-export const ProducerTagInput = ({ producers, onChange }: Props) => {
+export const ProducerTagInput = ({ producers, onChange, labelPrefix }: Props) => {
   const { t } = useTranslation();
   const [value, setValue] = useState('');
 
@@ -24,7 +25,9 @@ export const ProducerTagInput = ({ producers, onChange }: Props) => {
 
   return (
     <div>
-      <h3 className="text-gold font-ui mb-2 text-sm">{t('Producers')}</h3>
+      <h3 className="text-gold font-ui mb-2 text-sm">
+        {labelPrefix ? `${labelPrefix} ` : ''}{t('Producers')}
+      </h3>
       <div className="bg-inputBg border border-inputBorder rounded-lg p-3">
         <input
           type="text"

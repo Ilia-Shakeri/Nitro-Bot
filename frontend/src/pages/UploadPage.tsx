@@ -196,11 +196,12 @@ export const UploadPage = () => {
             </div>
           </div>
           <ProducerTagInput
+            labelPrefix="5."
             producers={formData.producers}
             onChange={producers => setFormData(f => ({ ...f, producers }))}
           />
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">5. {t('Legal Name')}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">6. {t('Legal Name')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
               <AlignLeft className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
               <input type="text" value={formData.legalName} dir="ltr"
@@ -210,14 +211,14 @@ export const UploadPage = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">6. {t('Release Date')}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Release Date')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
               <Calendar className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
               <PersianDatePicker onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))} />
             </div>
           </div>
           <div className="relative z-40">
-            <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Genre')}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Genre')}</h3>
             <GenreSelect
               genre={formData.genre}
               subGenre={formData.subGenre}
@@ -227,9 +228,9 @@ export const UploadPage = () => {
           </div>
         </div>
 
-        {/* 8. Mapping */}
+        {/* 9. Mapping */}
         <div className="mb-6 relative z-0">
-          <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Mapping')}</h3>
+          <h3 className="text-gold font-ui mb-2 text-sm">9. {t('Mapping')}</h3>
           <div className="mb-4">
             <FormToggle
               id="newProfile"

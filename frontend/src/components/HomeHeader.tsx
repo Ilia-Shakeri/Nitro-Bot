@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, UserRound } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { ProfileModal } from './ProfileModal';
 import { CreditsModal } from './CreditsModal';
@@ -24,7 +24,6 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
   const isHome = location.pathname === '/';
   const isRTL  = lang === 'fa';
   const user    = WebApp.initDataUnsafe?.user;
-  const initial = user?.first_name?.[0]?.toUpperCase() ?? 'N';
 
   return (
     <>
@@ -40,7 +39,7 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
           >
             {user?.photo_url
               ? <img src={user.photo_url} alt={user.first_name} className="w-full h-full object-cover" />
-              : <span className="text-textPrimary font-title">{initial}</span>
+              : <UserRound className="w-5 h-5 text-textPrimary" />
             }
           </button>
 
@@ -67,14 +66,11 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
           ) : (
             <button
               onClick={() => setCreditsOpen(true)}
-              className="flex items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition"
+              className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition`}
             >
               <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
-              {/* Persian shows the live count ([logo] [count] Nitro); English shows
-                  the label only ([logo] Nitro), per the dashboard spec. */}
-              <span className="text-textPrimary font-ui text-sm">
-                {isRTL ? `${localizeNumber(credits, lang)} ${t('Nitro')}` : t('Nitro')}
-              </span>
+              <span className="text-textPrimary font-ui text-sm tabular-nums">{localizeNumber(credits, lang)}</span>
+              <span className="text-textPrimary font-ui text-sm">{t('Nitro')}</span>
             </button>
           )}
         </div>
