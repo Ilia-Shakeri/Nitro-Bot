@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/support", tags=["support"])
 
 
 class TicketCreate(BaseModel):
-    subject: str = ""
+    subject: str
     message: str
 
 
@@ -42,17 +42,21 @@ async def create_ticket(
     user = result.scalars().first()
     username = f"@{user.username}" if user and user.username else f"ID:{tg_id}"
     name = user.first_name or "Unknown" if user else "Unknown"
+    subject = body.subject.strip()
+    message = body.message.strip()
+    if not subject or not message:
+        raise HTTPException(status_code=400, detail="Subject and message are required")
 
     ticket = SupportTicket(
         user_id=tg_id,
-        subject=body.subject.strip(),
+        subject=subject,
         status="open",
         updated_at=get_naive_utc(),
     )
     db.add(ticket)
     await db.flush()
-    db.add(SupportMessage(ticket_id=ticket.id, sender="user", message=body.message.strip()))
+    db.add(SupportMessage(ticket_id=ticket.id, sender="user", message=message))
     await db.commit()
 
-    await notify_admin_new_ticket(ticket.id, tg_id, name, username, body.subject, body.message)
+    await notify_admin_new_ticket(ticket.id, tg_id, name, username, subject, message)
     return {"status": "ok"}

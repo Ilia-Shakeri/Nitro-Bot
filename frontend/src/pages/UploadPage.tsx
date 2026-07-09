@@ -8,6 +8,7 @@ import { submitRelease, updateLanguage } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
 import { GenreSelect } from '../components/GenreSelect';
+import { formMessage } from '../utils/formMessages';
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
@@ -80,7 +81,7 @@ export const UploadPage = () => {
       toast(t('Release submitted successfully!'), 'success');
       navigate('/');
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Unknown error', 'error');
+      toast(formMessage(e instanceof Error ? e.message : undefined, lang), 'error');
     } finally {
       setLoading(false);
     }

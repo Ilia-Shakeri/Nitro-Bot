@@ -75,6 +75,7 @@ class Release(Base):
     
     # State tracking for the Selenium Bot worker
     status = Column(String, default="pending") 
+    failure_reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_naive_utc)
 
     user = relationship("User", backref="releases")

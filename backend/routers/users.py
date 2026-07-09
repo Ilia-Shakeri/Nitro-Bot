@@ -6,6 +6,7 @@ from auth import get_tg_id
 from database import get_db
 from models import User, Transaction, Release
 from schemas import UserOut, TransactionOut, ReleaseOut, LanguageResponse, UserLanguageUpdate
+import storage
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -62,4 +63,20 @@ async def get_releases(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depen
         .where(Release.user_id == tg_id)
         .order_by(Release.created_at.desc())
     )
-    return result.scalars().all()
+    releases = result.scalars().all()
+    items = []
+    for release in releases:
+        data = {
+            "id": release.id,
+            "song_name": release.song_name,
+            "artist_name": release.artist_name,
+            "genre": release.genre,
+            "status": release.status,
+            "failure_reason": release.failure_reason,
+            "cover_url": await storage.presign(release.cover_url) if release.cover_url else "",
+            "is_edit": release.is_edit,
+            "copyright_requested": release.copyright_requested,
+            "created_at": release.created_at,
+        }
+        items.append(data)
+    return items

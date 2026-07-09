@@ -33,9 +33,14 @@ export const HorizontalMusicSlider = () => {
                 {r.cover_url && (
                   <img src={r.cover_url} alt={r.song_name} className="w-full h-full object-cover" />
                 )}
-                <div className="absolute top-2 left-2 bg-black/60 px-2 py-0.5 rounded-full text-xs font-ui flex items-center gap-1">
+                <div
+                  className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-ui flex items-center gap-1 ${
+                    r.status === 'failed' ? 'bg-red-600 text-white' : 'bg-black/60'
+                  }`}
+                  title={r.status === 'failed' ? (r.failure_reason || t('Release failed. Credits refunded.')) : undefined}
+                >
                   <Eye className="w-3 h-3" />
-                  {r.status}
+                  {t(r.status)}
                 </div>
                 <button
                   type="button"

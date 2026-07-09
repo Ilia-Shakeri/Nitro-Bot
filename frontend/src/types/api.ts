@@ -42,6 +42,7 @@ export interface Release {
   artist_name: string;
   genre: string | null;
   status: string;
+  failure_reason?: string | null;
   cover_url: string;
   is_edit: boolean;
   copyright_requested: boolean;

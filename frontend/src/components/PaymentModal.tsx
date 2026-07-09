@@ -4,6 +4,7 @@ import { ChevronDown, Upload, X } from 'lucide-react';
 import { getUsdtRate, submitReceipt } from '../api';
 import { useToast } from '../context/ToastContext';
 import { localizeNumber, toFaNum } from '../utils/faNum';
+import { formMessage } from '../utils/formMessages';
 import { PaymentDetails } from './PaymentDetails';
 
 const NITRO_PRICE_TOMAN = 50_000;
@@ -62,7 +63,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       toast(t('Receipt submitted successfully. Awaiting admin approval.'), 'success');
       onClose();
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Unknown error', 'error');
+      toast(formMessage(e instanceof Error ? e.message : undefined, lang), 'error');
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="bg-card1 w-full max-w-sm rounded-2xl p-6 border border-gold/20 relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-card1 w-full max-w-sm rounded-2xl p-6 border border-gold/20 relative">
         <button onClick={onClose} className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-textSecondary hover:text-textPrimary">
           <X className="w-6 h-6" />
         </button>

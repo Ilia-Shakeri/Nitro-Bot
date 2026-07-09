@@ -92,6 +92,7 @@ POSTGRES_DB=nitrodb
 
 # MinIO / S3 Configuration
 S3_ENDPOINT=http://minio:9000
+S3_PUBLIC_ENDPOINT=https://nitrobot.duckdns.org
 S3_ACCESS_KEY=admin
 S3_SECRET_KEY=password123
 ```

@@ -62,6 +62,7 @@ class ReleaseOut(BaseModel):
     artist_name: str
     genre: str | None
     status: str
+    failure_reason: str | None = None
     cover_url: str
     is_edit: bool
     copyright_requested: bool
@@ -85,6 +86,7 @@ class PendingReleaseOut(BaseModel):
     is_edit: bool
     copyright_requested: bool
     status: str
+    failure_reason: str | None = None
     created_at: datetime
 
 

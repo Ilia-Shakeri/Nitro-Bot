@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 
@@ -12,6 +13,7 @@ from models import User, Transaction, SupportMessage, SupportTicket, get_naive_u
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
+logger = logging.getLogger("nitro.bot")
 
 
 def _topic(env_name: str) -> int | None:
@@ -131,6 +133,7 @@ async def notify_admin_new_receipt(
             reply_markup=builder.as_markup(),
         )
     except Exception:
+        logger.error("Failed to send receipt %s as photo", tx_id, exc_info=True)
         await bot.send_document(
             chat_id=ADMIN_GROUP_ID,
             message_thread_id=PAYMENT_TOPIC_ID,
@@ -174,12 +177,23 @@ async def notify_admin_new_release(
             ],
         )
     except Exception:
-        await bot.send_document(
-            chat_id=ADMIN_GROUP_ID,
-            message_thread_id=ORDER_TOPIC_ID,
-            document=BufferedInputFile(audio_bytes, filename=audio_filename),
-            caption=caption,
-        )
+        logger.error("Failed to send release %s as media group", release_id, exc_info=True)
+        try:
+            await bot.send_document(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=ORDER_TOPIC_ID,
+                document=BufferedInputFile(audio_bytes, filename=audio_filename),
+                caption=caption,
+            )
+            await bot.send_document(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=ORDER_TOPIC_ID,
+                document=BufferedInputFile(cover_bytes, filename=cover_filename),
+                caption=f"Cover for release {release_id}",
+            )
+        except Exception:
+            logger.error("Failed to send release %s fallback documents", release_id, exc_info=True)
+            raise
 
 
 async def _append_status(message: types.Message, suffix: str) -> None:
@@ -190,7 +204,7 @@ async def _append_status(message: types.Message, suffix: str) -> None:
         elif message.text is not None:
             await message.edit_text(message.text + suffix)
     except Exception:
-        pass
+        logger.debug("Failed to append status to Telegram message", exc_info=True)
 
 
 @dp.callback_query(F.data.startswith("tx_"))
@@ -267,4 +281,5 @@ async def handle_admin_reply(message: types.Message):
         await bot.send_message(user_id, _TRANSLATIONS[lang]["ticket_reply"].format(message.text))
         await message.reply("Sent to user")
     except Exception:
+        logger.error("Failed to deliver support reply for ticket %s", ticket_id, exc_info=True)
         await message.reply("Failed to deliver. User may have blocked the bot.")

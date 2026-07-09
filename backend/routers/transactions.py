@@ -87,7 +87,7 @@ async def get_ledger(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends
             "id": f"tx-{tx.id}",
             "amount": tx.amount,
             "direction": "credit",
-            "title": f"Nitro top-up ({tx.payment_method})",
+            "title": "Release rollback refund" if tx.payment_method == "rollback" else f"Nitro top-up ({tx.payment_method})",
             "status": tx.status,
             "created_at": tx.created_at,
         }

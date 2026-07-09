@@ -6,6 +6,7 @@ import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
 import { submitTicket } from '../api';
 import { updateLanguage } from '../api';
+import { formMessage } from '../utils/formMessages';
 
 export const SupportPage = () => {
   const { t, i18n } = useTranslation();
@@ -22,7 +23,7 @@ export const SupportPage = () => {
   const isRTL = lang === 'fa';
 
   const handleSend = async () => {
-    if (!message.trim()) return;
+    if (!subject.trim() || !message.trim()) return;
     setLoading(true);
     try {
       await submitTicket(subject.trim(), message.trim());
@@ -31,7 +32,7 @@ export const SupportPage = () => {
       setSubject('');
       setMessage('');
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Error sending ticket', 'error');
+      toast(formMessage(e instanceof Error ? e.message : undefined, lang, 'Error sending ticket'), 'error');
     } finally {
       setLoading(false);
     }
@@ -62,20 +63,20 @@ export const SupportPage = () => {
 
         <div className="space-y-4">
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">{t('Subject (optional)')}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">{t('Subject')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3">
               <input
                 type="text"
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
                 className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder={isRTL ? 'موضوع تیکت...' : 'Ticket subject...'}
+                placeholder={t('Ticket subject...')}
               />
             </div>
           </div>
 
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">{isRTL ? 'پیام *' : 'Message *'}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">{t('Message')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3">
               <textarea
                 value={message}
@@ -91,7 +92,7 @@ export const SupportPage = () => {
         <div className="mt-6 pb-8">
           <button
             onClick={handleSend}
-            disabled={loading || !message.trim()}
+            disabled={loading || !subject.trim() || !message.trim()}
             className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center gap-3 shadow-lg hover:opacity-90 disabled:opacity-50 transition-opacity active:scale-[0.98]"
           >
             <Send className="w-5 h-5" />
