@@ -66,8 +66,10 @@ class Release(Base):
     legal_name = Column(String, nullable=False)
     release_date = Column(String, nullable=False)
     genre = Column(String, nullable=True)
+    sub_genre = Column(String, nullable=True)
     mapping_spotify = Column(String, nullable=True)
     mapping_apple = Column(String, nullable=True)
+    profile_email = Column(String, nullable=True)
     requires_new_profile = Column(Boolean, default=False)
     
     # Financial and Logic Flags

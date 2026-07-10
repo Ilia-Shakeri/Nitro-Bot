@@ -5,6 +5,12 @@
     @api {
         path /users/* /releases/* /transactions/* /support/*
     }
+    @minio {
+        path /{$S3_BUCKET:nitro-bot}/*
+    }
+    handle @minio {
+        reverse_proxy minio:9000
+    }
     handle @api {
         reverse_proxy backend:8000 {
             # Pass the real client IP so backend rate limiting works correctly

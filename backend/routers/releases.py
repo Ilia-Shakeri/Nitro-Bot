@@ -31,8 +31,16 @@ async def _background_convert_and_notify(
     final_song_name: str,
     final_artist_name: str,
     final_producers: str | None,
+    final_legal_name: str,
     final_genre: str,
+    final_sub_genre: str | None,
     final_release_date: str,
+    final_mapping_spotify: str | None,
+    final_mapping_apple: str | None,
+    final_profile_email: str | None,
+    requires_new_profile: bool,
+    is_edit: bool,
+    copyright_requested: bool,
     total_cost: int,
 ):
     try:
@@ -74,8 +82,16 @@ async def _background_convert_and_notify(
             song_name=final_song_name,
             artist_name=final_artist_name,
             producers=final_producers,
+            legal_name=final_legal_name,
             genre=final_genre or "",
+            sub_genre=final_sub_genre,
             release_date=final_release_date,
+            mapping_spotify=final_mapping_spotify,
+            mapping_apple=final_mapping_apple,
+            requires_new_profile=requires_new_profile,
+            profile_email=final_profile_email,
+            is_edit=is_edit,
+            copyright_requested=copyright_requested,
             cost=total_cost,
             submitter=submitter,
             audio_bytes=wav_bytes,
@@ -121,6 +137,7 @@ async def create_release(
     legal_name: str | None = Form(None),
     release_date: str | None = Form(None),
     genre: str | None = Form(None),
+    sub_genre: str | None = Form(None),
     mapping_spotify: str | None = Form(None),
     mapping_apple: str | None = Form(None),
     profile_email: str | None = Form(None),
@@ -160,6 +177,9 @@ async def create_release(
     final_legal_name = legal_name or source_release.legal_name
     final_release_date = release_date or source_release.release_date
     final_genre = genre or source_release.genre
+    final_sub_genre = sub_genre if sub_genre is not None else (
+        source_release.sub_genre if source_release else None
+    )
 
     try:
         datetime.strptime(final_release_date, "%Y-%m-%d")
@@ -171,6 +191,9 @@ async def create_release(
     )
     final_mapping_apple = mapping_apple if mapping_apple is not None else (
         source_release.mapping_apple if source_release else None
+    )
+    final_profile_email = profile_email.strip() if profile_email else (
+        source_release.profile_email if source_release else None
     )
 
     total_cost = release_cost(is_edit, requires_new_profile, copyright_requested)
@@ -202,8 +225,10 @@ async def create_release(
         legal_name=final_legal_name,
         release_date=final_release_date,
         genre=final_genre,
+        sub_genre=final_sub_genre,
         mapping_spotify=final_mapping_spotify,
         mapping_apple=final_mapping_apple,
+        profile_email=final_profile_email,
         requires_new_profile=requires_new_profile,
         is_edit=is_edit,
         copyright_requested=copyright_requested,
@@ -228,8 +253,16 @@ async def create_release(
             final_song_name=final_song_name,
             final_artist_name=final_artist_name,
             final_producers=final_producers,
+            final_legal_name=final_legal_name,
             final_genre=final_genre or "",
+            final_sub_genre=final_sub_genre,
             final_release_date=final_release_date,
+            final_mapping_spotify=final_mapping_spotify,
+            final_mapping_apple=final_mapping_apple,
+            final_profile_email=final_profile_email,
+            requires_new_profile=requires_new_profile,
+            is_edit=is_edit,
+            copyright_requested=copyright_requested,
             total_cost=total_cost,
         )
     )

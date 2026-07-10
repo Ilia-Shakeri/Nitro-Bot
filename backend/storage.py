@@ -10,7 +10,7 @@ from media_conversion import convert_audio_to_wav as _convert_audio_to_wav
 from media_conversion import convert_cover_to_png
 
 _S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://localhost:9000")
-_S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT", _S3_ENDPOINT)
+_S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT") or os.getenv("MINI_APP_URL") or _S3_ENDPOINT
 _S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "admin")
 _S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "password123")
 BUCKET_NAME = os.getenv("S3_BUCKET", "nitro-bot")

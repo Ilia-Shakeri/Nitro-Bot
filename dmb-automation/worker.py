@@ -163,7 +163,8 @@ def process(rel: dict) -> None:
         write_sqlite(rel, cover, music)
 
         if DRY_RUN:
-            log.info("DRY_RUN=1 — wrote SQLite + files, skipping Robot run for release %s", rid)
+            log.info("DRY_RUN=1 - wrote SQLite + files, skipping Robot run for release %s", rid)
+            set_status(rid, "completed")
             return
 
         ok = run_robot(rid)

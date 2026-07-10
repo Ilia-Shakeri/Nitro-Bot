@@ -44,8 +44,10 @@ export interface Release {
   legal_name: string;
   release_date: string;
   genre: string | null;
+  sub_genre: string | null;
   mapping_spotify: string | null;
   mapping_apple: string | null;
+  profile_email: string | null;
   requires_new_profile: boolean;
   status: string;
   cover_url: string;

@@ -64,8 +64,10 @@ class ReleaseOut(BaseModel):
     legal_name: str
     release_date: str
     genre: str | None
+    sub_genre: str | None
     mapping_spotify: str | None
     mapping_apple: str | None
+    profile_email: str | None
     requires_new_profile: bool
     status: str
     cover_url: str
@@ -84,10 +86,12 @@ class PendingReleaseOut(BaseModel):
     legal_name: str
     release_date: str
     genre: str | None
+    sub_genre: str | None
     track_url: str
     cover_url: str
     mapping_spotify: str | None
     mapping_apple: str | None
+    profile_email: str | None
     requires_new_profile: bool
     is_edit: bool
     copyright_requested: bool

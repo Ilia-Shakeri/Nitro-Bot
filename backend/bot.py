@@ -180,8 +180,16 @@ async def notify_admin_new_release(
     song_name: str,
     artist_name: str,
     producers: str | None,
+    legal_name: str,
     genre: str,
+    sub_genre: str | None,
     release_date: str,
+    mapping_spotify: str | None,
+    mapping_apple: str | None,
+    requires_new_profile: bool,
+    profile_email: str | None,
+    is_edit: bool,
+    copyright_requested: bool,
     cost: int,
     submitter: str,
     audio_bytes: bytes | None,
@@ -206,9 +214,17 @@ async def notify_admin_new_release(
         f"From: {submitter}\n"
         f"Song: {song_name}\n"
         f"Artist: {artist_name}\n"
+        f"Legal name: {legal_name}\n"
         f"Producers: {producer_text}\n"
         f"Genre: {genre}\n"
+        f"Subgenre: {sub_genre or '-'}\n"
         f"Release date: {release_date}\n"
+        f"Spotify: {mapping_spotify or '-'}\n"
+        f"Apple Music: {mapping_apple or '-'}\n"
+        f"New profile: {'yes' if requires_new_profile else 'no'}\n"
+        f"Profile email: {profile_email or '-'}\n"
+        f"Edit order: {'yes' if is_edit else 'no'}\n"
+        f"Copyright: {'yes' if copyright_requested else 'no'}\n"
         f"Cost: {cost} Nitro"
     )
 

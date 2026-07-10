@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tag, ChevronDown, ListTree } from 'lucide-react';
 
-export const GENRE_TREE: Record<string, string[]> = {
+const GENRE_TREE: Record<string, string[]> = {
   'HipHop / Rap [Urban]': ['Trap', 'Drill', 'Boom Bap', 'Gangsta Rap', 'Conscious', 'Cloud Rap'],
   'Pop':                  ['Dance Pop', 'Synth Pop', 'Indie Pop', 'Electropop', 'K-Pop'],
   'Rock':                 ['Alternative', 'Indie Rock', 'Hard Rock', 'Punk', 'Post-Rock'],
