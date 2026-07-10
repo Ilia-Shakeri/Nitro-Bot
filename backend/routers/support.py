@@ -18,7 +18,7 @@ _MAX_MESSAGE_LEN = 4000
 
 
 class TicketCreate(BaseModel):
-    subject: str = ""
+    subject: str
     message: str
 
 
@@ -49,6 +49,8 @@ async def create_ticket(
 
     subject_text = body.subject.strip()[:_MAX_SUBJECT_LEN]
     message_text = body.message.strip()
+    if not subject_text:
+        raise HTTPException(status_code=400, detail="Subject is required")
     if not message_text:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     if len(message_text) > _MAX_MESSAGE_LEN:

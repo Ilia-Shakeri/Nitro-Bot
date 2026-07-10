@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import logging
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram import Bot, Dispatcher, F, types
@@ -15,6 +16,7 @@ from models import User, Transaction, SupportMessage, SupportTicket, get_naive_u
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
 APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-producers-convert-v5")
+logger = logging.getLogger("nitro.bot")
 
 
 def _topic(env_name: str) -> int | None:
@@ -159,13 +161,18 @@ async def notify_admin_new_receipt(
             reply_markup=builder.as_markup(),
         )
     except Exception:
-        await bot.send_document(
-            chat_id=ADMIN_GROUP_ID,
-            message_thread_id=PAYMENT_TOPIC_ID,
-            document=BufferedInputFile(receipt_bytes, filename=receipt_filename),
-            caption=caption,
-            reply_markup=builder.as_markup(),
-        )
+        logger.error("Failed to send receipt %s as photo; trying document", tx_id, exc_info=True)
+        try:
+            await bot.send_document(
+                chat_id=ADMIN_GROUP_ID,
+                message_thread_id=PAYMENT_TOPIC_ID,
+                document=BufferedInputFile(receipt_bytes, filename=receipt_filename),
+                caption=caption,
+                reply_markup=builder.as_markup(),
+            )
+        except Exception:
+            logger.error("Failed to send receipt %s document to Telegram payment topic", tx_id, exc_info=True)
+            raise
 
 
 async def notify_admin_new_release(
@@ -224,6 +231,22 @@ async def notify_admin_new_release(
                 thumbnail=BufferedInputFile(cover_bytes, filename=cover_filename) if cover_bytes else None,
                 caption=caption,
             )
+            if cover_bytes and cover_filename:
+                try:
+                    await bot.send_photo(
+                        chat_id=ADMIN_GROUP_ID,
+                        message_thread_id=ORDER_TOPIC_ID,
+                        photo=BufferedInputFile(cover_bytes, filename=cover_filename),
+                        caption=f"Cover for release ID: {release_id}",
+                    )
+                except Exception:
+                    logger.error("Failed to send release %s cover photo", release_id, exc_info=True)
+                    await bot.send_document(
+                        chat_id=ADMIN_GROUP_ID,
+                        message_thread_id=ORDER_TOPIC_ID,
+                        document=BufferedInputFile(cover_bytes, filename=cover_filename),
+                        caption=f"Cover for release ID: {release_id}",
+                    )
             return
 
         # Fallback if only the cover image exists
@@ -237,16 +260,20 @@ async def notify_admin_new_release(
             return
 
     except Exception:
-        # Final fallback to ensure the message is delivered if Telegram rejects the thumbnail
+        logger.error("Failed to send release %s media to Telegram order topic", release_id, exc_info=True)
         fallback_data = audio_bytes or cover_bytes
         fallback_name = audio_filename or cover_filename or "release.bin"
         if fallback_data:
-            await bot.send_document(
-                chat_id=ADMIN_GROUP_ID,
-                message_thread_id=ORDER_TOPIC_ID,
-                document=BufferedInputFile(fallback_data, filename=fallback_name),
-                caption=caption + "\nMedia upload failed — files unavailable",
-            )
+            try:
+                await bot.send_document(
+                    chat_id=ADMIN_GROUP_ID,
+                    message_thread_id=ORDER_TOPIC_ID,
+                    document=BufferedInputFile(fallback_data, filename=fallback_name),
+                    caption=caption + "\nMedia upload failed - files unavailable",
+                )
+            except Exception:
+                logger.error("Fallback release %s document send failed", release_id, exc_info=True)
+                raise
 
 async def _append_status(message: types.Message, suffix: str) -> None:
     """Append a status line to a group message when Telegram allows editing."""

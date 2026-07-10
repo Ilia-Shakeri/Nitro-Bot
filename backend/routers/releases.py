@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 
 from auth import get_tg_id
 from database import get_db, AsyncSessionLocal
-from models import User, Release
+from models import User, Release, Transaction
 from pricing import release_cost
 from schemas import ReleaseCreateResponse
 import storage
@@ -24,8 +24,10 @@ async def _background_convert_and_notify(
     release_id: int,
     tg_id: int,
     submitter: str,
-    audio_key_tmp: str | None,
-    cover_key_tmp: str | None,
+    audio_bytes_raw: bytes | None,
+    cover_bytes_raw: bytes | None,
+    existing_audio_key: str | None,
+    existing_cover_key: str | None,
     final_song_name: str,
     final_artist_name: str,
     final_producers: str | None,
@@ -36,18 +38,26 @@ async def _background_convert_and_notify(
     try:
         wav_bytes = None
         cover_bytes = None
-        audio_key_final = audio_key_tmp
-        cover_key_final = cover_key_tmp
+        audio_key_final = existing_audio_key
+        cover_key_final = existing_cover_key
 
-        if audio_key_tmp and audio_key_tmp.endswith('.tmp'):
-            audio_bytes_raw = await storage.download(audio_key_tmp)
+        if audio_bytes_raw:
             wav_bytes = await storage.convert_audio_to_wav(audio_bytes_raw)
             audio_key_final = await storage.upload(wav_bytes, f"releases/{tg_id}", "track.wav")
+        elif existing_audio_key:
+            try:
+                wav_bytes = await storage.download(existing_audio_key)
+            except Exception:
+                logger.exception("Failed to load existing audio for release %s", release_id)
 
-        if cover_key_tmp and cover_key_tmp.endswith('.tmp'):
-            cover_bytes_raw = await storage.download(cover_key_tmp)
+        if cover_bytes_raw:
             cover_bytes, _ = await storage.process_cover(cover_bytes_raw)
             cover_key_final = await storage.upload(cover_bytes, f"releases/{tg_id}", "cover.png")
+        elif existing_cover_key:
+            try:
+                cover_bytes = await storage.download(existing_cover_key)
+            except Exception:
+                logger.exception("Failed to load existing cover for release %s", release_id)
 
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(Release).where(Release.id == release_id))
@@ -57,7 +67,6 @@ async def _background_convert_and_notify(
                     release.track_url = audio_key_final
                 if cover_key_final:
                     release.cover_url = cover_key_final
-                release.status = "pending"
                 await db.commit()
 
         await notify_admin_new_release(
@@ -74,14 +83,30 @@ async def _background_convert_and_notify(
             cover_bytes=cover_bytes,
             cover_filename="cover.png" if cover_bytes else None,
         )
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Release).where(Release.id == release_id))
+            release = result.scalars().first()
+            if release:
+                release.status = "manual_staging"
+                await db.commit()
     except Exception:
         logger.exception("Background conversion failed for release %s", release_id)
         try:
             async with AsyncSessionLocal() as db:
                 result = await db.execute(select(Release).where(Release.id == release_id))
                 release = result.scalars().first()
-                if release and release.status == "staging":
+                user_result = await db.execute(select(User).where(User.telegram_id == tg_id))
+                user = user_result.scalars().first()
+                if release and release.status != "failed":
                     release.status = "failed"
+                    if user:
+                        user.credits += total_cost
+                    db.add(Transaction(
+                        user_id=tg_id,
+                        amount=total_cost,
+                        status="rollback",
+                        payment_method=f"release-{release_id}-refund",
+                    ))
                     await db.commit()
         except Exception:
             logger.exception("Failed to mark release %s as failed", release_id)
@@ -154,16 +179,16 @@ async def create_release(
 
     audio_key = None
     cover_key = None
+    audio_bytes_raw = None
+    cover_bytes_raw = None
 
     if audio:
         audio_bytes_raw = await storage.read_audio(audio)
-        audio_key = await storage.upload(audio_bytes_raw, f"releases/{tg_id}", "track.tmp")
     else:
         audio_key = source_release.track_url if source_release else None
 
     if cover:
         cover_bytes_raw = await storage.read_image(cover)
-        cover_key = await storage.upload(cover_bytes_raw, f"releases/{tg_id}", "cover.tmp")
     else:
         cover_key = source_release.cover_url if source_release else None
 
@@ -196,8 +221,10 @@ async def create_release(
             release_id=release.id,
             tg_id=tg_id,
             submitter=submitter,
-            audio_key_tmp=audio_key if audio else None,
-            cover_key_tmp=cover_key if cover else None,
+            audio_bytes_raw=audio_bytes_raw,
+            cover_bytes_raw=cover_bytes_raw,
+            existing_audio_key=audio_key,
+            existing_cover_key=cover_key,
             final_song_name=final_song_name,
             final_artist_name=final_artist_name,
             final_producers=final_producers,
