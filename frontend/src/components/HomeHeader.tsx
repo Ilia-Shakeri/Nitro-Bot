@@ -68,7 +68,7 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
               onClick={() => setCreditsOpen(true)}
               className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition`}
             >
-              <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
+              <img src="/Logo/Nitro.webp" alt="Nitro" className="w-6 h-6 object-contain select-none pointer-events-none flex-shrink-0" />
               <span className="text-textPrimary font-ui text-sm tabular-nums">{localizeNumber(credits, lang)}</span>
               <span className="text-textPrimary font-ui text-sm">{t('Nitro')}</span>
             </button>

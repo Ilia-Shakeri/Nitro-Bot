@@ -17,7 +17,7 @@ export const NitroCreditCard = ({ onRefillClick }: Props) => {
           <div className="w-20 h-20 rounded-full border-4 border-gold/20 flex items-center justify-center flex-shrink-0">
             <div className="w-16 h-16 rounded-full border-4 border-gold flex items-center justify-center shadow-[0_0_15px_#D4AF37]">
               <img
-                src="/Logo/Nitro.png"
+                src="/Logo/Nitro.webp"
                 alt="Nitro"
                 className="w-9 h-9 object-contain aspect-square select-none pointer-events-none drop-shadow-[0_0_6px_rgba(212,175,55,0.45)]"
               />

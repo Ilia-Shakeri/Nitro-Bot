@@ -38,7 +38,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
         {/* Header */}
         <div className="flex justify-between items-center px-5 py-2 mb-2">
           <div className="flex items-center gap-2">
-            <img src="/Logo/Nitro.png" alt="Nitro" className="w-6 h-6 object-contain aspect-square select-none pointer-events-none" />
+            <img src="/Logo/Nitro.webp" alt="Nitro" className="w-6 h-6 object-contain aspect-square select-none pointer-events-none" />
             <h2 className="text-lg font-title text-gold">{t('Nitro')}</h2>
           </div>
           <button onClick={onClose} className="text-textSecondary hover:text-textPrimary transition p-1">
@@ -94,7 +94,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
             onClick={() => { onClose(); onBuyNitro(); }}
             className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-3 rounded-2xl flex justify-center items-center gap-2 shadow-md hover:opacity-90 transition-opacity"
           >
-            <img src="/Logo/Nitro.png" alt="" className="w-5 h-5 object-contain select-none pointer-events-none brightness-0" />
+            <img src="/Logo/Nitro.webp" alt="" className="w-5 h-5 object-contain select-none pointer-events-none brightness-0" />
             <span>{t('Refill Nitro')}</span>
           </button>
         </div>

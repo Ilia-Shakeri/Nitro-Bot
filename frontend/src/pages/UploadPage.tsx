@@ -245,7 +245,7 @@ export const UploadPage = () => {
               <div>
                 <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Spotify')}</p>
                 <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                  <img src="/Logo/Spotify.png" alt="Spotify" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
+                  <img src="/Logo/Spotify.webp" alt="Spotify" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
                   <input type="text" value={formData.spotifyUrl}
                     onChange={e => setFormData(f => ({ ...f, spotifyUrl: e.target.value }))}
                     dir="ltr"
@@ -256,7 +256,7 @@ export const UploadPage = () => {
               <div>
                 <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Apple Music')}</p>
                 <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                  <img src="/Logo/AppleMusic.png" alt="Apple Music" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
+                  <img src="/Logo/AppleMusic.webp" alt="Apple Music" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
                   <input type="text" value={formData.appleUrl}
                     onChange={e => setFormData(f => ({ ...f, appleUrl: e.target.value }))}
                     dir="ltr"
