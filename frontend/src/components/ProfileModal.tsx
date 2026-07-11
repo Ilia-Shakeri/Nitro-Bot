@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Gift, Globe2, LifeBuoy, Moon, Sun, TrendingDown, TrendingUp, UserRound, X } from 'lucide-react';
+import { FileText, Gift, Globe2, LifeBuoy, Moon, Sun, TrendingDown, TrendingUp, UserRound, X } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { getLedger, getTickets, updateLanguage } from '../api';
 import { useTheme } from '../context/ThemeContext';
@@ -29,8 +29,6 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
   const [tab, setTab] = useState<'settings' | 'referrals' | 'transactions' | 'tickets'>('settings');
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [languageSaving, setLanguageSaving] = useState('');
-  const [languageError, setLanguageError] = useState('');
 
   useEffect(() => {
     if (isOpen && tab === 'transactions') getLedger().then(setLedger);
@@ -48,23 +46,21 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
     navigate('/support');
   };
 
+  const openPolicy = () => {
+    onClose();
+    navigate('/policy');
+  };
+
   const tabClass = (active: boolean) =>
     `py-2 rounded-xl text-xs font-ui transition-all duration-200 ${
       active ? 'bg-gold text-background shadow-md' : 'text-textSecondary hover:text-textPrimary'
     }`;
 
   const changeLanguage = async (code: string) => {
-    setLanguageSaving(code);
-    setLanguageError('');
-    try {
-      await updateLanguage(code);
-      await i18n.changeLanguage(code);
-      await refreshUser();
-    } catch (e) {
-      setLanguageError(e instanceof Error ? e.message : t('Unknown error'));
-    } finally {
-      setLanguageSaving('');
-    }
+    await i18n.changeLanguage(code);
+    void updateLanguage(code)
+      .then(() => refreshUser())
+      .catch(() => undefined);
   };
 
   return (
@@ -135,17 +131,15 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
                       key={option.code}
                       type="button"
                       onClick={() => changeLanguage(option.code)}
-                      disabled={!!languageSaving}
                       className={`rounded-xl border px-3 py-2 text-xs font-ui transition ${
                         active ? 'border-gold bg-gold/10 text-textPrimary' : 'border-card3 text-textSecondary'
                       }`}
                     >
-                      {languageSaving === option.code ? t('Processing...') : languageLabel(option.code)}
+                      {languageLabel(option.code)}
                     </button>
                   );
                 })}
               </div>
-              {languageError && <p className="text-xs text-rose-400 mt-2">{languageError}</p>}
             </div>
 
             <button
@@ -154,6 +148,14 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
             >
               <LifeBuoy className="w-5 h-5 text-gold" />
               <span className="font-ui text-sm text-textPrimary">{t('Contact Support')}</span>
+            </button>
+
+            <button
+              onClick={openPolicy}
+              className="w-full flex items-center gap-3 bg-background rounded-2xl px-4 py-3 hover:bg-card3/30 transition"
+            >
+              <FileText className="w-5 h-5 text-gold" />
+              <span className="font-ui text-sm text-textPrimary">{t('Terms and Conditions')}</span>
             </button>
           </div>
         )}

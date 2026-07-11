@@ -22,14 +22,16 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [rateLoading, setRateLoading] = useState(false);
   const [rateError, setRateError] = useState(false);
 
-  const isCrypto = method === 'usdt';
+  const isPersian = lang.split('-')[0] === 'fa';
+  const effectiveMethod = isPersian ? method : 'usdt';
+  const isCrypto = effectiveMethod === 'usdt';
   const validAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
   const totalUsd = validAmount * NITRO_PRICE_USD;
-  const totalToman = rate && rate > 0 ? totalUsd * rate : null;
-  const cryptoAmount = isCrypto && rate && rate > 0 ? totalUsd : null;
+  const totalToman = isPersian && rate && rate > 0 ? totalUsd * rate : null;
+  const cryptoAmount = isCrypto ? totalUsd : null;
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isPersian) return;
     let cancelled = false;
     const load = async () => {
       setRateLoading(true);
@@ -48,7 +50,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     };
     load();
     return () => { cancelled = true; };
-  }, [isOpen]);
+  }, [isOpen, isPersian]);
 
   if (!isOpen) return null;
 
@@ -57,11 +59,12 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     return isRtlLanguage(lang) ? toFaNum(s) : s;
   };
 
-  const handleUpload = async () => {
-    if (!receipt || !Number.isFinite(amount) || amount <= 0) return;
+  const handleSubmitPayment = async () => {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!isCrypto && !receipt) return;
     setLoading(true);
     try {
-      await submitReceipt(receipt, amount, method);
+      await submitReceipt(isCrypto ? null : receipt, amount, effectiveMethod);
       toast(t('Receipt submitted successfully. Awaiting admin approval.'), 'success');
       onClose();
     } catch (e: unknown) {
@@ -92,60 +95,64 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             />
           </div>
 
-          <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3 space-y-1">
-            <div className="flex items-center justify-between text-xs text-textSecondary">
-              <span>{t('Unit Price')}</span>
-              <span dir="ltr">{localizeNumber(NITRO_PRICE_USD, lang)} USD</span>
+          {isPersian && (
+            <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3 space-y-1">
+              <div className="flex items-center justify-between text-xs text-textSecondary">
+                <span>{t('Unit Price')}</span>
+                <span dir="ltr">{localizeNumber(NITRO_PRICE_USD, lang)} USD</span>
+              </div>
+              <div className="flex items-center justify-between text-sm font-semibold text-textPrimary">
+                <span>{t('Live USD Rate')}</span>
+                {rateLoading ? (
+                  <span className="text-sm text-textSecondary">...</span>
+                ) : rate ? (
+                  <span dir="ltr" className="text-sm font-bold text-gold">
+                    {localizeNumber(rate, lang)} {t('Toman')} / USDT
+                  </span>
+                ) : (
+                  <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center justify-between text-sm font-semibold text-textPrimary">
-              <span>{t('Live USD Rate')}</span>
-              {rateLoading ? (
-                <span className="text-sm text-textSecondary">...</span>
-              ) : rate ? (
+          )}
+
+          {isPersian && (
+            <div>
+              <label className="text-sm text-textSecondary block mb-1">{t('Payment Method')}</label>
+              <div className="relative">
+                <select
+                  value={method}
+                  onChange={e => setMethod(e.target.value)}
+                  className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 pr-9 rtl:pr-3 rtl:pl-9 text-textPrimary text-center outline-none appearance-none cursor-pointer focus:border-gold/50 transition-colors"
+                >
+                  <option value="card">{t('Card to Card')}</option>
+                  <option value="usdt">{t('USDT (TRC20)')}</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute top-1/2 -translate-y-1/2 right-3 rtl:right-auto rtl:left-3 w-4 h-4 text-textSecondary" />
+              </div>
+            </div>
+          )}
+
+          {isPersian && (
+            <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-textSecondary">{t('Total')}</span>
                 <span dir="ltr" className="text-sm font-bold text-gold">
-                  {localizeNumber(rate, lang)} {t('Toman')} / USDT
+                  {totalToman !== null ? `${localizeNumber(totalToman, lang)} ${t('Toman')}` : t('Rate unavailable')}
                 </span>
-              ) : (
-                <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
-              )}
+              </div>
+              {rateError && <p className="text-[11px] text-red-400 mt-1">{t('Exchange fallback notice')}</p>}
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className="text-sm text-textSecondary block mb-1">{t('Payment Method')}</label>
-            <div className="relative">
-              <select
-                value={method}
-                onChange={e => setMethod(e.target.value)}
-                className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 pr-9 rtl:pr-3 rtl:pl-9 text-textPrimary text-center outline-none appearance-none cursor-pointer focus:border-gold/50 transition-colors"
-              >
-                <option value="card">{t('Card to Card')}</option>
-                <option value="usdt">{t('USDT (TRC20)')}</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute top-1/2 -translate-y-1/2 right-3 rtl:right-auto rtl:left-3 w-4 h-4 text-textSecondary" />
-            </div>
-          </div>
-
-          <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-textSecondary">{t('Total')}</span>
-              <span dir="ltr" className="text-sm font-bold text-gold">
-                {totalToman !== null ? `${localizeNumber(totalToman, lang)} ${t('Toman')}` : t('Rate unavailable')}
-              </span>
-            </div>
-            {rateError && <p className="text-[11px] text-red-400 mt-1">{t('Exchange fallback notice')}</p>}
-          </div>
-
-          <PaymentDetails method={method} />
+          <PaymentDetails method={effectiveMethod} />
 
           {isCrypto ? (
             <>
               <div className="bg-gold/5 border border-gold/25 rounded-xl p-3 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-textSecondary">{t('Amount to Pay')}</span>
-                  {rateLoading ? (
-                    <span className="text-sm text-textSecondary">...</span>
-                  ) : cryptoAmount !== null ? (
+                  {cryptoAmount !== null ? (
                     <span dir="ltr" className="text-base font-bold text-gold">
                       {fmtDecimal(cryptoAmount)} USDT
                     </span>
@@ -158,6 +165,14 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <p className="text-xs text-textSecondary leading-relaxed bg-card2/50 border border-card3 rounded-xl p-3">
                 {t('crypto_processing_notice')}
               </p>
+
+              <button
+                onClick={handleSubmitPayment}
+                disabled={loading}
+                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50"
+              >
+                {loading ? t('Processing...') : t('I Paid')}
+              </button>
             </>
           ) : (
             <>
@@ -181,7 +196,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               </div>
 
               <button
-                onClick={handleUpload}
+                onClick={handleSubmitPayment}
                 disabled={loading || !receipt}
                 className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 mt-4"
               >
