@@ -4,6 +4,7 @@ import os
 import uuid
 
 import boto3
+from botocore.client import Config
 from fastapi import HTTPException, UploadFile
 
 from media_conversion import convert_audio_to_wav as _convert_audio_to_wav
@@ -21,6 +22,7 @@ _client = boto3.client(
     aws_access_key_id=_S3_ACCESS_KEY,
     aws_secret_access_key=_S3_SECRET_KEY,
     region_name="us-east-1",
+    config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
 )
 _presign_client = boto3.client(
     "s3",
@@ -28,6 +30,7 @@ _presign_client = boto3.client(
     aws_access_key_id=_S3_ACCESS_KEY,
     aws_secret_access_key=_S3_SECRET_KEY,
     region_name="us-east-1",
+    config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
 )
 
 _AUDIO_SIGS: list[tuple[bytes, bytes | None]] = [
