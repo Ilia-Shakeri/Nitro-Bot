@@ -107,7 +107,7 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
         )}
 
         {tab === 'transactions' && (
-          <div className="px-5 space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
+          <div className="px-5 space-y-2">
             {ledger.length === 0 ? (
               <p className="text-center text-xs font-light-ui text-textSecondary py-3 bg-background rounded-xl">
                 {t('No transactions yet')}
@@ -131,7 +131,14 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
         )}
 
         {tab === 'tickets' && (
-          <div className="px-5 space-y-3 max-h-64 overflow-y-auto hide-scrollbar">
+          <div className="px-5 space-y-3">
+            <button
+              onClick={openSupport}
+              className="w-full flex items-center justify-center gap-2 bg-gold text-background rounded-xl px-4 py-2.5 font-ui text-sm hover:opacity-90 transition"
+            >
+              <LifeBuoy className="w-4 h-4" />
+              {t('New Ticket')}
+            </button>
             {tickets.length === 0 ? (
               <p className="text-center text-xs font-light-ui text-textSecondary py-3 bg-background rounded-xl">
                 {t('No tickets yet')}
@@ -140,7 +147,7 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
               <div key={ticket.id} className="bg-background rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-ui text-textPrimary truncate">{ticket.subject || `#${ticket.id}`}</p>
-                  <span className="text-xs text-gold flex-shrink-0">{ticket.status}</span>
+                  <span className="text-xs text-gold flex-shrink-0">{t(ticket.status)}</span>
                 </div>
                 {ticket.messages.map(msg => (
                   <div

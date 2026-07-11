@@ -21,10 +21,19 @@ export const SupportPage = () => {
   const [sent, setSent] = useState(false);
 
   const handleSend = async () => {
-    if (!message.trim()) return;
+    const subjectText = subject.trim();
+    const messageText = message.trim();
+    if (!subjectText) {
+      toast(t('Subject is required'), 'error');
+      return;
+    }
+    if (!messageText) {
+      toast(t('Message cannot be empty'), 'error');
+      return;
+    }
     setLoading(true);
     try {
-      await submitTicket(subject.trim(), message.trim());
+      await submitTicket(subjectText, messageText);
       setSent(true);
       toast(t('Ticket sent successfully!'), 'success');
       setSubject('');
@@ -59,27 +68,27 @@ export const SupportPage = () => {
 
         <div className="space-y-4">
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">{t('Subject (optional)')}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">{t('Subject')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3">
               <input
                 type="text"
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
                 className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Ticket subject..."
+                placeholder={t('Ticket subject...')}
               />
             </div>
           </div>
 
           <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">{t('Message *')}</h3>
+            <h3 className="text-gold font-ui mb-2 text-sm">{t('Message')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3">
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 rows={6}
                 className="bg-transparent border-none outline-none w-full text-textPrimary font-ui resize-none"
-                placeholder="Write your message here..."
+                placeholder={t('Write your message here...')}
               />
             </div>
           </div>
@@ -88,7 +97,7 @@ export const SupportPage = () => {
         <div className="mt-6 pb-8">
           <button
             onClick={handleSend}
-            disabled={loading || !message.trim()}
+            disabled={loading || !subject.trim() || !message.trim()}
             className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center gap-3 shadow-lg hover:opacity-90 disabled:opacity-50 transition-opacity active:scale-[0.98]"
           >
             <Send className="w-5 h-5" />

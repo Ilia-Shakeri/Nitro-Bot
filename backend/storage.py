@@ -10,6 +10,7 @@ from media_conversion import convert_audio_to_wav as _convert_audio_to_wav
 from media_conversion import convert_cover_to_png
 
 _S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://localhost:9000")
+_S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT") or os.getenv("MINI_APP_URL") or _S3_ENDPOINT
 _S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "admin")
 _S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "password123")
 BUCKET_NAME = os.getenv("S3_BUCKET", "nitro-bot")
@@ -17,6 +18,13 @@ BUCKET_NAME = os.getenv("S3_BUCKET", "nitro-bot")
 _client = boto3.client(
     "s3",
     endpoint_url=_S3_ENDPOINT,
+    aws_access_key_id=_S3_ACCESS_KEY,
+    aws_secret_access_key=_S3_SECRET_KEY,
+    region_name="us-east-1",
+)
+_presign_client = boto3.client(
+    "s3",
+    endpoint_url=_S3_PUBLIC_ENDPOINT,
     aws_access_key_id=_S3_ACCESS_KEY,
     aws_secret_access_key=_S3_SECRET_KEY,
     region_name="us-east-1",
@@ -89,7 +97,7 @@ async def upload(content: bytes, key_prefix: str, filename: str) -> str:
 
 async def presign(key: str, expires: int = 86400) -> str:
     return await asyncio.to_thread(
-        _client.generate_presigned_url,
+        _presign_client.generate_presigned_url,
         "get_object",
         Params={"Bucket": BUCKET_NAME, "Key": key},
         ExpiresIn=expires,

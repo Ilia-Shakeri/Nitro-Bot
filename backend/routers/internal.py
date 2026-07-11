@@ -8,7 +8,6 @@ from sqlalchemy.future import select
 from database import get_db
 from models import Release
 from schemas import PendingReleaseOut, OkResponse
-import storage
 
 _SECRET = os.getenv("SELENIUM_SECRET_KEY", "")
 _ALLOWED_STATUSES = {"pending", "processing", "completed", "failed"}
@@ -31,15 +30,7 @@ async def get_pending_releases(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Release).where(Release.status == "pending"))
-    releases = result.scalars().all()
-    import asyncio
-    async def presign_urls(release):
-        if release.cover_url:
-            release.cover_url = await storage.presign(release.cover_url)
-        if release.track_url:
-            release.track_url = await storage.presign(release.track_url)
-    await asyncio.gather(*[presign_urls(r) for r in releases])
-    return releases
+    return result.scalars().all()
 
 
 @router.post("/releases/{release_id}/status", response_model=OkResponse)

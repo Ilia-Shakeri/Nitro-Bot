@@ -28,7 +28,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [i18n]);
 
-  useEffect(() => { refreshUser(); }, [refreshUser]);
+  useEffect(() => {
+    let active = true;
+    const loadUser = async () => {
+      try {
+        const u = await getUser();
+        if (!active) return;
+        setUser(u);
+        i18n.changeLanguage(u.language_preference);
+      } catch {
+        // stay null; component-level error handling handles UI
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadUser();
+    return () => { active = false; };
+  }, [i18n]);
 
   return (
     <UserContext.Provider value={{ user, loading, refreshUser }}>

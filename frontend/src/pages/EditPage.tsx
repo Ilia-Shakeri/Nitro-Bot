@@ -69,7 +69,7 @@ export const EditPage = () => {
         legalName: release.legal_name,
         releaseDate: release.release_date,
         genre: release.genre ?? '',
-        subGenre: '',
+        subGenre: release.sub_genre ?? '',
         copyrightRequested: false,
       });
       setPrefillLoading(false);
