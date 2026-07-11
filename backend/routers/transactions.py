@@ -164,12 +164,13 @@ async def submit_receipt(
     tg_id: int = Depends(get_tg_id),
     amount: int = Form(...),
     payment_method: str = Form(...),
-    receipt: UploadFile = File(...),
+    receipt: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
-    if payment_method not in ALLOWED_PAYMENT_METHODS:
+    normalized_payment_method = "usdt" if payment_method == "tether" else payment_method
+    if normalized_payment_method not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid payment method. Allowed: {', '.join(sorted(ALLOWED_PAYMENT_METHODS))}",
@@ -179,14 +180,22 @@ async def submit_receipt(
     user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if (user.language_preference or "").split("-")[0] != "fa" and normalized_payment_method != "usdt":
+        raise HTTPException(status_code=400, detail="Only USDT payments are available for non-Persian users")
 
-    receipt_bytes = await storage.read_image(receipt, max_mb=5)
-    receipt_key = await storage.upload(receipt_bytes, f"receipts/{tg_id}", receipt.filename or "receipt")
+    if normalized_payment_method != "usdt" and receipt is None:
+        raise HTTPException(status_code=400, detail="Receipt image is required for card payments")
+
+    receipt_bytes = None
+    receipt_key = None
+    if receipt is not None:
+        receipt_bytes = await storage.read_image(receipt, max_mb=5)
+        receipt_key = await storage.upload(receipt_bytes, f"receipts/{tg_id}", receipt.filename or "receipt")
 
     tx = Transaction(
         user_id=tg_id,
         amount=amount,
-        payment_method=payment_method,
+        payment_method=normalized_payment_method,
         status="pending",
         receipt_url=receipt_key,
     )
@@ -203,10 +212,10 @@ async def submit_receipt(
         await notify_admin_new_receipt(
             tx_id=tx.id,
             amount=amount,
-            payment_method=payment_method,
+            payment_method=normalized_payment_method,
             submitter=submitter,
             receipt_bytes=receipt_bytes,
-            receipt_filename=receipt.filename or "receipt.jpg",
+            receipt_filename=receipt.filename if receipt else None,
         )
     except Exception:
         logger.exception("Failed to notify admin of receipt %s", tx.id)

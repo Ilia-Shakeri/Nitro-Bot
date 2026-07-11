@@ -238,22 +238,33 @@ async def notify_admin_new_receipt(
     amount: int,
     payment_method: str,
     submitter: str,
-    receipt_bytes: bytes,
-    receipt_filename: str,
+    receipt_bytes: bytes | None,
+    receipt_filename: str | None,
 ):
     builder = InlineKeyboardBuilder()
     builder.row(
-        types.InlineKeyboardButton(text="Approve", callback_data=f"tx_approve_{tx_id}"),
+        types.InlineKeyboardButton(text="✅ APPROVE", callback_data=f"tx_approve_{tx_id}"),
         types.InlineKeyboardButton(text="Reject", callback_data=f"tx_reject_{tx_id}"),
     )
+    title = "New USDT Payment Claim" if payment_method == "usdt" and receipt_bytes is None else "New Payment Receipt"
     caption = (
-        f"New Payment Receipt\n"
+        f"{title}\n"
         f"Transaction ID: {tx_id}\n"
         f"From: {submitter}\n"
         f"Method: {payment_method.upper()}\n"
         f"Amount: {amount} Nitro"
     )
-    photo = BufferedInputFile(receipt_bytes, filename=receipt_filename)
+    if receipt_bytes is None:
+        await _send_message(
+            chat_id=ADMIN_GROUP_ID,
+            message_thread_id=PAYMENT_TOPIC_ID,
+            text=caption,
+            reply_markup=builder.as_markup(),
+        )
+        return
+
+    receipt_name = receipt_filename or "receipt.jpg"
+    photo = BufferedInputFile(receipt_bytes, filename=receipt_name)
     try:
         await _send_photo(
             chat_id=ADMIN_GROUP_ID,
@@ -268,7 +279,7 @@ async def notify_admin_new_receipt(
             await _send_document(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=PAYMENT_TOPIC_ID,
-                document=BufferedInputFile(receipt_bytes, filename=receipt_filename),
+                document=BufferedInputFile(receipt_bytes, filename=receipt_name),
                 caption=caption,
                 reply_markup=builder.as_markup(),
             )

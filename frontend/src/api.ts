@@ -83,11 +83,11 @@ export const getTickets = () =>
 export const getUsdtRate = () =>
   request<{ rate_toman: number; cached: boolean }>('/transactions/usdt-rate');
 
-export const submitReceipt = (file: File, amount: number, paymentMethod: string) => {
+export const submitReceipt = (file: File | null, amount: number, paymentMethod: string) => {
   const form = new FormData();
   form.append('amount', amount.toString());
   form.append('payment_method', paymentMethod);
-  form.append('receipt', file);
+  if (file) form.append('receipt', file);
   return request<{ status: string; transaction_id: number }>('/transactions/receipt', {
     method: 'POST',
     body: form,

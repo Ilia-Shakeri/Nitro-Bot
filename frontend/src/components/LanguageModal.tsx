@@ -15,28 +15,26 @@ export const LanguageModal = () => {
   const { t, i18n } = useTranslation();
   const { user, loading, refreshUser } = useUser();
   const [selected, setSelected] = useState<LanguageCode | ''>('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [dismissed, setDismissed] = useState(false);
 
   const preferred = isSupportedLanguage(user?.language_preference) ? user.language_preference : 'en';
   const currentSelection = selected || preferred;
-  const visible = !loading && !hasSavedLanguageChoice();
+  const visible = !loading && !dismissed && !hasSavedLanguageChoice();
 
   if (!visible) return null;
 
-  const save = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      await updateLanguage(currentSelection);
-      await i18n.changeLanguage(currentSelection);
-      markLanguageChoiceSaved();
-      await refreshUser();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('Unknown error'));
-    } finally {
-      setSaving(false);
-    }
+  const persistLanguage = (code: LanguageCode) => {
+    void updateLanguage(code)
+      .then(() => refreshUser())
+      .catch(() => undefined);
+  };
+
+  const chooseLanguage = async (code: LanguageCode) => {
+    setSelected(code);
+    await i18n.changeLanguage(code);
+    markLanguageChoiceSaved();
+    setDismissed(true);
+    persistLanguage(code);
   };
 
   return (
@@ -52,7 +50,7 @@ export const LanguageModal = () => {
               <button
                 key={option.code}
                 type="button"
-                onClick={() => setSelected(option.code)}
+                onClick={() => chooseLanguage(option.code)}
                 className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${
                   active ? 'border-gold bg-gold/10 text-textPrimary' : 'border-card3 bg-background text-textSecondary'
                 }`}
@@ -64,15 +62,12 @@ export const LanguageModal = () => {
           })}
         </div>
 
-        {error && <p className="text-xs text-rose-400 mb-3">{error}</p>}
-
         <button
           type="button"
-          onClick={save}
-          disabled={saving}
+          onClick={() => chooseLanguage(currentSelection)}
           className="w-full bg-gold text-background rounded-xl py-3 font-ui text-sm disabled:opacity-60"
         >
-          {saving ? t('Processing...') : t('Save Language')}
+          {t('Save Language')}
         </button>
       </div>
     </div>
