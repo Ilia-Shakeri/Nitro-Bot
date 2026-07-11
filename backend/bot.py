@@ -2,11 +2,13 @@ import os
 import re
 import json
 import logging
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile, ForceReply, InputMediaAudio, InputMediaPhoto
+from aiogram.types import BufferedInputFile, ForceReply
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.future import select
 
@@ -49,6 +51,64 @@ _TRANSLATIONS = {
         "ticket_reply": "پاسخ پشتیبانی:\n\n{}",
     },
 }
+
+
+def _is_missing_message_thread(exc: TelegramBadRequest) -> bool:
+    return "message thread not found" in str(exc).lower()
+
+
+async def _send_with_thread_fallback(method_name: str, **kwargs: Any) -> Any:
+    chat_id = kwargs.get("chat_id")
+    message_thread_id = kwargs.get("message_thread_id")
+    logger.info(
+        "Telegram %s call chat_id=%s message_thread_id=%s",
+        method_name,
+        chat_id,
+        message_thread_id,
+    )
+    send_method = getattr(bot, method_name)
+    try:
+        return await send_method(**kwargs)
+    except TelegramBadRequest as exc:
+        if not _is_missing_message_thread(exc) or message_thread_id is None:
+            raise
+        fallback_kwargs = {**kwargs, "message_thread_id": None}
+        logger.info(
+            "Telegram %s missing thread for chat_id=%s message_thread_id=%s; retrying with message_thread_id=None",
+            method_name,
+            chat_id,
+            message_thread_id,
+            exc_info=True,
+        )
+        try:
+            return await send_method(**fallback_kwargs)
+        except Exception:
+            logger.exception(
+                "Telegram %s fallback failed for chat_id=%s message_thread_id=None",
+                method_name,
+                chat_id,
+            )
+            raise
+
+
+async def _send_message(**kwargs: Any) -> Any:
+    return await _send_with_thread_fallback("send_message", **kwargs)
+
+
+async def _send_photo(**kwargs: Any) -> Any:
+    return await _send_with_thread_fallback("send_photo", **kwargs)
+
+
+async def _send_document(**kwargs: Any) -> Any:
+    return await _send_with_thread_fallback("send_document", **kwargs)
+
+
+async def _send_audio(**kwargs: Any) -> Any:
+    return await _send_with_thread_fallback("send_audio", **kwargs)
+
+
+async def _send_media_group(**kwargs: Any) -> Any:
+    return await _send_with_thread_fallback("send_media_group", **kwargs)
 
 
 def _mini_app_url() -> str:
@@ -117,7 +177,7 @@ async def notify_admin_new_ticket(ticket_id: int, tg_id: int, name: str, usernam
     builder.row(
         types.InlineKeyboardButton(text="Answer", callback_data=f"ticket_answer_{ticket_id}_{tg_id}"),
     )
-    await bot.send_message(
+    await _send_message(
         chat_id=ADMIN_GROUP_ID,
         message_thread_id=TICKET_TOPIC_ID,
         text=(
@@ -153,7 +213,7 @@ async def notify_admin_new_receipt(
     )
     photo = BufferedInputFile(receipt_bytes, filename=receipt_filename)
     try:
-        await bot.send_photo(
+        await _send_photo(
             chat_id=ADMIN_GROUP_ID,
             message_thread_id=PAYMENT_TOPIC_ID,
             photo=photo,
@@ -163,7 +223,7 @@ async def notify_admin_new_receipt(
     except Exception:
         logger.error("Failed to send receipt %s as photo; trying document", tx_id, exc_info=True)
         try:
-            await bot.send_document(
+            await _send_document(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=PAYMENT_TOPIC_ID,
                 document=BufferedInputFile(receipt_bytes, filename=receipt_filename),
@@ -230,7 +290,7 @@ async def notify_admin_new_release(
 
     # Handle cases where no media was uploaded
     if not audio_bytes and not cover_bytes:
-        await bot.send_message(
+        await _send_message(
             chat_id=ADMIN_GROUP_ID,
             message_thread_id=ORDER_TOPIC_ID,
             text=caption + "\nMedia: unchanged from source release",
@@ -240,7 +300,7 @@ async def notify_admin_new_release(
     try:
         # Send a single audio message and attach the cover as a thumbnail
         if audio_bytes and audio_filename:
-            await bot.send_audio(
+            await _send_audio(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=ORDER_TOPIC_ID,
                 audio=BufferedInputFile(audio_bytes, filename=audio_filename),
@@ -249,7 +309,7 @@ async def notify_admin_new_release(
             )
             if cover_bytes and cover_filename:
                 try:
-                    await bot.send_photo(
+                    await _send_photo(
                         chat_id=ADMIN_GROUP_ID,
                         message_thread_id=ORDER_TOPIC_ID,
                         photo=BufferedInputFile(cover_bytes, filename=cover_filename),
@@ -257,7 +317,7 @@ async def notify_admin_new_release(
                     )
                 except Exception:
                     logger.error("Failed to send release %s cover photo", release_id, exc_info=True)
-                    await bot.send_document(
+                    await _send_document(
                         chat_id=ADMIN_GROUP_ID,
                         message_thread_id=ORDER_TOPIC_ID,
                         document=BufferedInputFile(cover_bytes, filename=cover_filename),
@@ -267,7 +327,7 @@ async def notify_admin_new_release(
 
         # Fallback if only the cover image exists
         if cover_bytes and cover_filename:
-            await bot.send_photo(
+            await _send_photo(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=ORDER_TOPIC_ID,
                 photo=BufferedInputFile(cover_bytes, filename=cover_filename),
@@ -281,7 +341,7 @@ async def notify_admin_new_release(
         fallback_name = audio_filename or cover_filename or "release.bin"
         if fallback_data:
             try:
-                await bot.send_document(
+                await _send_document(
                     chat_id=ADMIN_GROUP_ID,
                     message_thread_id=ORDER_TOPIC_ID,
                     document=BufferedInputFile(fallback_data, filename=fallback_name),
@@ -324,13 +384,13 @@ async def handle_tx_decision(callback: types.CallbackQuery):
             if user:
                 user.credits += tx.amount
             await db.commit()
-            await bot.send_message(tx.user_id, _TRANSLATIONS[lang]["tx_approved"].format(tx.amount))
+            await _send_message(chat_id=tx.user_id, text=_TRANSLATIONS[lang]["tx_approved"].format(tx.amount))
             await _append_status(callback.message, "\n\nStatus: APPROVED")
 
         elif action == "reject":
             tx.status = "rejected"
             await db.commit()
-            await bot.send_message(tx.user_id, _TRANSLATIONS[lang]["tx_rejected"].format(tx.amount))
+            await _send_message(chat_id=tx.user_id, text=_TRANSLATIONS[lang]["tx_rejected"].format(tx.amount))
             await _append_status(callback.message, "\n\nStatus: REJECTED")
 
     await callback.answer()
@@ -340,7 +400,7 @@ async def handle_tx_decision(callback: types.CallbackQuery):
 async def handle_ticket_answer(callback: types.CallbackQuery):
     """Prompt an admin reply and tag the target ticket and user."""
     _, _, ticket_id, tg_id = callback.data.split("_")
-    await bot.send_message(
+    await _send_message(
         chat_id=ADMIN_GROUP_ID,
         message_thread_id=TICKET_TOPIC_ID,
         text=(
@@ -373,7 +433,7 @@ async def handle_admin_reply(message: types.Message):
                 ticket.updated_at = get_naive_utc()
                 db.add(SupportMessage(ticket_id=ticket_id, sender="admin", message=message.text))
                 await db.commit()
-        await bot.send_message(user_id, _TRANSLATIONS[lang]["ticket_reply"].format(message.text))
+        await _send_message(chat_id=user_id, text=_TRANSLATIONS[lang]["ticket_reply"].format(message.text))
         await message.reply("Sent to user")
     except Exception:
         await message.reply("Failed to deliver. User may have blocked the bot.")

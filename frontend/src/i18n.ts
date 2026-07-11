@@ -20,7 +20,7 @@ const en = {
   "JPG, PNG, WEBP": "JPG, PNG, WEBP",
   "Song Name": "Song Name",
   "Artist Name": "Artist Name",
-  "Producers": "Producers (آهنگ‌سازان)",
+  "Producers": "Producers",
   "Remove producer": "Remove producer",
   "Legal Name": "Legal Name",
   "Release Date": "Release Date",
