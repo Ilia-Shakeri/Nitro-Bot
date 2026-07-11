@@ -113,6 +113,18 @@ const en = {
   "answered": "Answered",
   "Release failed tooltip": "Release processing failed. Credits were refunded.",
   "Settings": "Settings",
+  "Language": "Language",
+  "Choose Language": "Choose Language",
+  "Choose your language to continue.": "Choose your language to continue.",
+  "Save Language": "Save Language",
+  "Referrals": "Referrals",
+  "Referral Link": "Referral Link",
+  "Referral Points": "Referral Points",
+  "Share your referral link with new users. When a new user starts Nitro Bot through your link, your account earns referral points after the referral is recorded. Points may be reviewed for eligibility before rewards are issued.": "Share your referral link with new users. When a new user starts Nitro Bot through your link, your account earns referral points after the referral is recorded. Points may be reviewed for eligibility before rewards are issued.",
+  "Terms and Conditions": "Terms and Conditions",
+  "Privacy Policy": "Privacy Policy",
+  "Terms placeholder": "These Terms and Conditions describe the expected rules for using Nitro Bot services, including account access, content submissions, payment handling, release processing, acceptable use, and administrative review. Final legal language should be reviewed by counsel before production use.",
+  "Privacy placeholder": "This Privacy Policy explains how Nitro Bot may collect and process account identifiers, Telegram profile data, uploaded release assets, payment receipts, support messages, and service activity. Final legal language should be reviewed by counsel before production use.",
   "Profile Email": "Email Address",
   "New profile info needed": "We will create your artist profile. Enter your email below.",
   "Profile email is required.": "Profile email is required.",
@@ -265,10 +277,26 @@ const fa = {
   "Processing...": "در حال پردازش...",
 };
 
+const ar = { ...en };
+const ru = { ...en };
+
+export const RTL_LANGUAGES = new Set(['fa', 'ar']);
+
+export const isRtlLanguage = (language: string) =>
+  RTL_LANGUAGES.has(language.split('-')[0]);
+
+const applyDocumentDirection = (language: string) => {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = language;
+  document.documentElement.dir = isRtlLanguage(language) ? 'rtl' : 'ltr';
+};
+
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     fa: { translation: fa },
+    ar: { translation: ar },
+    ru: { translation: ru },
   },
   lng: 'fa',
   fallbackLng: 'en',
@@ -276,5 +304,8 @@ i18n.use(initReactI18next).init({
     escapeValue: false,
   },
 });
+
+applyDocumentDirection(i18n.language);
+i18n.on('languageChanged', applyDocumentDirection);
 
 export default i18n;

@@ -1,13 +1,14 @@
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../context/ToastContext';
+import { isRtlLanguage } from '../i18n';
 
 const isPersian = (text: string) => /[؀-ۿ]/.test(text);
 
 export const ToastContainer = () => {
   const { toasts, dismiss } = useToast();
   const { i18n } = useTranslation();
-  const isRTL = i18n.language === 'fa';
+  const isRTL = isRtlLanguage(i18n.language);
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none">

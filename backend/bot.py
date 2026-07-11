@@ -7,7 +7,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.types import BufferedInputFile, ForceReply
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.future import select
@@ -19,6 +19,22 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
 APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-producers-convert-v5")
 logger = logging.getLogger("nitro.bot")
+
+
+def _parse_manager_ids(raw: str) -> set[int]:
+    manager_ids: set[int] = set()
+    for item in raw.split(","):
+        value = item.strip()
+        if not value:
+            continue
+        try:
+            manager_ids.add(int(value))
+        except ValueError:
+            logger.warning("Ignoring invalid MANAGER_IDS entry: %s", value)
+    return manager_ids
+
+
+MANAGER_IDS = _parse_manager_ids(os.getenv("MANAGER_IDS", ""))
 
 
 def _topic(env_name: str) -> int | None:
@@ -51,6 +67,8 @@ _TRANSLATIONS = {
         "ticket_reply": "پاسخ پشتیبانی:\n\n{}",
     },
 }
+_TRANSLATIONS["ar"] = _TRANSLATIONS["en"]
+_TRANSLATIONS["ru"] = _TRANSLATIONS["en"]
 
 
 def _is_missing_message_thread(exc: TelegramBadRequest) -> bool:
@@ -139,22 +157,46 @@ async def _user_lang(tg_id: int) -> str:
     return lang if lang in _TRANSLATIONS else "fa"
 
 
+def _referrer_from_args(args: str | None, current_tg_id: int) -> int | None:
+    if not args:
+        return None
+    match = re.fullmatch(r"ref_(\d+)", args.strip())
+    if not match:
+        return None
+    referrer_id = int(match.group(1))
+    return referrer_id if referrer_id != current_tg_id else None
+
+
 @dp.message(Command("start"))
-async def cmd_start(message: types.Message):
+async def cmd_start(message: types.Message, command: CommandObject):
+    tg_id = message.from_user.id
+    referrer_id = _referrer_from_args(command.args, tg_id)
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(User).where(User.telegram_id == message.from_user.id))
+        result = await db.execute(select(User).where(User.telegram_id == tg_id))
         user = result.scalars().first()
+        should_award_referral = False
         if not user:
             user = User(
-                telegram_id=message.from_user.id,
+                telegram_id=tg_id,
                 username=message.from_user.username,
                 first_name=message.from_user.first_name,
                 language_preference="fa",
                 credits=0,
+                referred_by=referrer_id,
             )
             db.add(user)
-            await db.commit()
-        lang = user.language_preference
+            should_award_referral = referrer_id is not None
+        elif referrer_id and user.referred_by is None:
+            user.referred_by = referrer_id
+            should_award_referral = True
+
+        if referrer_id and should_award_referral:
+            ref_result = await db.execute(select(User).where(User.telegram_id == referrer_id))
+            referrer = ref_result.scalars().first()
+            if referrer:
+                referrer.referral_points = (referrer.referral_points or 0) + 1
+
+        await db.commit()
 
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -163,7 +205,7 @@ async def cmd_start(message: types.Message):
             web_app=types.WebAppInfo(url=_mini_app_url()),
         )
     )
-    await message.answer(_TRANSLATIONS[lang]["welcome"], reply_markup=builder.as_markup())
+    await message.answer(_TRANSLATIONS["en"]["welcome"], reply_markup=builder.as_markup())
 
 
 @dp.message(Command("version"))
@@ -236,6 +278,7 @@ async def notify_admin_new_receipt(
 
 
 async def notify_admin_new_release(
+    submitter_tg_id: int,
     release_id: int,
     song_name: str,
     artist_name: str,
@@ -268,7 +311,9 @@ async def notify_admin_new_release(
             producer_text = producers
 
     # Build the caption text
+    manager_prefix = "#MANAGER\n" if submitter_tg_id in MANAGER_IDS else ""
     caption = (
+        f"{manager_prefix}"
         f"New Release (Staging)\n"
         f"Release ID: {release_id}\n"
         f"From: {submitter}\n"

@@ -18,6 +18,7 @@ class UserOut(BaseModel):
     telegram_id: int
     language_preference: str
     credits: int
+    referral_points: int = 0
 
 
 class TransactionOut(BaseModel):

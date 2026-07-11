@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { isRtlLanguage } from '../i18n';
 
 interface Item {
   label: string;
@@ -12,7 +13,7 @@ interface Props {
 export const NitroCostSummary = ({ items }: Props) => {
   const { t, i18n } = useTranslation();
   const total = items.reduce((sum, item) => sum + item.amount, 0);
-  const locale = i18n.language === 'fa' ? 'fa-IR' : 'en-US';
+  const locale = i18n.language.startsWith('ar') ? 'ar-SA' : isRtlLanguage(i18n.language) ? 'fa-IR' : 'en-US';
 
   return (
     <div className="mt-4 rounded-2xl border border-gold/25 bg-gold/5 p-4">

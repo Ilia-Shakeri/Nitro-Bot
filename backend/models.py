@@ -17,6 +17,8 @@ class User(Base):
     first_name = Column(String, nullable=True)
     language_preference = Column(String, default="fa")
     credits = Column(Integer, default=0)
+    referred_by = Column(BigInteger, nullable=True)
+    referral_points = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=get_naive_utc)
 
 class Transaction(Base):

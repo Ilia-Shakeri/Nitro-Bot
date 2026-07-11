@@ -8,7 +8,9 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     npm ci --prefer-offline --no-audit --no-fund
 COPY . .
 ARG VITE_API_URL
+ARG VITE_BOT_USERNAME
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_BOT_USERNAME=${VITE_BOT_USERNAME}
 RUN npm run build
 
 FROM nginx:alpine

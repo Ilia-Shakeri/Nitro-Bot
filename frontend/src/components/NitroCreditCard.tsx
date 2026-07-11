@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
+import { isRtlLanguage } from '../i18n';
 
 interface Props { balance?: number; onRefillClick?: () => void; }
 
 export const NitroCreditCard = ({ onRefillClick }: Props) => {
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'fa';
+  const isRTL = isRtlLanguage(i18n.language);
 
   return (
     <div className="px-4 pb-8">

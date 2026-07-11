@@ -7,38 +7,27 @@ import { UploadArtBox } from '../components/UploadArtBox';
 import { NitroCreditCard } from '../components/NitroCreditCard';
 import { PaymentModal } from '../components/PaymentModal';
 import { useUser } from '../context/UserContext';
-import { updateLanguage } from '../api';
+import { isRtlLanguage } from '../i18n';
 
 export const HomePage = () => {
   const { user } = useUser();
   const credits = user?.credits ?? 0;
 
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [fading, setFading]               = useState(false);
 
   const navigate = useNavigate();
   const { i18n } = useTranslation();
   const lang = i18n.language;
 
-  const toggleLang = async () => {
-    setFading(true);
-    await new Promise(r => setTimeout(r, 180));
-    const newLang = lang === 'en' ? 'fa' : 'en';
-    await i18n.changeLanguage(newLang);
-    window.requestAnimationFrame(() => setFading(false));
-    updateLanguage(newLang).catch(console.error);
-  };
-
   return (
     <div
-      className={`min-h-screen bg-background max-w-md mx-auto relative overflow-hidden flex flex-col transition-[opacity,transform] duration-300 ease-out ${fading ? 'opacity-0 scale-[0.985]' : 'opacity-100 scale-100'}`}
-      dir={lang === 'fa' ? 'rtl' : 'ltr'}
+      className="min-h-screen bg-background max-w-md mx-auto relative overflow-hidden flex flex-col"
+      dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}
     >
       <div className="absolute top-0 right-0 w-64 h-64 bg-card3/20 blur-[100px] rounded-full pointer-events-none" />
 
       <HomeHeader
         credits={credits}
-        onLangToggle={toggleLang}
         lang={lang}
         onBuyNitro={() => setIsPaymentOpen(true)}
       />
