@@ -11,7 +11,7 @@ import storage
 router = APIRouter(prefix="/users", tags=["users"])
 
 # Languages the mini-app actually ships; anything else is rejected as bad input.
-_SUPPORTED_LANGUAGES = {"en", "fa"}
+_SUPPORTED_LANGUAGES = {"en", "fa", "ar", "ru"}
 
 
 @router.get("/me", response_model=UserOut)

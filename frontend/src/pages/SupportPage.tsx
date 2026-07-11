@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LifeBuoy, Send } from 'lucide-react';
 import { HomeHeader } from '../components/HomeHeader';
-import { submitTicket, updateLanguage } from '../api';
+import { submitTicket } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import { errorText } from '../utils/formMessages';
+import { isRtlLanguage } from '../i18n';
 
 export const SupportPage = () => {
   const { t, i18n } = useTranslation();
@@ -13,7 +14,7 @@ export const SupportPage = () => {
   const { user } = useUser();
   const { toast } = useToast();
   const credits = user?.credits ?? 0;
-  const isRTL = lang === 'fa';
+  const isRTL = isRtlLanguage(lang);
 
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -49,11 +50,6 @@ export const SupportPage = () => {
     <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
       <HomeHeader
         credits={credits}
-        onLangToggle={() => {
-          const newLang = lang === 'en' ? 'fa' : 'en';
-          i18n.changeLanguage(newLang);
-          updateLanguage(newLang).catch(console.error);
-        }}
         lang={lang}
       />
 

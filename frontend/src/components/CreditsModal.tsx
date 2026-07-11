@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingDown, TrendingUp, X } from 'lucide-react';
 import { getLedger } from '../api';
-import { localizeNumber, toFaNum } from '../utils/faNum';
+import { localizeNumber } from '../utils/faNum';
 import type { LedgerEntry } from '../types/api';
+import { isRtlLanguage } from '../i18n';
 
 interface Props {
   isOpen: boolean;
@@ -14,7 +15,8 @@ interface Props {
 
 export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) => {
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'fa';
+  const isRTL = isRtlLanguage(i18n.language);
+  const dateLocale = i18n.language.startsWith('ar') ? 'ar-SA' : isRTL ? 'fa-IR' : 'en-US';
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
 
   useEffect(() => {
@@ -72,12 +74,12 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
                     <div className="flex-1 min-w-0">
                       <p className="font-ui text-sm text-textPrimary truncate">{item.title}</p>
                       <p className="font-light-ui text-xs text-textSecondary">
-                        {new Date(item.created_at).toLocaleDateString(isRTL ? 'fa-IR' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        {new Date(item.created_at).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </p>
                     </div>
                     <div className="text-end">
                       <p className={`font-ui text-sm ${item.direction === 'credit' ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {item.direction === 'credit' ? '+' : '-'}{isRTL ? toFaNum(item.amount) : item.amount}
+                        {item.direction === 'credit' ? '+' : '-'}{localizeNumber(item.amount, i18n.language)}
                       </p>
                       <p className={`font-light-ui text-xs ${item.status === 'approved' || item.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>
                         {t(item.status)}

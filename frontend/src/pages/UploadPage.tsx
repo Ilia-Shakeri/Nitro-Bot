@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { PersianDatePicker } from '../components/PersianDatePicker';
 import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail } from 'lucide-react';
-import { submitRelease, updateLanguage } from '../api';
+import { submitRelease } from '../api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
 import { GenreSelect } from '../components/GenreSelect';
@@ -12,6 +12,7 @@ import { FormToggle } from '../components/FormToggle';
 import { NitroCostSummary } from '../components/NitroCostSummary';
 import { ProducerTagInput } from '../components/ProducerTagInput';
 import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
+import { isRtlLanguage } from '../i18n';
 
 const NEW_RELEASE_WITH_PROFILE_COST = 10;
 const NEW_RELEASE_WITHOUT_PROFILE_COST = 8;
@@ -113,7 +114,7 @@ export const UploadPage = () => {
     }
   };
 
-  const isRTL = lang === 'fa';
+  const isRTL = isRtlLanguage(lang);
   const baseCost = formData.needsNewProfile ? NEW_RELEASE_WITH_PROFILE_COST : NEW_RELEASE_WITHOUT_PROFILE_COST;
   const costItems = [
     {
@@ -127,11 +128,6 @@ export const UploadPage = () => {
     <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
       <HomeHeader
         credits={credits}
-        onLangToggle={() => {
-          const newLang = lang === 'en' ? 'fa' : 'en';
-          i18n.changeLanguage(newLang);
-          updateLanguage(newLang).catch(console.error);
-        }}
         lang={lang}
       />
 

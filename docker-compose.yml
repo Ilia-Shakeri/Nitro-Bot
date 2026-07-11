@@ -92,6 +92,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - BOT_TOKEN=${BOT_TOKEN}
       - ADMIN_GROUP_ID=${ADMIN_GROUP_ID}
+      - MANAGER_IDS=${MANAGER_IDS:-}
       - ORDER_TOPIC_ID=${ORDER_TOPIC_ID:-}
       - TICKET_TOPIC_ID=${TICKET_TOPIC_ID:-}
       - PAYMENT_TOPIC_ID=${PAYMENT_TOPIC_ID:-}
@@ -118,6 +119,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-}
+        VITE_BOT_USERNAME: ${VITE_BOT_USERNAME:-}
     container_name: nitro-bot-frontend
     restart: always
     networks:

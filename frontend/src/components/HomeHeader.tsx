@@ -6,15 +6,15 @@ import WebApp from '@twa-dev/sdk';
 import { ProfileModal } from './ProfileModal';
 import { CreditsModal } from './CreditsModal';
 import { localizeNumber } from '../utils/faNum';
+import { isRtlLanguage } from '../i18n';
 
 interface Props {
   credits: number;
-  onLangToggle: () => void;
   lang: string;
   onBuyNitro?: () => void;
 }
 
-export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) => {
+export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,16 +22,15 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
   const [creditsOpen, setCreditsOpen] = useState(false);
 
   const isHome = location.pathname === '/';
-  const isRTL  = lang === 'fa';
+  const isRTL  = isRtlLanguage(lang);
   const user    = WebApp.initDataUnsafe?.user;
 
   return (
     <>
-      {/* dir is forced LTR so the avatar + language toggle stay anchored to the
-          physical left of the header and never swap sides on RTL/LTR toggle. */}
+      {/* The profile entry stays anchored to the physical left in every locale. */}
       <div dir="ltr" className="flex justify-between items-center py-4 px-4 w-full relative z-10">
 
-        {/* Left (always): user avatar + language toggle */}
+        {/* Left (always): user avatar */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setProfileOpen(true)}
@@ -41,13 +40,6 @@ export const HomeHeader = ({ credits, onLangToggle, lang, onBuyNitro }: Props) =
               ? <img src={user.photo_url} alt={user.first_name} className="w-full h-full object-cover" />
               : <UserRound className="w-5 h-5 text-textPrimary" />
             }
-          </button>
-
-          <button
-            onClick={onLangToggle}
-            className="w-11 text-center text-xs bg-card1 border border-card3 text-textPrimary px-3 py-1.5 rounded-lg font-ui hover:bg-card3/50 transition-all duration-200 active:scale-95"
-          >
-            {isRTL ? 'EN' : 'FA'}
           </button>
         </div>
 

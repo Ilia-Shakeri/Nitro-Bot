@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { localizeNumber, toFaNum } from '../utils/faNum';
 import { errorText } from '../utils/formMessages';
 import { PaymentDetails } from './PaymentDetails';
+import { isRtlLanguage } from '../i18n';
 
 const NITRO_PRICE_USD = 1;
 
@@ -53,7 +54,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
   const fmtDecimal = (v: number) => {
     const s = v.toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
-    return lang.startsWith('fa') ? toFaNum(s) : s;
+    return isRtlLanguage(lang) ? toFaNum(s) : s;
   };
 
   const handleUpload = async () => {

@@ -78,6 +78,7 @@ async def _background_convert_and_notify(
                 await db.commit()
 
         await notify_admin_new_release(
+            submitter_tg_id=tg_id,
             release_id=release_id,
             song_name=final_song_name,
             artist_name=final_artist_name,

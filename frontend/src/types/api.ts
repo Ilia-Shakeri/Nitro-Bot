@@ -2,6 +2,7 @@ export interface User {
   telegram_id: number;
   language_preference: string;
   credits: number;
+  referral_points: number;
 }
 
 export interface Transaction {
