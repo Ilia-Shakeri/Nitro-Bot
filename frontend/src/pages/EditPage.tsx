@@ -136,7 +136,7 @@ export const EditPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
       <HomeHeader
         credits={credits}
         lang={lang}
@@ -267,7 +267,7 @@ export const EditPage = () => {
           <button
             onClick={handleSubmit}
             disabled={loading || prefillLoading}
-            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
           >
             <span className="text-lg">{loading ? t('Processing...') : t('Submit Edit')}</span>
           </button>

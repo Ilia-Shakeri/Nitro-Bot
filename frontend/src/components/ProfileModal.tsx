@@ -66,7 +66,7 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-card1 w-full max-w-md rounded-t-3xl pb-10 border-t border-gold/20 shadow-2xl"
+        className="bg-card1/85 backdrop-blur-xl w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl pb-10 border-t border-gold/20 shadow-2xl"
         dir={isRTL ? 'rtl' : 'ltr'}
         onClick={e => e.stopPropagation()}
       >
@@ -208,7 +208,7 @@ export const ProfileModal = ({ isOpen, onClose }: Props) => {
           <div className="px-5 space-y-3">
             <button
               onClick={openSupport}
-              className="w-full flex items-center justify-center gap-2 bg-gold text-background rounded-xl px-4 py-2.5 font-ui text-sm hover:opacity-90 transition"
+              className="w-full flex items-center justify-center gap-2 bg-gold text-background rounded-xl px-4 py-2.5 font-ui text-sm hover:opacity-90 active:scale-[0.98] transition-all duration-300"
             >
               <LifeBuoy className="w-4 h-4" />
               {t('New Ticket')}

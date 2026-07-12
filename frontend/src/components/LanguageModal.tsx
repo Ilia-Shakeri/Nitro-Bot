@@ -38,8 +38,8 @@ export const LanguageModal = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 backdrop-blur-md px-4">
-      <div className="w-full max-w-sm bg-card1 border border-gold/20 rounded-2xl p-5 shadow-2xl" dir="ltr">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 backdrop-blur-md px-4" onClick={() => setDismissed(true)}>
+      <div className="w-full max-w-sm bg-card1/85 backdrop-blur-xl border border-gold/20 rounded-2xl p-5 shadow-2xl" dir="ltr" onClick={e => e.stopPropagation()}>
         <h2 className="font-title text-2xl text-textPrimary mb-2">{t('Choose Language')}</h2>
         <p className="text-sm text-textSecondary mb-5">{t('Choose your language to continue.')}</p>
 
@@ -65,7 +65,7 @@ export const LanguageModal = () => {
         <button
           type="button"
           onClick={() => chooseLanguage(currentSelection)}
-          className="w-full bg-gold text-background rounded-xl py-3 font-ui text-sm disabled:opacity-60"
+          className="w-full bg-gold text-background rounded-xl py-3 font-ui text-sm disabled:opacity-60 active:scale-[0.98] transition-all duration-300"
         >
           {t('Save Language')}
         </button>

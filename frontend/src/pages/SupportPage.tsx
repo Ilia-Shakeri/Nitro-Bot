@@ -47,7 +47,7 @@ export const SupportPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
       <HomeHeader
         credits={credits}
         lang={lang}
@@ -94,7 +94,7 @@ export const SupportPage = () => {
           <button
             onClick={handleSend}
             disabled={loading || !subject.trim() || !message.trim()}
-            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center gap-3 shadow-lg hover:opacity-90 disabled:opacity-50 transition-opacity active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center gap-3 shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
           >
             <Send className="w-5 h-5" />
             <span className="text-lg">{loading ? t('Processing...') : t('Send Ticket')}</span>

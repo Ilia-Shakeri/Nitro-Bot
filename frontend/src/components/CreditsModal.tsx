@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingDown, TrendingUp, X } from 'lucide-react';
-import { getLedger } from '../api';
+import { Clock3, TrendingUp, X } from 'lucide-react';
+import { getTransactions } from '../api';
 import { localizeNumber } from '../utils/faNum';
-import type { LedgerEntry } from '../types/api';
+import type { Transaction } from '../types/api';
 import { isRtlLanguage } from '../i18n';
 
 interface Props {
@@ -17,10 +17,10 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
   const { t, i18n } = useTranslation();
   const isRTL = isRtlLanguage(i18n.language);
   const dateLocale = i18n.language.startsWith('ar') ? 'ar-SA' : isRTL ? 'fa-IR' : 'en-US';
-  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    if (isOpen) getLedger().then(setLedger);
+    if (isOpen) getTransactions().then(setTransactions);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -28,7 +28,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-card1 w-full max-w-md rounded-t-3xl pb-10 border-t border-gold/20 shadow-2xl"
+        className="bg-card1/85 backdrop-blur-xl w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl pb-10 border-t border-gold/20 shadow-2xl"
         dir={isRTL ? 'rtl' : 'ltr'}
         onClick={e => e.stopPropagation()}
       >
@@ -59,34 +59,42 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
           {/* Transactions */}
           <div>
             <p className="text-sm font-ui text-textSecondary mb-2">{t('Recent Transactions')}</p>
-            {ledger.length === 0 ? (
+            {transactions.length === 0 ? (
               <p className="text-center font-light-ui text-sm text-textSecondary py-3">
                 {t('No transactions yet')}
               </p>
             ) : (
               <div className="space-y-1.5 max-h-44 overflow-y-auto hide-scrollbar">
-                {ledger.slice(0, 12).map(item => (
-                  <div key={item.id} className="flex items-center gap-3 bg-background rounded-xl px-4 py-2">
-                    {item.direction === 'credit'
-                      ? <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      : <TrendingDown className="w-4 h-4 text-red-400 flex-shrink-0" />
-                    }
-                    <div className="flex-1 min-w-0">
-                      <p className="font-ui text-sm text-textPrimary truncate">{item.title}</p>
-                      <p className="font-light-ui text-xs text-textSecondary">
-                        {new Date(item.created_at).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}
-                      </p>
+                {transactions.slice(0, 12).map(item => {
+                  const addsCredit = item.status === 'approved' || item.status === 'pending';
+                  const paymentLabel = item.payment_method === 'card'
+                    ? t('Card to Card')
+                    : item.payment_method === 'usdt'
+                      ? t('USDT (TRC20)')
+                      : item.payment_method;
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 bg-background rounded-xl px-4 py-2">
+                      {addsCredit
+                        ? <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        : <Clock3 className="w-4 h-4 text-textSecondary flex-shrink-0" />
+                      }
+                      <div className="flex-1 min-w-0">
+                        <p className="font-ui text-sm text-textPrimary truncate">{paymentLabel}</p>
+                        <p className="font-light-ui text-xs text-textSecondary">
+                          {new Date(item.created_at).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="text-end">
+                        <p className={`font-ui text-sm ${addsCredit ? 'text-emerald-400' : 'text-textSecondary'}`}>
+                          {addsCredit ? '+ ' : ''}{localizeNumber(item.amount, i18n.language)}
+                        </p>
+                        <p className={`font-light-ui text-xs ${item.status === 'approved' || item.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {t(item.status)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-end">
-                      <p className={`font-ui text-sm ${item.direction === 'credit' ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {item.direction === 'credit' ? '+' : '-'}{localizeNumber(item.amount, i18n.language)}
-                      </p>
-                      <p className={`font-light-ui text-xs ${item.status === 'approved' || item.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {t(item.status)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -94,7 +102,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
           {/* Buy button */}
           <button
             onClick={() => { onClose(); onBuyNitro(); }}
-            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-3 rounded-2xl flex justify-center items-center gap-2 shadow-md hover:opacity-90 transition-opacity"
+            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-3 rounded-2xl flex justify-center items-center gap-2 shadow-md hover:opacity-90 active:scale-[0.98] transition-all duration-300"
           >
             <img src="/Logo/Nitro.webp" alt="" className="w-5 h-5 object-contain select-none pointer-events-none brightness-0" />
             <span>{t('Refill Nitro')}</span>

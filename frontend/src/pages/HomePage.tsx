@@ -21,7 +21,7 @@ export const HomePage = () => {
 
   return (
     <div
-      className="min-h-screen bg-background max-w-md mx-auto relative overflow-hidden flex flex-col"
+      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-hidden flex flex-col"
       dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}
     >
       <div className="absolute top-0 right-0 w-64 h-64 bg-card3/20 blur-[100px] rounded-full pointer-events-none" />
