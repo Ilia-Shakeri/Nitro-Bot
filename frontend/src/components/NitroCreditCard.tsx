@@ -35,7 +35,7 @@ export const NitroCreditCard = ({ onRefillClick }: Props) => {
 
         <button
           onClick={onRefillClick}
-          className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-3 px-5 rounded-xl flex justify-center items-center gap-2 shadow-md hover:opacity-90 transition-opacity active:scale-[0.98]"
+          className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-3 px-5 rounded-xl flex justify-center items-center gap-2 shadow-md hover:opacity-90 active:scale-[0.98] transition-all duration-300"
         >
           <span>{t('Refill Nitro')}</span>
           <ChevronRight className={`w-5 h-5 text-background ${isRTL ? 'rotate-180' : ''}`} />

@@ -75,8 +75,8 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="bg-card1 w-full max-w-sm rounded-2xl p-6 border border-gold/20 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+      <div className="bg-card1/85 backdrop-blur-xl w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl p-6 border border-gold/20 relative" onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-textSecondary hover:text-textPrimary">
           <X className="w-6 h-6" />
         </button>
@@ -86,13 +86,28 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
         <div className="space-y-4">
           <div>
             <label className="text-sm text-textSecondary block mb-1">{t('Nitro Amount')}</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(Number(e.target.value))}
-              className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 text-textPrimary outline-none"
-              min="1"
-            />
+            <div className="flex items-center gap-3 rounded-xl border border-inputBorder bg-inputBg p-2">
+              <button
+                type="button"
+                onClick={() => setAmount(current => Math.max(1, current - 1))}
+                disabled={amount <= 1}
+                aria-label={t('Decrease amount')}
+                className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold disabled:cursor-not-allowed disabled:opacity-40 active:scale-[0.98] transition-all duration-300"
+              >
+                −
+              </button>
+              <span className="flex-1 text-center font-title text-xl text-textPrimary" aria-live="polite">
+                {localizeNumber(amount, lang)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAmount(current => current + 1)}
+                aria-label={t('Increase amount')}
+                className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold active:scale-[0.98] transition-all duration-300"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {isPersian && (
@@ -104,7 +119,13 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <div className="flex items-center justify-between text-sm font-semibold text-textPrimary">
                 <span>{t('Live USD Rate')}</span>
                 {rateLoading ? (
-                  <span className="text-sm text-textSecondary">...</span>
+                  <span className="inline-flex items-center gap-2 text-xs text-textSecondary animate-pulse">
+                    <svg className="h-4 w-4 animate-spin text-gold" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-90" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v3a6 6 0 0 1 6 6h3Z" />
+                    </svg>
+                    {isPersian ? 'در حال دریافت نرخ زنده...' : 'Fetching live rate...'}
+                  </span>
                 ) : rate ? (
                   <span dir="ltr" className="text-sm font-bold text-gold">
                     {localizeNumber(rate, lang)} {t('Toman')} / USDT
@@ -169,7 +190,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <button
                 onClick={handleSubmitPayment}
                 disabled={loading}
-                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50"
+                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
               >
                 {loading ? t('Processing...') : t('I Paid')}
               </button>
@@ -198,7 +219,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <button
                 onClick={handleSubmitPayment}
                 disabled={loading || !receipt}
-                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 mt-4"
+                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 mt-4 active:scale-[0.98] transition-all duration-300"
               >
                 {loading ? t('Processing...') : t('Submit Receipt')}
               </button>

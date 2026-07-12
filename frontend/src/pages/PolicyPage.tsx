@@ -9,7 +9,7 @@ export const PolicyPage = () => {
   const isRTL = isRtlLanguage(i18n.language);
 
   return (
-    <div className="min-h-screen bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
       <HomeHeader credits={user?.credits ?? 0} lang={i18n.language} />
 
       <main className="px-4 py-4 space-y-5">
