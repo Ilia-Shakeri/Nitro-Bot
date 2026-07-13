@@ -32,8 +32,8 @@ function App() {
     };
 
     updateViewportHeight();
-    WebApp.onEvent('viewportChanged', updateViewportHeight);
-    return () => WebApp.offEvent('viewportChanged', updateViewportHeight);
+    window.addEventListener('resize', updateViewportHeight);
+    return () => window.removeEventListener('resize', updateViewportHeight);
   }, []);
 
   return (
