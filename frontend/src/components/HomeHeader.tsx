@@ -19,6 +19,7 @@ export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileInitialTab, setProfileInitialTab] = useState<'settings' | 'transactions'>('settings');
   const [creditsOpen, setCreditsOpen] = useState(false);
 
   const isHome = location.pathname === '/';
@@ -33,7 +34,7 @@ export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
         {/* Left (always): user avatar */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setProfileOpen(true)}
+            onClick={() => { setProfileInitialTab('settings'); setProfileOpen(true); }}
             className="w-10 h-10 rounded-full border border-gold/30 shadow-md hover:border-gold/70 hover:shadow-[0_0_12px_rgba(212,175,55,0.3)] transition overflow-hidden bg-gradient-to-br from-card3 to-card2 flex items-center justify-center flex-shrink-0"
           >
             {user?.photo_url
@@ -68,12 +69,23 @@ export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
         </div>
       </div>
 
-      <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+      {profileOpen && (
+        <ProfileModal
+          isOpen
+          onClose={() => setProfileOpen(false)}
+          initialTab={profileInitialTab}
+        />
+      )}
       <CreditsModal
         isOpen={creditsOpen}
         onClose={() => setCreditsOpen(false)}
         balance={credits}
         onBuyNitro={onBuyNitro ?? (() => {})}
+        onAllTransactions={() => {
+          setCreditsOpen(false);
+          setProfileInitialTab('transactions');
+          setProfileOpen(true);
+        }}
       />
     </>
   );

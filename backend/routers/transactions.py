@@ -167,8 +167,8 @@ async def submit_receipt(
     receipt: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+    if amount < 3:
+        raise HTTPException(status_code=400, detail="Minimum charge amount is 3")
     normalized_payment_method = "usdt" if payment_method == "tether" else payment_method
     if normalized_payment_method not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(

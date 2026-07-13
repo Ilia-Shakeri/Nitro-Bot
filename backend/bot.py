@@ -10,6 +10,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject
 from aiogram.types import BufferedInputFile, ForceReply
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from sqlalchemy import update
 from sqlalchemy.future import select
 
 from database import AsyncSessionLocal
@@ -424,7 +425,7 @@ async def handle_tx_decision(callback: types.CallbackQuery):
     action, tx_id = parts[1], int(parts[2])
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Transaction).where(Transaction.id == tx_id))
+        result = await db.execute(select(Transaction).where(Transaction.id == tx_id).with_for_update())
         tx = result.scalars().first()
 
         if not tx or tx.status != "pending":
@@ -438,7 +439,17 @@ async def handle_tx_decision(callback: types.CallbackQuery):
         if action == "approve":
             tx.status = "approved"
             if user:
-                user.credits += tx.amount
+                await db.execute(
+                    update(User)
+                    .where(User.telegram_id == user.telegram_id)
+                    .values(credits=User.credits + tx.amount)
+                )
+                if user.referred_by:
+                    await db.execute(
+                        update(User)
+                        .where(User.telegram_id == user.referred_by)
+                        .values(credits=User.credits + 1)
+                    )
             await db.commit()
             await _send_message(chat_id=tx.user_id, text=_TRANSLATIONS[lang]["tx_approved"].format(tx.amount))
             await _append_status(callback.message, "\n\nStatus: APPROVED")

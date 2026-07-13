@@ -37,7 +37,7 @@ export const UploadPage = () => {
     spotifyUrl: '',
     appleUrl: '',
     needsNewProfile: false,
-    copyrightRequested: false,
+    copyrightRequested: true,
     profileEmail: '',
   });
 
@@ -286,15 +286,15 @@ export const UploadPage = () => {
               tone="gold"
             />
           </div>
-          <NitroCostSummary items={costItems} />
         </div>
 
         {/* Submit */}
         <div className="pb-8">
+          <NitroCostSummary items={costItems} />
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
+            className="mt-4 w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
           >
             <span className="text-lg">{loading ? '...' : t("Let's Cook!")}</span>
           </button>

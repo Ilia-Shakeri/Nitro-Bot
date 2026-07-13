@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Clock3, TrendingUp, X } from 'lucide-react';
-import { getTransactions } from '../api';
+import { getLedger } from '../api';
 import { localizeNumber } from '../utils/faNum';
-import type { Transaction } from '../types/api';
+import type { LedgerEntry } from '../types/api';
 import { isRtlLanguage } from '../i18n';
 
 interface Props {
@@ -11,17 +11,20 @@ interface Props {
   onClose: () => void;
   balance: number;
   onBuyNitro: () => void;
+  onAllTransactions: () => void;
 }
 
-export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) => {
+export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro, onAllTransactions }: Props) => {
   const { t, i18n } = useTranslation();
   const isRTL = isRtlLanguage(i18n.language);
   const dateLocale = i18n.language.startsWith('ar') ? 'ar-SA' : isRTL ? 'fa-IR' : 'en-US';
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
 
   useEffect(() => {
-    if (isOpen) getTransactions().then(setTransactions);
+    if (isOpen) getLedger().then(setLedger);
   }, [isOpen]);
+
+  const walletCharges = ledger.filter(item => item.direction === 'credit' && item.id.startsWith('tx-'));
 
   if (!isOpen) return null;
 
@@ -59,19 +62,14 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
           {/* Transactions */}
           <div>
             <p className="text-sm font-ui text-textSecondary mb-2">{t('Recent Transactions')}</p>
-            {transactions.length === 0 ? (
+            {walletCharges.length === 0 ? (
               <p className="text-center font-light-ui text-sm text-textSecondary py-3">
                 {t('No transactions yet')}
               </p>
             ) : (
               <div className="space-y-1.5 max-h-44 overflow-y-auto hide-scrollbar">
-                {transactions.slice(0, 12).map(item => {
+                {walletCharges.slice(0, 12).map(item => {
                   const addsCredit = item.status === 'approved' || item.status === 'pending';
-                  const paymentLabel = item.payment_method === 'card'
-                    ? t('Card to Card')
-                    : item.payment_method === 'usdt'
-                      ? t('USDT (TRC20)')
-                      : item.payment_method;
                   return (
                     <div key={item.id} className="flex items-center gap-3 bg-background rounded-xl px-4 py-2">
                       {addsCredit
@@ -79,7 +77,7 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
                         : <Clock3 className="w-4 h-4 text-textSecondary flex-shrink-0" />
                       }
                       <div className="flex-1 min-w-0">
-                        <p className="font-ui text-sm text-textPrimary truncate">{paymentLabel}</p>
+                        <p className="font-ui text-sm text-textPrimary truncate">{item.title}</p>
                         <p className="font-light-ui text-xs text-textSecondary">
                           {new Date(item.created_at).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}
                         </p>
@@ -97,6 +95,13 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro }: Props) =>
                 })}
               </div>
             )}
+            <button
+              type="button"
+              onClick={onAllTransactions}
+              className="mt-3 w-full rounded-xl border border-gold/30 bg-gold/5 py-2.5 text-sm font-ui text-gold hover:bg-gold/10 active:scale-[0.98] transition-all duration-300"
+            >
+              {t('All Transactions')}
+            </button>
           </div>
 
           {/* Buy button */}

@@ -4,13 +4,24 @@ import { ChevronRight, ChevronLeft } from 'lucide-react';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
-interface Props { onChange: (isoDate: string) => void; }
+interface Props { value?: string; onChange: (isoDate: string) => void; }
 
-export const PersianDatePicker = ({ onChange }: Props) => {
+const parseIsoDate = (value?: string) => {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, month, day);
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : null;
+};
+
+export const PersianDatePicker = ({ value, onChange }: Props) => {
   const now   = new Date();
-  const [sel,   setSel]   = useState<Date | null>(null);
-  const [viewY, setViewY] = useState(now.getFullYear());
-  const [viewM, setViewM] = useState(now.getMonth()); // 0-indexed
+  const initialDate = parseIsoDate(value);
+  const [sel,   setSel]   = useState<Date | null>(initialDate);
+  const [viewY, setViewY] = useState(initialDate?.getFullYear() ?? now.getFullYear());
+  const [viewM, setViewM] = useState(initialDate?.getMonth() ?? now.getMonth()); // 0-indexed
   const [open,  setOpen]  = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

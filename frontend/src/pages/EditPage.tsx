@@ -238,7 +238,11 @@ export const EditPage = () => {
             <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Release Date')}</h3>
             <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
               <Calendar className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <PersianDatePicker onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))} />
+              <PersianDatePicker
+                key={formData.releaseDate || 'empty'}
+                value={formData.releaseDate}
+                onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))}
+              />
             </div>
           </div>
           <div className="relative z-40">
@@ -260,14 +264,14 @@ export const EditPage = () => {
             label={t('Add Copyright Protection (+1 Nitro)')}
             tone="gold"
           />
-          <NitroCostSummary items={costItems} />
         </div>
 
         <div className="pb-8">
+          <NitroCostSummary items={costItems} />
           <button
             onClick={handleSubmit}
             disabled={loading || prefillLoading}
-            className="w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
+            className="mt-4 w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
           >
             <span className="text-lg">{loading ? t('Processing...') : t('Submit Edit')}</span>
           </button>

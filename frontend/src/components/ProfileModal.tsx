@@ -11,22 +11,25 @@ import { CopyField } from './CopyField';
 import { LANGUAGE_OPTIONS, languageLabel } from '../utils/languages';
 import { isRtlLanguage } from '../i18n';
 
-interface Props { isOpen: boolean; onClose: () => void; }
+type ProfileTab = 'settings' | 'referrals' | 'transactions' | 'tickets';
 
-export const ProfileModal = ({ isOpen, onClose }: Props) => {
+interface Props { isOpen: boolean; onClose: () => void; initialTab?: ProfileTab; }
+
+export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props) => {
   const { t, i18n } = useTranslation();
   const { theme, toggle } = useTheme();
   const { user: apiUser, refreshUser } = useUser();
   const navigate = useNavigate();
   const isRTL = isRtlLanguage(i18n.language);
   const user = WebApp.initDataUnsafe?.user;
-  const name = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : 'User';
   const telegramId = apiUser?.telegram_id ?? user?.id;
+  const telegramName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : '';
+  const name = telegramName || (telegramId != null ? String(telegramId) : '');
   const handle = user?.username ? `@${user.username}` : `ID: ${telegramId ?? '---'}`;
   const botUsername = String(import.meta.env.VITE_BOT_USERNAME || 'NitroBot').replace(/^@/, '');
   const referralLink = telegramId ? `https://t.me/${botUsername}?start=ref_${telegramId}` : '';
 
-  const [tab, setTab] = useState<'settings' | 'referrals' | 'transactions' | 'tickets'>('settings');
+  const [tab, setTab] = useState<ProfileTab>(initialTab);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
 

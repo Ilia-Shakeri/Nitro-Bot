@@ -12,6 +12,7 @@ const ERROR_MAP: Record<string, string> = {
   'Message cannot be empty': 'Message cannot be empty',
   'User not found': 'User not found',
   'Amount must be greater than zero': 'Amount must be greater than zero',
+  'Minimum charge amount is 3': 'Minimum charge amount is 3',
   'Exchange rate unavailable': 'Exchange rate unavailable',
 };
 

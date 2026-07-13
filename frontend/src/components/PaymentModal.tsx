@@ -9,12 +9,13 @@ import { PaymentDetails } from './PaymentDetails';
 import { isRtlLanguage } from '../i18n';
 
 const NITRO_PRICE_USD = 1;
+const MIN_CHARGE_AMOUNT = 3;
 
 export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { toast } = useToast();
-  const [amount, setAmount] = useState(10);
+  const [amount, setAmount] = useState(MIN_CHARGE_AMOUNT);
   const [method, setMethod] = useState('card');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const isPersian = lang.split('-')[0] === 'fa';
   const effectiveMethod = isPersian ? method : 'usdt';
   const isCrypto = effectiveMethod === 'usdt';
-  const validAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const validAmount = Number.isInteger(amount) && amount >= MIN_CHARGE_AMOUNT ? amount : 0;
   const totalUsd = validAmount * NITRO_PRICE_USD;
   const totalToman = isPersian && rate && rate > 0 ? totalUsd * rate : null;
   const cryptoAmount = isCrypto ? totalUsd : null;
@@ -60,7 +61,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   const handleSubmitPayment = async () => {
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!Number.isInteger(amount) || amount < MIN_CHARGE_AMOUNT) return;
     if (!isCrypto && !receipt) return;
     setLoading(true);
     try {
@@ -89,16 +90,23 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <div className="flex items-center gap-3 rounded-xl border border-inputBorder bg-inputBg p-2">
               <button
                 type="button"
-                onClick={() => setAmount(current => Math.max(1, current - 1))}
-                disabled={amount <= 1}
+                onClick={() => setAmount(current => Math.max(MIN_CHARGE_AMOUNT, current - 1))}
+                disabled={amount <= MIN_CHARGE_AMOUNT}
                 aria-label={t('Decrease amount')}
                 className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold disabled:cursor-not-allowed disabled:opacity-40 active:scale-[0.98] transition-all duration-300"
               >
                 −
               </button>
-              <span className="flex-1 text-center font-title text-xl text-textPrimary" aria-live="polite">
-                {localizeNumber(amount, lang)}
-              </span>
+              <input
+                type="number"
+                min={MIN_CHARGE_AMOUNT}
+                step="1"
+                inputMode="numeric"
+                value={amount}
+                onChange={event => setAmount(Number(event.target.value))}
+                onBlur={() => setAmount(current => Number.isFinite(current) ? Math.max(MIN_CHARGE_AMOUNT, Math.floor(current)) : MIN_CHARGE_AMOUNT)}
+                className="min-w-0 flex-1 bg-transparent text-center font-title text-xl text-textPrimary outline-none"
+              />
               <button
                 type="button"
                 onClick={() => setAmount(current => current + 1)}
@@ -189,7 +197,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
               <button
                 onClick={handleSubmitPayment}
-                disabled={loading}
+                disabled={loading || validAmount < MIN_CHARGE_AMOUNT}
                 className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
               >
                 {loading ? t('Processing...') : t('I Paid')}
@@ -218,7 +226,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
               <button
                 onClick={handleSubmitPayment}
-                disabled={loading || !receipt}
+                disabled={loading || !receipt || validAmount < MIN_CHARGE_AMOUNT}
                 className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 mt-4 active:scale-[0.98] transition-all duration-300"
               >
                 {loading ? t('Processing...') : t('Submit Receipt')}
