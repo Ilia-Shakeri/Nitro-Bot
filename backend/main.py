@@ -9,9 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import storage
 from bot import bot, configure_menu_button, dp
 from middleware import RateLimitMiddleware
-from routers import internal, releases, transactions, users, support
+from routers import internal, pricing, releases, transactions, users, support
 
-_MINI_APP_URL = os.getenv("MINI_APP_URL", "https://nitrobot.duckdns.org")
+_MINI_APP_URL = os.getenv("MINI_APP_URL", "").strip()
+_ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 logger = logging.getLogger("nitro.bot")
 
 
@@ -49,13 +50,22 @@ app = FastAPI(title="Nitro Bot API", lifespan=lifespan)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[_MINI_APP_URL, "http://localhost:5173", "http://localhost"],
+    allow_origins=(
+        [_MINI_APP_URL]
+        if _ENVIRONMENT == "production" and _MINI_APP_URL
+        else [
+            origin
+            for origin in (_MINI_APP_URL, "http://localhost:5173", "http://localhost")
+            if origin
+        ]
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(users.router)
+app.include_router(pricing.router)
 app.include_router(releases.router)
 app.include_router(transactions.router)
 app.include_router(internal.router)

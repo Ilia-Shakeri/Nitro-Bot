@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── Requests ──────────────────────────────────────────────────────────────────
@@ -27,6 +28,8 @@ class TransactionOut(BaseModel):
     amount: int
     status: str
     payment_method: str
+    usd_amount_cents: int
+    toman_amount_cents: int | None
     created_at: datetime
 
 
@@ -35,6 +38,8 @@ class LedgerOut(BaseModel):
     amount: int
     direction: str
     title: str
+    title_key: str
+    title_params: dict[str, str | int] = Field(default_factory=dict)
     status: str
     created_at: datetime
 
@@ -56,14 +61,23 @@ class SupportTicketOut(BaseModel):
     messages: list[SupportMessageOut]
 
 
+class ReleaseArtistOut(BaseModel):
+    name: str
+    role: Literal["primary", "featured"]
+
+
 class ReleaseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     song_name: str
     artist_name: str
+    artists: list[ReleaseArtistOut]
     producers: str | None
     legal_name: str
-    release_date: str
+    legal_names: list[str]
+    release_date: date
+    is_rerelease: bool
+    original_release_date: date | None
     genre: str | None
     sub_genre: str | None
     mapping_spotify: str | None
@@ -74,6 +88,7 @@ class ReleaseOut(BaseModel):
     cover_url: str
     is_edit: bool
     copyright_requested: bool
+    charged_cost: int
     created_at: datetime
 
 
@@ -83,9 +98,13 @@ class PendingReleaseOut(BaseModel):
     user_id: int
     song_name: str
     artist_name: str
+    artists: list[ReleaseArtistOut]
     producers: str | None
     legal_name: str
-    release_date: str
+    legal_names: list[str]
+    release_date: date
+    is_rerelease: bool
+    original_release_date: date | None
     genre: str | None
     sub_genre: str | None
     track_url: str
@@ -96,6 +115,7 @@ class PendingReleaseOut(BaseModel):
     requires_new_profile: bool
     is_edit: bool
     copyright_requested: bool
+    charged_cost: int
     status: str
     created_at: datetime
 
@@ -123,6 +143,28 @@ class UsdtRateOut(BaseModel):
     # Live USDT price in Toman, used to compute the crypto amount for a top-up.
     rate_toman: int
     cached: bool
+
+
+class PricingOut(BaseModel):
+    nitro_usd_price_cents: int
+    original_release_price: int
+    discounted_release_price: int
+    copyright_price: int
+    edit_release_price: int
+    minimum_topup_nitro: int
+
+
+class PaymentMethodOut(BaseModel):
+    network: str | None = None
+    address: str | None = None
+    number: str | None = None
+    holder: str | None = None
+
+
+class PaymentConfigOut(BaseModel):
+    card: PaymentMethodOut | None = None
+    btc: PaymentMethodOut | None = None
+    usdt: PaymentMethodOut | None = None
 
 
 class OkResponse(BaseModel):

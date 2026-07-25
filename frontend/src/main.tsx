@@ -8,7 +8,9 @@ import WebApp from '@twa-dev/sdk'
 
 // Remove any stale service workers (e.g. from old PWA builds) so they never intercept requests
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  navigator.serviceWorker.getRegistrations()
+    .then(regs => Promise.all(regs.map(registration => registration.unregister())))
+    .catch(error => console.error('Service worker cleanup failed', error));
 }
 
 if (WebApp.ready) {

@@ -9,7 +9,7 @@ Nitro Bot is a production-ready Telegram Mini-App and Bot platform designed for 
 * **Nitro Credit System:** Internal currency wallet for releasing tracks and managing copyrights.
 * **Automated Admin Approvals:** Users upload transfer receipts, which are securely forwarded to an Admin Telegram Group with inline `Approve/Reject` buttons.
 * **Secure Object Storage:** Integrated MinIO (S3-compatible) storage for assets, ensuring the app remains stateless and scalable.
-* **Bilingual (i18n):** Full support for Persian (RTL) and English (LTR) across both the Mini-App UI and Telegram Bot notifications.
+* **Localized (i18n):** Full support for English, Persian, Arabic, and Russian across the Mini App and user notifications.
 * **Production Infrastructure:** Fully containerized with Docker Compose, utilizing Nginx and Caddy for automated HTTPS/SSL termination.
 
 ## 🛠 Tech Stack
@@ -69,7 +69,7 @@ Nitro-Bot/
 
 ### 1. Prerequisites
 
-* A Linux server/VPS (tested on IP: `2.58.172.239`).
+* A Linux server or VPS with Docker and Docker Compose.
 * Docker and Docker Compose installed.
 * A domain pointed to your server's IP (e.g., `nitrobot.duckdns.org`).
 * A Telegram Bot Token from [@BotFather](https://t.me/BotFather).
@@ -82,7 +82,7 @@ Create a `.env` file in the root directory:
 # Telegram Configuration
 BOT_TOKEN=your_telegram_bot_token_here
 ADMIN_GROUP_ID=-100XXXXXXXXXX
-MINI_APP_URL=[https://nitrobot.duckdns.org](https://nitrobot.duckdns.org)
+MINI_APP_URL=https://your-domain.example
 
 # Database Configuration (Used internally by Docker)
 DATABASE_URL=postgresql+asyncpg://user:password@db/nitrodb
@@ -92,8 +92,8 @@ POSTGRES_DB=nitrodb
 
 # MinIO / S3 Configuration
 S3_ENDPOINT=http://minio:9000
-S3_ACCESS_KEY=admin
-S3_SECRET_KEY=password123
+S3_ACCESS_KEY=your_storage_access_key
+S3_SECRET_KEY=your_long_random_storage_secret
 ```
 
 ### 3. Caddyfile Configuration
@@ -107,6 +107,7 @@ nitrobot.duckdns.org {
     handle /users* { reverse_proxy backend:8000 }
     handle /releases* { reverse_proxy backend:8000 }
     handle /transactions* { reverse_proxy backend:8000 }
+    handle /pricing* { reverse_proxy backend:8000 }
 
     handle { reverse_proxy frontend:80 }
 }
@@ -147,11 +148,11 @@ docker-compose exec backend alembic upgrade head
 * Admin clicks `Approve`, backend updates user's PostgreSQL balance, and notifies the user in their preferred language.
 
 
-4. **Track Release:** User submits a track (10 Nitro). Audio/Cover files stream asynchronously to MinIO to prevent event loop blocking.
+4. **Track Release:** User submits a track for the active discounted price of 8 Nitro, plus 2 Nitro when copyright protection is selected.
 
 ## 🌐 Localization (i18n)
 
-The project natively supports English (`en`) and Persian (`fa`).
+The project natively supports English (`en`), Persian (`fa`), Arabic (`ar`), and Russian (`ru`).
 
 * **Frontend:** Managed via `i18next` in `frontend/src/i18n.ts`. Changes are saved to the backend database.
 * **Backend:** Handled via the `TRANSLATIONS` dictionary in `backend/bot.py`.

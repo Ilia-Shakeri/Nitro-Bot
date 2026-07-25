@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import logging
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -60,16 +59,30 @@ _TRANSLATIONS = {
         "tx_approved": "Your receipt for {} Nitro has been approved!\nCredits added.",
         "tx_rejected": "Your receipt for {} Nitro was rejected.\nPlease contact support.",
         "ticket_reply": "Support reply:\n\n{}",
+        "open_app": "Open Mini App",
     },
     "fa": {
         "welcome": "به ربات نیترو خوش آمدید!\nمینی اپ را باز کنید.",
         "tx_approved": "رسید شما برای {} نیترو تایید شد!\nاعتبار اضافه شد.",
         "tx_rejected": "رسید شما برای {} نیترو رد شد.\nلطفا با پشتیبانی تماس بگیرید.",
         "ticket_reply": "پاسخ پشتیبانی:\n\n{}",
+        "open_app": "باز کردن مینی‌اپ",
+    },
+    "ar": {
+        "welcome": "مرحباً بك في Nitro Bot!\nافتح التطبيق المصغر للبدء.",
+        "tx_approved": "تمت الموافقة على إيصال {} Nitro الخاص بك!\nتمت إضافة الرصيد.",
+        "tx_rejected": "تم رفض إيصال {} Nitro الخاص بك.\nيرجى التواصل مع الدعم.",
+        "ticket_reply": "رد فريق الدعم:\n\n{}",
+        "open_app": "فتح التطبيق المصغر",
+    },
+    "ru": {
+        "welcome": "Добро пожаловать в Nitro Bot!\nОткройте мини-приложение, чтобы начать.",
+        "tx_approved": "Ваша квитанция на {} Nitro одобрена!\nСредства зачислены.",
+        "tx_rejected": "Ваша квитанция на {} Nitro отклонена.\nОбратитесь в поддержку.",
+        "ticket_reply": "Ответ поддержки:\n\n{}",
+        "open_app": "Открыть мини-приложение",
     },
 }
-_TRANSLATIONS["ar"] = _TRANSLATIONS["en"]
-_TRANSLATIONS["ru"] = _TRANSLATIONS["en"]
 
 
 def _is_missing_message_thread(exc: TelegramBadRequest) -> bool:
@@ -198,15 +211,16 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 referrer.referral_points = (referrer.referral_points or 0) + 1
 
         await db.commit()
+        language = user.language_preference if user.language_preference in _TRANSLATIONS else "fa"
 
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(
-            text="Open Mini App",
+            text=_TRANSLATIONS[language]["open_app"],
             web_app=types.WebAppInfo(url=_mini_app_url()),
         )
     )
-    await message.answer(_TRANSLATIONS["en"]["welcome"], reply_markup=builder.as_markup())
+    await message.answer(_TRANSLATIONS[language]["welcome"], reply_markup=builder.as_markup())
 
 
 @dp.message(Command("version"))
@@ -241,6 +255,8 @@ async def notify_admin_new_receipt(
     submitter: str,
     receipt_bytes: bytes | None,
     receipt_filename: str | None,
+    usd_amount_cents: int,
+    toman_amount_cents: int | None,
 ):
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -248,12 +264,21 @@ async def notify_admin_new_receipt(
         types.InlineKeyboardButton(text="Reject", callback_data=f"tx_reject_{tx_id}"),
     )
     title = "New USDT Payment Claim" if payment_method == "usdt" and receipt_bytes is None else "New Payment Receipt"
+    usd_amount = f"{usd_amount_cents // 100}.{usd_amount_cents % 100:02d}"
+    toman_line = (
+        f"\nQuoted Toman amount: {toman_amount_cents // 100:,}"
+        f".{toman_amount_cents % 100:02d}"
+        if toman_amount_cents is not None
+        else ""
+    )
     caption = (
         f"{title}\n"
         f"Transaction ID: {tx_id}\n"
         f"From: {submitter}\n"
         f"Method: {payment_method.upper()}\n"
-        f"Amount: {amount} Nitro"
+        f"Amount: {amount} Nitro\n"
+        f"Quoted value: {usd_amount} USDT"
+        f"{toman_line}"
     )
     if receipt_bytes is None:
         await _send_message(
@@ -293,12 +318,14 @@ async def notify_admin_new_release(
     submitter_tg_id: int,
     release_id: int,
     song_name: str,
-    artist_name: str,
-    producers: str | None,
-    legal_name: str,
+    artists: list[dict[str, str]],
+    producers: list[str],
+    legal_names: list[str],
     genre: str,
     sub_genre: str | None,
     release_date: str,
+    is_rerelease: bool,
+    original_release_date: str | None,
     mapping_spotify: str | None,
     mapping_apple: str | None,
     requires_new_profile: bool,
@@ -312,17 +339,13 @@ async def notify_admin_new_release(
     cover_bytes: bytes | None,
     cover_filename: str | None,
 ):
-    # Format the producer list for the caption
-    producer_text = "-"
-    if producers:
-        try:
-            parsed = json.loads(producers)
-            if isinstance(parsed, list) and parsed:
-                producer_text = ", ".join(str(item) for item in parsed)
-        except Exception:
-            producer_text = producers
-
-    # Build the caption text
+    primary_artist = next(
+        (artist["name"] for artist in artists if artist["role"] == "primary"),
+        "-",
+    )
+    featured_artists = [
+        artist["name"] for artist in artists if artist["role"] == "featured"
+    ]
     manager_prefix = "#MANAGER\n" if submitter_tg_id in MANAGER_IDS else ""
     caption = (
         f"{manager_prefix}"
@@ -330,12 +353,15 @@ async def notify_admin_new_release(
         f"Release ID: {release_id}\n"
         f"From: {submitter}\n"
         f"Song: {song_name}\n"
-        f"Artist: {artist_name}\n"
-        f"Legal name: {legal_name}\n"
-        f"Producers: {producer_text}\n"
+        f"Primary artist: {primary_artist}\n"
+        f"Featured artists: {', '.join(featured_artists) or '-'}\n"
+        f"Legal names: {', '.join(legal_names)}\n"
+        f"Producers: {', '.join(producers) or '-'}\n"
         f"Genre: {genre}\n"
         f"Subgenre: {sub_genre or '-'}\n"
-        f"Release date: {release_date}\n"
+        f"Re-release: {'yes' if is_rerelease else 'no'}\n"
+        f"{'Re-release' if is_rerelease else 'Release'} date: {release_date}\n"
+        f"Original release date: {original_release_date or '-'}\n"
         f"Spotify: {mapping_spotify or '-'}\n"
         f"Apple Music: {mapping_apple or '-'}\n"
         f"New profile: {'yes' if requires_new_profile else 'no'}\n"
@@ -416,7 +442,7 @@ async def _append_status(message: types.Message, suffix: str) -> None:
         elif message.text is not None:
             await message.edit_text(message.text + suffix)
     except Exception:
-        pass
+        logger.warning("Could not append Telegram status text", exc_info=True)
 
 
 @dp.callback_query(F.data.startswith("tx_"))

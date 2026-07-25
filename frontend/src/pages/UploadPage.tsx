@@ -1,52 +1,46 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Image as ImageIcon, Mail, Music } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { HomeHeader } from '../components/HomeHeader';
-import { PersianDatePicker } from '../components/PersianDatePicker';
-import { Music, Image as ImageIcon, Calendar, User, AlignLeft, Mail } from 'lucide-react';
 import { submitRelease } from '../api';
-import { useUser } from '../context/UserContext';
-import { useToast } from '../context/ToastContext';
-import { GenreSelect } from '../components/GenreSelect';
 import { FormToggle } from '../components/FormToggle';
+import { HomeHeader } from '../components/HomeHeader';
 import { NitroCostSummary } from '../components/NitroCostSummary';
-import { ProducerTagInput } from '../components/ProducerTagInput';
-import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
+import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
+import { useToast } from '../context/ToastContext';
+import { useUser } from '../context/UserContext';
 import { isRtlLanguage } from '../i18n';
+import { usePricing } from '../pricing';
+import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
+import {
+  appendReleaseMetadata,
+  emptyReleaseMetadata,
+  validateReleaseMetadata,
+} from '../utils/releaseForm';
 
-const NEW_RELEASE_WITH_PROFILE_COST = 10;
-const NEW_RELEASE_WITHOUT_PROFILE_COST = 8;
-const COPYRIGHT_COST = 1;
+const newSubmissionId = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const lang = i18n.language;
   const { user, refreshUser } = useUser();
   const { toast } = useToast();
-  const credits = user?.credits ?? 0;
-
-  const [formData, setFormData] = useState({
-    songName: '',
-    artistName: '',
-    producers: [] as string[],
-    legalName: '',
-    releaseDate: '',
-    genre: '',
-    subGenre: '',
-    spotifyUrl: '',
-    appleUrl: '',
-    needsNewProfile: false,
-    copyrightRequested: true,
-    profileEmail: '',
-  });
-
+  const { pricing } = usePricing();
+  const submissionId = useRef(newSubmissionId());
+  const submitting = useRef(false);
+  const [metadata, setMetadata] = useState(emptyReleaseMetadata);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [loading, setLoading]     = useState(false);
-
-  const handleToggleProfile   = () => setFormData(f => ({ ...f, needsNewProfile:    !f.needsNewProfile }));
-  const handleToggleCopyright = () => setFormData(f => ({ ...f, copyrightRequested: !f.copyrightRequested }));
+  const [loading, setLoading] = useState(false);
+  const [needsNewProfile, setNeedsNewProfile] = useState(false);
+  const [profileEmail, setProfileEmail] = useState('');
+  const [spotifyUrl, setSpotifyUrl] = useState('');
+  const [appleUrl, setAppleUrl] = useState('');
+  const lang = i18n.language;
+  const credits = user?.credits ?? 0;
+  const totalCost = pricing.discounted_release_price
+    + (metadata.copyrightRequested ? pricing.copyright_price : 0);
 
   const handleAudioFile = (file?: File) => {
     if (!file) return;
@@ -56,7 +50,6 @@ export const UploadPage = () => {
     }
     setAudioFile(file);
   };
-
   const handleCoverFile = (file?: File) => {
     if (!file) return;
     if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
@@ -67,239 +60,193 @@ export const UploadPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (
-      !audioFile ||
-      !coverFile ||
-      !formData.songName ||
-      !formData.artistName ||
-      !formData.legalName ||
-      !formData.releaseDate ||
-      !formData.genre
-    ) {
-      toast(t('Please fill all required fields.'), 'error');
+    if (submitting.current) return;
+    const validationError = validateReleaseMetadata(metadata);
+    if (!audioFile || !coverFile || validationError) {
+      toast(t(validationError ?? 'required_fields_missing'), 'error');
       return;
     }
-    if (formData.needsNewProfile && !formData.profileEmail.trim()) {
-      toast(t('Profile email is required.'), 'error');
+    if (needsNewProfile && !profileEmail.trim()) {
+      toast(t('profile_email_required'), 'error');
       return;
     }
+    if (credits < totalCost) {
+      toast(t('insufficient_credits'), 'error');
+      return;
+    }
+
+    submitting.current = true;
     setLoading(true);
     try {
       const form = new FormData();
-      form.append('audio',    audioFile);
-      form.append('cover',    coverFile);
-      form.append('song_name',   formData.songName);
-      form.append('artist_name', formData.artistName);
-      form.append('producers', JSON.stringify(formData.producers));
-      form.append('legal_name',  formData.legalName);
-      form.append('release_date', formData.releaseDate);
-      form.append('genre',        formData.genre);
-      if (formData.subGenre) form.append('sub_genre', formData.subGenre);
-      if (!formData.needsNewProfile) {
-        if (formData.spotifyUrl) form.append('mapping_spotify', formData.spotifyUrl);
-        if (formData.appleUrl)   form.append('mapping_apple',   formData.appleUrl);
+      form.append('audio', audioFile);
+      form.append('cover', coverFile);
+      appendReleaseMetadata(form, metadata);
+      form.append('submission_id', submissionId.current);
+      form.append('requires_new_profile', String(needsNewProfile));
+      form.append('is_edit', 'false');
+      if (profileEmail.trim()) form.append('profile_email', profileEmail.trim());
+      if (!needsNewProfile) {
+        if (spotifyUrl.trim()) form.append('mapping_spotify', spotifyUrl.trim());
+        if (appleUrl.trim()) form.append('mapping_apple', appleUrl.trim());
       }
-      if (formData.profileEmail)     form.append('profile_email',     formData.profileEmail);
-      form.append('requires_new_profile', formData.needsNewProfile.toString());
-      form.append('is_edit',              'false');
-      form.append('copyright_requested',  formData.copyrightRequested.toString());
       await submitRelease(form);
       await refreshUser();
       toast(t('Release submitted successfully!'), 'success');
       navigate('/');
-    } catch (e: unknown) {
-      toast(errorText(e, t), 'error');
+    } catch (error: unknown) {
+      submitting.current = false;
+      toast(errorText(error, t), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const isRTL = isRtlLanguage(lang);
-  const baseCost = formData.needsNewProfile ? NEW_RELEASE_WITH_PROFILE_COST : NEW_RELEASE_WITHOUT_PROFILE_COST;
-  const costItems = [
-    {
-      label: formData.needsNewProfile ? t('New profile release cost') : t('New release cost'),
-      amount: baseCost,
-    },
-    ...(formData.copyrightRequested ? [{ label: t('Copyright protection cost'), amount: COPYRIGHT_COST }] : []),
-  ];
-
   return (
-    <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
-      <HomeHeader
-        credits={credits}
-        lang={lang}
-      />
-
-      <div className="px-4 py-2">
+    <div
+      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto"
+      dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}
+    >
+      <HomeHeader credits={credits} lang={lang} />
+      <main className="px-4 py-2">
         <h1 className="text-3xl font-title mb-2">{t('Upload Your Art')}</h1>
         <p className="text-sm font-ui text-textSecondary mb-8 leading-relaxed">
           {t('Publish your next track with clean metadata and platform mapping.')}
         </p>
 
-        {/* 1. MP3/WAV */}
-        <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">1. {t('Audio File')}</h3>
-          <input type="file" accept=".mp3,.wav,audio/mpeg,audio/wav" onChange={e => handleAudioFile(e.target.files?.[0])}
-            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8" />
-          <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
-            <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
-              <Music className="text-gold w-6 h-6" />
-            </div>
-            <div>
-              <p className="font-ui">{audioFile ? audioFile.name : t('Drop audio or choose file')}</p>
-              <p className="text-xs font-light-ui text-textSecondary">{t('MP3, WAV')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Cover Art */}
-        <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">2. {t('Cover Art')}</h3>
-          <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={e => handleCoverFile(e.target.files?.[0])}
-            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8" />
-          <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
-            <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
-              <ImageIcon className="text-gold w-6 h-6" />
-            </div>
-            <div>
-              <p className="font-ui">{coverFile ? coverFile.name : t('Drop cover art or choose file')}</p>
-              <p className="text-xs font-light-ui text-textSecondary">{t('JPG, PNG, WEBP')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Form Fields */}
-        <div className="space-y-4 mb-6">
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">3. {t('Song Name')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <Music className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input type="text" value={formData.songName} dir="ltr"
-                onChange={e => setFormData(f => ({ ...f, songName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Midnight Frequency" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">4. {t('Artist Name')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <User className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input type="text" value={formData.artistName} dir="ltr"
-                onChange={e => setFormData(f => ({ ...f, artistName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Arman Vale" />
-            </div>
-          </div>
-          <ProducerTagInput
-            labelPrefix="5."
-            producers={formData.producers}
-            onChange={producers => setFormData(f => ({ ...f, producers }))}
+        <div className="mb-6">
+          <label htmlFor="audio-upload" className="block text-gold font-ui mb-2">
+            1. {t('Audio File')} *
+          </label>
+          <input
+            id="audio-upload"
+            type="file"
+            accept=".mp3,.wav,audio/mpeg,audio/wav"
+            onChange={event => handleAudioFile(event.target.files?.[0])}
+            className="sr-only"
           />
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">6. {t('Legal Name')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <AlignLeft className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input type="text" value={formData.legalName} dir="ltr"
-                onChange={e => setFormData(f => ({ ...f, legalName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Arman V. Rahimi" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Release Date')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <Calendar className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <PersianDatePicker onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))} />
-            </div>
-          </div>
-          <div className="relative z-40">
-            <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Genre')}</h3>
-            <GenreSelect
-              genre={formData.genre}
-              subGenre={formData.subGenre}
-              onGenreChange={g => setFormData(f => ({ ...f, genre: g }))}
-              onSubGenreChange={s => setFormData(f => ({ ...f, subGenre: s }))}
-            />
-          </div>
+          <label
+            htmlFor="audio-upload"
+            className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold"
+          >
+            <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
+              <Music className="h-6 w-6 text-gold" />
+            </span>
+            <span className="min-w-0">
+              <span dir="auto" className="block truncate font-ui">
+                {audioFile?.name ?? t('Drop audio or choose file')}
+              </span>
+              <span className="text-xs text-textSecondary">{t('MP3, WAV')}</span>
+            </span>
+          </label>
         </div>
 
-        {/* 9. Mapping */}
-        <div className="mb-6 relative z-0">
+        <div className="mb-6">
+          <label htmlFor="cover-upload" className="block text-gold font-ui mb-2">
+            2. {t('Cover Art')} *
+          </label>
+          <input
+            id="cover-upload"
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            onChange={event => handleCoverFile(event.target.files?.[0])}
+            className="sr-only"
+          />
+          <label
+            htmlFor="cover-upload"
+            className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20"
+          >
+            <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
+              <ImageIcon className="h-6 w-6 text-gold" />
+            </span>
+            <span className="min-w-0">
+              <span dir="auto" className="block truncate font-ui">
+                {coverFile?.name ?? t('Drop cover art or choose file')}
+              </span>
+              <span className="text-xs text-textSecondary">{t('JPG, PNG, WEBP')}</span>
+            </span>
+          </label>
+        </div>
+
+        <ReleaseMetadataFields value={metadata} onChange={setMetadata} />
+
+        <section className="mb-6">
           <h3 className="text-gold font-ui mb-2 text-sm">9. {t('Mapping')}</h3>
           <div className="mb-4">
             <FormToggle
               id="newProfile"
-              checked={formData.needsNewProfile}
-              onChange={handleToggleProfile}
+              checked={needsNewProfile}
+              onChange={() => setNeedsNewProfile(current => !current)}
               label={t("I don't have a profile (Create one for me)")}
             />
           </div>
-
-          {!formData.needsNewProfile ? (
+          {!needsNewProfile ? (
             <div className="space-y-3">
-              <div>
-                <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Spotify')}</p>
-                <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                  <img src="/Logo/Spotify.webp" alt="Spotify" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
-                  <input type="text" value={formData.spotifyUrl}
-                    onChange={e => setFormData(f => ({ ...f, spotifyUrl: e.target.value }))}
-                    dir="ltr"
-                    className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                    placeholder="https://open.spotify.com/..." />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-light-ui text-textSecondary mb-1">{t('Apple Music')}</p>
-                <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                  <img src="/Logo/AppleMusic.webp" alt="Apple Music" className="w-5 h-5 object-contain me-3 flex-shrink-0" />
-                  <input type="text" value={formData.appleUrl}
-                    onChange={e => setFormData(f => ({ ...f, appleUrl: e.target.value }))}
-                    dir="ltr"
-                    className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                    placeholder="https://music.apple.com/..." />
-                </div>
-              </div>
+              <label className="block text-xs text-textSecondary">
+                {t('Spotify')}
+                <input
+                  type="url"
+                  value={spotifyUrl}
+                  onChange={event => setSpotifyUrl(event.target.value)}
+                  dir="ltr"
+                  className="mt-1 w-full rounded-lg border border-inputBorder bg-inputBg p-3 text-textPrimary outline-none focus:border-gold/60"
+                  placeholder="https://open.spotify.com/..."
+                />
+              </label>
+              <label className="block text-xs text-textSecondary">
+                {t('Apple Music')}
+                <input
+                  type="url"
+                  value={appleUrl}
+                  onChange={event => setAppleUrl(event.target.value)}
+                  dir="ltr"
+                  className="mt-1 w-full rounded-lg border border-inputBorder bg-inputBg p-3 text-textPrimary outline-none focus:border-gold/60"
+                  placeholder="https://music.apple.com/..."
+                />
+              </label>
             </div>
           ) : (
-            <div className="space-y-3 bg-gold/5 border border-gold/20 rounded-xl p-4">
-              <p className="text-xs font-ui text-gold mb-2">{t('New profile info needed')}</p>
-              <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-                <Mail className="w-5 h-5 text-gold me-3 flex-shrink-0" />
-                <input type="email" value={formData.profileEmail}
-                  onChange={e => setFormData(f => ({ ...f, profileEmail: e.target.value }))}
+            <div className="rounded-xl border border-gold/20 bg-gold/5 p-4">
+              <p className="mb-2 text-xs font-ui text-gold">{t('New profile info needed')}</p>
+              <label className="flex items-center rounded-lg border border-inputBorder bg-inputBg p-3">
+                <Mail className="me-3 h-5 w-5 flex-shrink-0 text-gold" />
+                <span className="sr-only">{t('Profile Email')}</span>
+                <input
+                  type="email"
+                  value={profileEmail}
+                  onChange={event => setProfileEmail(event.target.value)}
                   dir="ltr"
-                  className="bg-transparent border-none outline-none w-full text-textPrimary text-sm font-ui"
-                  placeholder={t('Profile Email')} />
-              </div>
+                  className="w-full bg-transparent text-sm text-textPrimary outline-none"
+                  placeholder={t('Profile Email')}
+                />
+              </label>
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="mb-8 p-4 bg-card1 rounded-xl border border-inputBorder">
-          <div className="space-y-3">
-            <FormToggle
-              id="copyrightRequested"
-              checked={formData.copyrightRequested}
-              onChange={handleToggleCopyright}
-              label={t('Add Copyright Protection (+1 Nitro)')}
-              tone="gold"
-            />
-          </div>
-        </div>
-
-        {/* Submit */}
         <div className="pb-8">
-          <NitroCostSummary items={costItems} />
+          <NitroCostSummary
+            items={[
+              {
+                label: t('New release cost'),
+                amount: pricing.discounted_release_price,
+                originalAmount: pricing.original_release_price,
+              },
+              ...(metadata.copyrightRequested
+                ? [{ label: t('Copyright protection cost'), amount: pricing.copyright_price }]
+                : []),
+            ]}
+          />
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="mt-4 w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
+            className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
-            <span className="text-lg">{loading ? '...' : t("Let's Cook!")}</span>
+            {loading ? t('Processing...') : t("Let's Cook!")}
           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

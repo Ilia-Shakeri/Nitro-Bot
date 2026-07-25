@@ -4,6 +4,7 @@ import { isRtlLanguage } from '../i18n';
 interface Item {
   label: string;
   amount: number;
+  originalAmount?: number;
 }
 
 interface Props {
@@ -27,8 +28,15 @@ export const NitroCostSummary = ({ items }: Props) => {
         {items.map(item => (
           <div key={item.label} className="flex items-center justify-between text-sm">
             <span className="text-textSecondary">{item.label}</span>
-            <span className="font-ui text-textPrimary">
-              {item.amount.toLocaleString(locale)} {t('Nitro')}
+            <span className="inline-flex items-center gap-2 font-ui text-textPrimary" dir="ltr">
+              {item.originalAmount !== undefined && (
+                <span className="text-textSecondary line-through" aria-label={t('Original price')}>
+                  {item.originalAmount.toLocaleString(locale)} {t('Nitro')}
+                </span>
+              )}
+              <span className="text-gold">
+                {item.amount.toLocaleString(locale)} {t('Nitro')}
+              </span>
             </span>
           </div>
         ))}

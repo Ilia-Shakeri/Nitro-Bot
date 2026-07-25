@@ -51,7 +51,7 @@ export const CopyField = ({ label, value, display, mono = true }: Props) => {
     <button
       type="button"
       onClick={copy}
-      className="w-full bg-inputBg/80 border border-inputBorder rounded-xl p-3 flex items-center justify-between gap-3 text-left hover:border-gold/50 transition-colors active:scale-[0.99]"
+      className="w-full bg-inputBg/80 border border-inputBorder rounded-xl p-3 flex items-center justify-between gap-3 text-start hover:border-gold/50 transition-colors active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
     >
       <span className="min-w-0">
         <span className="block text-[11px] text-textSecondary mb-0.5">{label}</span>

@@ -1,233 +1,249 @@
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { ChevronDown, Upload, X } from 'lucide-react';
-import { getUsdtRate, submitReceipt } from '../api';
+import { useTranslation } from 'react-i18next';
+import { getPaymentConfig, getUsdtRate, submitReceipt } from '../api';
 import { useToast } from '../context/ToastContext';
-import { localizeNumber, toFaNum } from '../utils/faNum';
-import { errorText } from '../utils/formMessages';
-import { PaymentDetails } from './PaymentDetails';
 import { isRtlLanguage } from '../i18n';
-
-const NITRO_PRICE_USD = 1;
-const MIN_CHARGE_AMOUNT = 3;
+import { nitroUsdCents, tomanCents, usePricing } from '../pricing';
+import type { PaymentConfig } from '../types/api';
+import { errorText } from '../utils/formMessages';
+import { localizeNumber, toFaNum } from '../utils/faNum';
+import { PaymentDetails } from './PaymentDetails';
 
 export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, i18n } = useTranslation();
-  const lang = i18n.language;
   const { toast } = useToast();
-  const [amount, setAmount] = useState(MIN_CHARGE_AMOUNT);
+  const { pricing } = usePricing();
+  const lang = i18n.language;
+  const isPersian = lang.split('-')[0] === 'fa';
+  const [amount, setAmount] = useState(pricing.minimum_topup_nitro);
   const [method, setMethod] = useState('card');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [rate, setRate] = useState<number | null>(null);
-  const [rateLoading, setRateLoading] = useState(false);
+  const [rateLoading, setRateLoading] = useState(true);
   const [rateError, setRateError] = useState(false);
-
-  const isPersian = lang.split('-')[0] === 'fa';
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
   const effectiveMethod = isPersian ? method : 'usdt';
   const isCrypto = effectiveMethod === 'usdt';
-  const validAmount = Number.isInteger(amount) && amount >= MIN_CHARGE_AMOUNT ? amount : 0;
-  const totalUsd = validAmount * NITRO_PRICE_USD;
-  const totalToman = isPersian && rate && rate > 0 ? totalUsd * rate : null;
-  const cryptoAmount = isCrypto ? totalUsd : null;
+  const validAmount = Number.isInteger(amount) && amount >= pricing.minimum_topup_nitro ? amount : 0;
+  const usdCents = nitroUsdCents(validAmount, pricing);
+  const payableTomanCents = isPersian && rate ? tomanCents(validAmount, rate, pricing) : null;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    getPaymentConfig()
+      .then(config => {
+        if (!cancelled) setPaymentConfig(config);
+      })
+      .catch(() => {
+        if (!cancelled) setPaymentConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !isPersian) return;
     let cancelled = false;
-    const load = async () => {
-      setRateLoading(true);
-      setRateError(false);
-      try {
-        const r = await getUsdtRate();
-        if (!cancelled) setRate(r.rate_toman);
-      } catch {
+    getUsdtRate()
+      .then(response => {
+        if (!cancelled) setRate(response.rate_toman);
+      })
+      .catch(() => {
         if (!cancelled) {
           setRate(null);
           setRateError(true);
         }
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setRateLoading(false);
-      }
+      });
+    return () => {
+      cancelled = true;
     };
-    load();
-    return () => { cancelled = true; };
   }, [isOpen, isPersian]);
 
   if (!isOpen) return null;
 
-  const fmtDecimal = (v: number) => {
-    const s = v.toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
-    return isRtlLanguage(lang) ? toFaNum(s) : s;
+  const formatCents = (cents: number, keepDecimals = true) => {
+    const whole = Math.floor(cents / 100);
+    const fraction = String(cents % 100).padStart(2, '0');
+    const value = keepDecimals || fraction !== '00' ? `${whole}.${fraction}` : String(whole);
+    return isRtlLanguage(lang) ? toFaNum(value) : value;
   };
 
   const handleSubmitPayment = async () => {
-    if (!Number.isInteger(amount) || amount < MIN_CHARGE_AMOUNT) return;
-    if (!isCrypto && !receipt) return;
+    if (!validAmount || !paymentConfig || (!isCrypto && !receipt)) return;
     setLoading(true);
     try {
       await submitReceipt(isCrypto ? null : receipt, amount, effectiveMethod);
       toast(t('Receipt submitted successfully. Awaiting admin approval.'), 'success');
       onClose();
-    } catch (e: unknown) {
-      toast(errorText(e, t), 'error');
+    } catch (error: unknown) {
+      toast(errorText(error, t), 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
-      <div className="bg-card1/85 backdrop-blur-xl w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl p-6 border border-gold/20 relative" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-textSecondary hover:text-textPrimary">
-          <X className="w-6 h-6" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-title"
+        dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}
+        className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-gold/20 bg-card1/90 p-6 backdrop-blur-xl"
+        onClick={event => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('Close')}
+          className="absolute end-4 top-4 text-textSecondary hover:text-textPrimary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+        >
+          <X className="h-6 w-6" />
         </button>
-
-        <h2 className="text-xl font-bold text-gold mb-4">{t('Refill Nitro')}</h2>
+        <h2 id="payment-title" className="mb-4 text-xl font-bold text-gold">{t('Refill Nitro')}</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm text-textSecondary block mb-1">{t('Nitro Amount')}</label>
-            <div className="flex items-center gap-3 rounded-xl border border-inputBorder bg-inputBg p-2">
+            <label htmlFor="nitro-amount" className="mb-1 block text-sm text-textSecondary">{t('Nitro Amount')}</label>
+            <div className="flex items-center gap-3 rounded-xl border border-inputBorder bg-inputBg p-2" dir="ltr">
               <button
                 type="button"
-                onClick={() => setAmount(current => Math.max(MIN_CHARGE_AMOUNT, current - 1))}
-                disabled={amount <= MIN_CHARGE_AMOUNT}
+                onClick={() => setAmount(current => Math.max(pricing.minimum_topup_nitro, current - 1))}
+                disabled={amount <= pricing.minimum_topup_nitro}
                 aria-label={t('Decrease amount')}
-                className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold disabled:cursor-not-allowed disabled:opacity-40 active:scale-[0.98] transition-all duration-300"
+                className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold disabled:opacity-40"
               >
                 −
               </button>
               <input
+                id="nitro-amount"
                 type="number"
-                min={MIN_CHARGE_AMOUNT}
+                min={pricing.minimum_topup_nitro}
                 step="1"
                 inputMode="numeric"
                 value={amount}
                 onChange={event => setAmount(Number(event.target.value))}
-                onBlur={() => setAmount(current => Number.isFinite(current) ? Math.max(MIN_CHARGE_AMOUNT, Math.floor(current)) : MIN_CHARGE_AMOUNT)}
+                onBlur={() => setAmount(current =>
+                  Number.isFinite(current)
+                    ? Math.max(pricing.minimum_topup_nitro, Math.floor(current))
+                    : pricing.minimum_topup_nitro)}
                 className="min-w-0 flex-1 bg-transparent text-center font-title text-xl text-textPrimary outline-none"
               />
               <button
                 type="button"
                 onClick={() => setAmount(current => current + 1)}
                 aria-label={t('Increase amount')}
-                className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold active:scale-[0.98] transition-all duration-300"
+                className="h-10 w-10 rounded-lg border border-gold/50 bg-card3 text-xl font-bold text-gold"
               >
                 +
               </button>
             </div>
           </div>
 
-          {isPersian && (
-            <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between text-xs text-textSecondary">
-                <span>{t('Unit Price')}</span>
-                <span dir="ltr">{localizeNumber(NITRO_PRICE_USD, lang)} USD</span>
-              </div>
-              <div className="flex items-center justify-between text-sm font-semibold text-textPrimary">
-                <span>{t('Live USD Rate')}</span>
-                {rateLoading ? (
-                  <span className="inline-flex items-center gap-2 text-xs text-textSecondary animate-pulse">
-                    <svg className="h-4 w-4 animate-spin text-gold" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
-                      <path className="opacity-90" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v3a6 6 0 0 1 6 6h3Z" />
-                    </svg>
-                    {isPersian ? 'در حال دریافت نرخ زنده...' : 'Fetching live rate...'}
-                  </span>
-                ) : rate ? (
-                  <span dir="ltr" className="text-sm font-bold text-gold">
-                    {localizeNumber(rate, lang)} {t('Toman')} / USDT
-                  </span>
-                ) : (
-                  <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
-                )}
-              </div>
+          <div className="rounded-lg border border-inputBorder bg-inputBg/60 p-3">
+            <div className="flex items-center justify-between text-xs text-textSecondary">
+              <span>{t('Unit Price')}</span>
+              <span dir="ltr">{formatCents(pricing.nitro_usd_price_cents)} USD</span>
             </div>
-          )}
+            {isPersian && (
+              <div className="mt-2 flex items-center justify-between text-sm font-semibold">
+                <span>{t('Live USD Rate')}</span>
+                {rateLoading
+                  ? <span className="text-xs text-textSecondary">{t('Fetching live rate...')}</span>
+                  : rate
+                    ? <span dir="ltr" className="text-gold">{localizeNumber(rate, lang)} {t('Toman')} / USDT</span>
+                    : <span className="text-red-400">{t('Rate unavailable')}</span>}
+              </div>
+            )}
+          </div>
 
           {isPersian && (
-            <div>
-              <label className="text-sm text-textSecondary block mb-1">{t('Payment Method')}</label>
-              <div className="relative">
+            <label className="block text-sm text-textSecondary">
+              {t('Payment Method')}
+              <span className="relative mt-1 block">
                 <select
                   value={method}
-                  onChange={e => setMethod(e.target.value)}
-                  className="w-full bg-inputBg border border-inputBorder rounded-lg p-3 pr-9 rtl:pr-3 rtl:pl-9 text-textPrimary text-center outline-none appearance-none cursor-pointer focus:border-gold/50 transition-colors"
+                  onChange={event => setMethod(event.target.value)}
+                  className="w-full appearance-none rounded-lg border border-inputBorder bg-inputBg p-3 pe-9 text-center text-textPrimary outline-none focus:border-gold/50"
                 >
                   <option value="card">{t('Card to Card')}</option>
                   <option value="usdt">{t('USDT (TRC20)')}</option>
                 </select>
-                <ChevronDown className="pointer-events-none absolute top-1/2 -translate-y-1/2 right-3 rtl:right-auto rtl:left-3 w-4 h-4 text-textSecondary" />
-              </div>
-            </div>
+                <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-textSecondary" />
+              </span>
+            </label>
           )}
 
           {isPersian && (
-            <div className="bg-inputBg/60 border border-inputBorder rounded-lg p-3">
+            <div className="rounded-lg border border-inputBorder bg-inputBg/60 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-textSecondary">{t('Total')}</span>
                 <span dir="ltr" className="text-sm font-bold text-gold">
-                  {totalToman !== null ? `${localizeNumber(totalToman, lang)} ${t('Toman')}` : t('Rate unavailable')}
+                  {payableTomanCents !== null
+                    ? `${formatCents(payableTomanCents, false)} ${t('Toman')}`
+                    : t('Rate unavailable')}
                 </span>
               </div>
-              {rateError && <p className="text-[11px] text-red-400 mt-1">{t('Exchange fallback notice')}</p>}
+              {rateError && <p className="mt-1 text-[11px] text-red-400">{t('Exchange fallback notice')}</p>}
             </div>
           )}
 
-          <PaymentDetails method={effectiveMethod} />
+          <PaymentDetails method={effectiveMethod} config={paymentConfig} />
 
           {isCrypto ? (
             <>
-              <div className="bg-gold/5 border border-gold/25 rounded-xl p-3 space-y-1">
+              <div className="rounded-xl border border-gold/25 bg-gold/5 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-textSecondary">{t('Amount to Pay')}</span>
-                  {cryptoAmount !== null ? (
-                    <span dir="ltr" className="text-base font-bold text-gold">
-                      {fmtDecimal(cryptoAmount)} USDT
-                    </span>
-                  ) : (
-                    <span className="text-sm text-red-400">{t('Rate unavailable')}</span>
-                  )}
+                  <span dir="ltr" className="text-base font-bold text-gold">{formatCents(usdCents)} USDT</span>
                 </div>
               </div>
-
-              <p className="text-xs text-textSecondary leading-relaxed bg-card2/50 border border-card3 rounded-xl p-3">
+              <p className="rounded-xl border border-card3 bg-card2/50 p-3 text-xs leading-relaxed text-textSecondary">
                 {t('crypto_processing_notice')}
               </p>
-
               <button
+                type="button"
                 onClick={handleSubmitPayment}
-                disabled={loading || validAmount < MIN_CHARGE_AMOUNT}
-                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
+                disabled={loading || !validAmount || !paymentConfig?.usdt}
+                className="min-h-12 w-full rounded-xl bg-gold py-3 font-bold text-background disabled:opacity-50"
               >
                 {loading ? t('Processing...') : t('I Paid')}
               </button>
             </>
           ) : (
             <>
-              <div className="pt-2">
-                <input
-                  type="file"
-                  id="receiptUpload"
-                  accept="image/*"
-                  onChange={e => setReceipt(e.target.files?.[0] || null)}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="receiptUpload"
-                  className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-card3/20 transition"
-                >
-                  <Upload className="text-gold w-8 h-8 mb-2" />
-                  <span className="text-sm font-semibold">
-                    {receipt ? receipt.name : t('Upload Receipt Screenshot')}
-                  </span>
-                </label>
-              </div>
-
+              <input
+                type="file"
+                id="receiptUpload"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                onChange={event => setReceipt(event.target.files?.[0] ?? null)}
+                className="sr-only"
+              />
+              <label
+                htmlFor="receiptUpload"
+                className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4"
+              >
+                <Upload className="mb-2 h-8 w-8 text-gold" />
+                <span dir="auto" className="max-w-full truncate text-sm font-semibold">
+                  {receipt?.name ?? t('Upload Receipt Screenshot')}
+                </span>
+              </label>
               <button
+                type="button"
                 onClick={handleSubmitPayment}
-                disabled={loading || !receipt || validAmount < MIN_CHARGE_AMOUNT}
-                className="w-full bg-gold text-background font-bold py-3 rounded-xl shadow-lg hover:opacity-90 disabled:opacity-50 mt-4 active:scale-[0.98] transition-all duration-300"
+                disabled={loading || !receipt || !validAmount || !paymentConfig?.card}
+                className="min-h-12 w-full rounded-xl bg-gold py-3 font-bold text-background disabled:opacity-50"
               >
                 {loading ? t('Processing...') : t('Submit Receipt')}
               </button>

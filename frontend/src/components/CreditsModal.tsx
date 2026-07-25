@@ -5,6 +5,8 @@ import { getLedger } from '../api';
 import { localizeNumber } from '../utils/faNum';
 import type { LedgerEntry } from '../types/api';
 import { isRtlLanguage } from '../i18n';
+import { useToast } from '../context/ToastContext';
+import { errorText } from '../utils/formMessages';
 
 interface Props {
   isOpen: boolean;
@@ -19,10 +21,13 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro, onAllTransa
   const isRTL = isRtlLanguage(i18n.language);
   const dateLocale = i18n.language.startsWith('ar') ? 'ar-SA' : isRTL ? 'fa-IR' : 'en-US';
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen) getLedger().then(setLedger);
-  }, [isOpen]);
+    if (isOpen) {
+      getLedger().then(setLedger).catch(error => toast(errorText(error, t), 'error'));
+    }
+  }, [isOpen, t, toast]);
 
   const walletCharges = ledger.filter(item => item.direction === 'credit' && item.id.startsWith('tx-'));
 
@@ -77,7 +82,9 @@ export const CreditsModal = ({ isOpen, onClose, balance, onBuyNitro, onAllTransa
                         : <Clock3 className="w-4 h-4 text-textSecondary flex-shrink-0" />
                       }
                       <div className="flex-1 min-w-0">
-                        <p className="font-ui text-sm text-textPrimary truncate">{item.title}</p>
+                        <p dir="auto" className="font-ui text-sm text-textPrimary truncate">
+                          {t(item.title_key, item.title_params)}
+                        </p>
                         <p className="font-light-ui text-xs text-textSecondary">
                           {new Date(item.created_at).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}
                         </p>

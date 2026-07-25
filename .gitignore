@@ -3,6 +3,7 @@ backend/venv
 __pycache__
 node_modules
 dist
+frontend/.test-dist
 
 design-refrence
 code_dumper.py

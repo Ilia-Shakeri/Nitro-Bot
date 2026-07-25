@@ -1,82 +1,95 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Image as ImageIcon, Music } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlignLeft, Calendar, Image as ImageIcon, Music, User } from 'lucide-react';
-import { FormToggle } from '../components/FormToggle';
-import { GenreSelect } from '../components/GenreSelect';
+import { getReleases, submitRelease } from '../api';
 import { HomeHeader } from '../components/HomeHeader';
 import { NitroCostSummary } from '../components/NitroCostSummary';
-import { PersianDatePicker } from '../components/PersianDatePicker';
-import { ProducerTagInput } from '../components/ProducerTagInput';
-import { getReleases, submitRelease } from '../api';
+import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
-import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
 import { isRtlLanguage } from '../i18n';
-
-const EDIT_RELEASE_COST = 2;
-const COPYRIGHT_COST = 1;
+import { usePricing } from '../pricing';
+import type { Release } from '../types/api';
+import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
+import {
+  appendReleaseMetadata,
+  emptyReleaseMetadata,
+  type ReleaseMetadata,
+  validateReleaseMetadata,
+} from '../utils/releaseForm';
 
 const parseProducers = (raw: string | null) => {
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(item => typeof item === 'string') : [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
   } catch {
     return [];
   }
 };
 
+const releaseMetadata = (release: Release): ReleaseMetadata => ({
+  songName: release.song_name,
+  artists: release.artists?.length
+    ? release.artists
+    : [{ name: release.artist_name, role: 'primary' }],
+  producers: parseProducers(release.producers),
+  legalNames: release.legal_names?.length ? release.legal_names : [release.legal_name],
+  releaseDate: release.release_date,
+  isRerelease: release.is_rerelease,
+  originalReleaseDate: release.original_release_date ?? '',
+  genre: release.genre ?? '',
+  subGenre: release.sub_genre ?? '',
+  copyrightRequested: false,
+});
+
+const newSubmissionId = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export const EditPage = () => {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const lang = i18n.language;
   const { user, refreshUser } = useUser();
   const { toast } = useToast();
-  const credits = user?.credits ?? 0;
-  const isRTL = isRtlLanguage(lang);
-
-  const [formData, setFormData] = useState({
-    songName: '',
-    artistName: '',
-    producers: [] as string[],
-    legalName: '',
-    releaseDate: '',
-    genre: '',
-    subGenre: '',
-    copyrightRequested: false,
-  });
+  const { pricing } = usePricing();
+  const submitting = useRef(false);
+  const submissionId = useRef(newSubmissionId());
+  const [metadata, setMetadata] = useState(emptyReleaseMetadata);
+  const [source, setSource] = useState<Release | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [prefillLoading, setPrefillLoading] = useState(true);
+  const credits = user?.credits ?? 0;
+  const totalCost = pricing.edit_release_price
+    + (metadata.copyrightRequested ? pricing.copyright_price : 0);
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      const releases = await getReleases();
-      const release = releases.find(item => String(item.id) === String(id));
-      if (cancelled) return;
-      if (!release) {
-        toast(t('Source release not found'), 'error');
-        setPrefillLoading(false);
-        return;
-      }
-      setFormData({
-        songName: release.song_name,
-        artistName: release.artist_name,
-        producers: parseProducers(release.producers),
-        legalName: release.legal_name,
-        releaseDate: release.release_date,
-        genre: release.genre ?? '',
-        subGenre: release.sub_genre ?? '',
-        copyrightRequested: false,
+    getReleases()
+      .then(releases => {
+        if (cancelled) return;
+        const found = releases.find(item => String(item.id) === String(id));
+        if (!found) {
+          toast(t('source_release_not_found'), 'error');
+          return;
+        }
+        setSource(found);
+        setMetadata(releaseMetadata(found));
+      })
+      .catch(error => {
+        if (!cancelled) toast(errorText(error, t), 'error');
+      })
+      .finally(() => {
+        if (!cancelled) setPrefillLoading(false);
       });
-      setPrefillLoading(false);
+    return () => {
+      cancelled = true;
     };
-    load();
-    return () => { cancelled = true; };
   }, [id, t, toast]);
 
   const handleAudioFile = (file?: File) => {
@@ -87,7 +100,6 @@ export const EditPage = () => {
     }
     setAudioFile(file);
   };
-
   const handleCoverFile = (file?: File) => {
     if (!file) return;
     if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
@@ -97,186 +109,125 @@ export const EditPage = () => {
     setCoverFile(file);
   };
 
-  const costItems = [
-    { label: t('Edit release cost'), amount: EDIT_RELEASE_COST },
-    ...(formData.copyrightRequested ? [{ label: t('Copyright protection cost'), amount: COPYRIGHT_COST }] : []),
-  ];
-
   const handleSubmit = async () => {
-    if (!id) {
-      toast(t('Edited release id is required'), 'error');
+    if (submitting.current) return;
+    if (!id || !source) {
+      toast(t('edited_release_id_required'), 'error');
+      return;
+    }
+    const validationError = validateReleaseMetadata(
+      metadata,
+      metadata.isRerelease === source.is_rerelease ? source.release_date : undefined,
+    );
+    if (validationError) {
+      toast(t(validationError), 'error');
+      return;
+    }
+    if (credits < totalCost) {
+      toast(t('insufficient_credits'), 'error');
       return;
     }
 
+    submitting.current = true;
     setLoading(true);
     try {
       const form = new FormData();
       if (audioFile) form.append('audio', audioFile);
       if (coverFile) form.append('cover', coverFile);
-      if (formData.songName) form.append('song_name', formData.songName);
-      if (formData.artistName) form.append('artist_name', formData.artistName);
-      form.append('producers', JSON.stringify(formData.producers));
-      if (formData.legalName) form.append('legal_name', formData.legalName);
-      if (formData.releaseDate) form.append('release_date', formData.releaseDate);
-      if (formData.genre) form.append('genre', formData.genre);
-      if (formData.subGenre) form.append('sub_genre', formData.subGenre);
-      if (id) form.append('edited_release_id', id);
-      form.append('requires_new_profile', 'false');
+      appendReleaseMetadata(form, metadata);
+      form.append('edited_release_id', id);
+      form.append('submission_id', submissionId.current);
       form.append('is_edit', 'true');
-      form.append('copyright_requested', formData.copyrightRequested.toString());
       await submitRelease(form);
       await refreshUser();
       toast(t('Edit submitted successfully!'), 'success');
       navigate('/');
-    } catch (e: unknown) {
-      toast(errorText(e, t), 'error');
+    } catch (error: unknown) {
+      submitting.current = false;
+      toast(errorText(error, t), 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
-      <HomeHeader
-        credits={credits}
-        lang={lang}
-      />
-
-      <div className="px-4 py-2">
+    <div
+      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto"
+      dir={isRtlLanguage(i18n.language) ? 'rtl' : 'ltr'}
+    >
+      <HomeHeader credits={credits} lang={i18n.language} />
+      <main className="px-4 py-2">
         <h1 className="text-3xl font-title mb-2">{t('Edit Release')}</h1>
         <p className="text-sm font-ui text-textSecondary mb-8 leading-relaxed">
           {t('Update your release metadata and assets.')}
         </p>
 
-        <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">1. {t('Audio File')}</h3>
+        <div className="mb-6">
+          <label htmlFor="edit-audio" className="block text-gold font-ui mb-2">
+            1. {t('Audio File')}
+          </label>
           <input
+            id="edit-audio"
             type="file"
-            onChange={e => handleAudioFile(e.target.files?.[0])}
             accept=".mp3,.wav,audio/mpeg,audio/wav"
-            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8"
+            onChange={event => handleAudioFile(event.target.files?.[0])}
+            className="sr-only"
           />
-          <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
-            <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
-              <Music className="text-gold w-6 h-6" />
-            </div>
-            <div>
-              <p className="font-ui">{audioFile ? audioFile.name : t('Drop audio or choose file')}</p>
-              <p className="text-xs font-light-ui text-textSecondary">{t('MP3, WAV')}</p>
-            </div>
-          </div>
+          <label htmlFor="edit-audio" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4">
+            <Music className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
+            <span dir="auto" className="truncate">
+              {audioFile?.name ?? t('Keep current audio or choose file')}
+            </span>
+          </label>
         </div>
 
-        <div className="mb-6 relative">
-          <h3 className="text-gold font-ui mb-2">2. {t('Cover Art')}</h3>
+        <div className="mb-6">
+          <label htmlFor="edit-cover" className="block text-gold font-ui mb-2">
+            2. {t('Cover Art')}
+          </label>
           <input
+            id="edit-cover"
             type="file"
-            onChange={e => handleCoverFile(e.target.files?.[0])}
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full mt-8"
+            onChange={event => handleCoverFile(event.target.files?.[0])}
+            className="sr-only"
           />
-          <div className="border border-dashed border-card3 bg-card2/50 rounded-xl p-4 flex items-center hover:bg-card3/20 transition">
-            <div className="w-12 h-12 rounded-full border border-gold/50 flex items-center justify-center me-4 flex-shrink-0">
-              <ImageIcon className="text-gold w-6 h-6" />
-            </div>
-            <div>
-              <p className="font-ui">{coverFile ? coverFile.name : t('Drop cover art or choose file')}</p>
-              <p className="text-xs font-light-ui text-textSecondary">{t('JPG, PNG, WEBP')}</p>
-            </div>
-          </div>
+          <label htmlFor="edit-cover" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4">
+            <ImageIcon className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
+            <span dir="auto" className="truncate">
+              {coverFile?.name ?? t('Keep current cover or choose file')}
+            </span>
+          </label>
         </div>
 
-        <div className="space-y-4 mb-6 relative z-20">
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">3. {t('Song Name')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <Music className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input
-                type="text"
-                value={formData.songName}
-                dir="ltr"
-                onChange={e => setFormData(f => ({ ...f, songName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Midnight Frequency"
+        {prefillLoading ? (
+          <p className="py-10 text-center text-textSecondary">{t('Loading...')}</p>
+        ) : source ? (
+          <>
+            <ReleaseMetadataFields value={metadata} onChange={setMetadata} />
+            <div className="pb-8">
+              <NitroCostSummary
+                items={[
+                  { label: t('Edit release cost'), amount: pricing.edit_release_price },
+                  ...(metadata.copyrightRequested
+                    ? [{ label: t('Copyright protection cost'), amount: pricing.copyright_price }]
+                    : []),
+                ]}
               />
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+              >
+                {loading ? t('Processing...') : t('Submit Edit')}
+              </button>
             </div>
-          </div>
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">4. {t('Artist Name')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <User className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input
-                type="text"
-                value={formData.artistName}
-                dir="ltr"
-                onChange={e => setFormData(f => ({ ...f, artistName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Arman Vale"
-              />
-            </div>
-          </div>
-          <ProducerTagInput
-            labelPrefix="5."
-            producers={formData.producers}
-            onChange={producers => setFormData(f => ({ ...f, producers }))}
-          />
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">6. {t('Legal Name')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <AlignLeft className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <input
-                type="text"
-                value={formData.legalName}
-                dir="ltr"
-                onChange={e => setFormData(f => ({ ...f, legalName: e.target.value }))}
-                className="bg-transparent border-none outline-none w-full text-textPrimary font-ui"
-                placeholder="Arman V. Rahimi"
-              />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-gold font-ui mb-2 text-sm">7. {t('Release Date')}</h3>
-            <div className="bg-inputBg border border-inputBorder rounded-lg p-3 flex items-center">
-              <Calendar className="w-5 h-5 text-textSecondary me-3 flex-shrink-0" />
-              <PersianDatePicker
-                key={formData.releaseDate || 'empty'}
-                value={formData.releaseDate}
-                onChange={iso => setFormData(f => ({ ...f, releaseDate: iso }))}
-              />
-            </div>
-          </div>
-          <div className="relative z-40">
-            <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Genre')}</h3>
-            <GenreSelect
-              genre={formData.genre}
-              subGenre={formData.subGenre}
-              onGenreChange={g => setFormData(f => ({ ...f, genre: g }))}
-              onSubGenreChange={s => setFormData(f => ({ ...f, subGenre: s }))}
-            />
-          </div>
-        </div>
-
-        <div className="mb-8 p-4 bg-card1 rounded-xl border border-inputBorder relative z-0">
-          <FormToggle
-            id="copyrightRequested"
-            checked={formData.copyrightRequested}
-            onChange={() => setFormData(f => ({ ...f, copyrightRequested: !f.copyrightRequested }))}
-            label={t('Add Copyright Protection (+1 Nitro)')}
-            tone="gold"
-          />
-        </div>
-
-        <div className="pb-8">
-          <NitroCostSummary items={costItems} />
-          <button
-            onClick={handleSubmit}
-            disabled={loading || prefillLoading}
-            className="mt-4 w-full bg-gradient-to-r from-gold to-[#B8860B] text-background font-title py-4 rounded-xl flex justify-center items-center shadow-lg hover:opacity-90 disabled:opacity-50 active:scale-[0.98] transition-all duration-300"
-          >
-            <span className="text-lg">{loading ? t('Processing...') : t('Submit Edit')}</span>
-          </button>
-        </div>
-      </div>
+          </>
+        ) : (
+          <p className="py-10 text-center text-red-400">{t('source_release_not_found')}</p>
+        )}
+      </main>
     </div>
   );
 };

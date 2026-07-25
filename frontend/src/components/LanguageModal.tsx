@@ -10,10 +10,14 @@ import {
   markLanguageChoiceSaved,
   type LanguageCode,
 } from '../utils/languages';
+import { isRtlLanguage } from '../i18n';
+import { useToast } from '../context/ToastContext';
+import { errorText } from '../utils/formMessages';
 
 export const LanguageModal = () => {
   const { t, i18n } = useTranslation();
   const { user, loading, refreshUser } = useUser();
+  const { toast } = useToast();
   const [selected, setSelected] = useState<LanguageCode | ''>('');
   const [dismissed, setDismissed] = useState(false);
 
@@ -26,7 +30,7 @@ export const LanguageModal = () => {
   const persistLanguage = (code: LanguageCode) => {
     void updateLanguage(code)
       .then(() => refreshUser())
-      .catch(() => undefined);
+      .catch(error => toast(errorText(error, t), 'error'));
   };
 
   const chooseLanguage = async (code: LanguageCode) => {
@@ -39,7 +43,7 @@ export const LanguageModal = () => {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 backdrop-blur-md px-4" onClick={() => setDismissed(true)}>
-      <div className="w-full max-w-sm bg-card1/85 backdrop-blur-xl border border-gold/20 rounded-2xl p-5 shadow-2xl" dir="ltr" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-sm bg-card1/85 backdrop-blur-xl border border-gold/20 rounded-2xl p-5 shadow-2xl" dir={isRtlLanguage(currentSelection) ? 'rtl' : 'ltr'} onClick={e => e.stopPropagation()}>
         <h2 className="font-title text-2xl text-textPrimary mb-2">{t('Choose Language')}</h2>
         <p className="text-sm text-textSecondary mb-5">{t('Choose your language to continue.')}</p>
 

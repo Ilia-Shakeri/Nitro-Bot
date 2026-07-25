@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Date, DateTime, ForeignKey, JSON, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import backref, declarative_base, relationship
 from datetime import datetime, timezone
 
@@ -30,6 +31,8 @@ class Transaction(Base):
     status = Column(String, default="pending") 
     payment_method = Column(String, default="card") 
     receipt_url = Column(String, nullable=True)
+    usd_amount_cents = Column(Integer, nullable=False, default=0)
+    toman_amount_cents = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, default=get_naive_utc)
 
 class SupportTicket(Base):
@@ -64,19 +67,26 @@ class Release(Base):
     cover_url = Column(String, nullable=False)
     song_name = Column(String, nullable=False)
     artist_name = Column(String, nullable=False)
+    artists = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
     producers = Column(Text, nullable=True)
     legal_name = Column(String, nullable=False)
-    release_date = Column(String, nullable=False)
+    legal_names = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
+    release_date = Column(Date, nullable=False)
+    is_rerelease = Column(Boolean, nullable=False, default=False)
+    original_release_date = Column(Date, nullable=True)
     genre = Column(String, nullable=True)
     sub_genre = Column(String, nullable=True)
     mapping_spotify = Column(String, nullable=True)
     mapping_apple = Column(String, nullable=True)
     profile_email = Column(String, nullable=True)
-    requires_new_profile = Column(Boolean, default=False)
+    requires_new_profile = Column(Boolean, nullable=False, default=False)
     
     # Financial and Logic Flags
-    is_edit = Column(Boolean, default=False)
-    copyright_requested = Column(Boolean, default=False)
+    is_edit = Column(Boolean, nullable=False, default=False)
+    copyright_requested = Column(Boolean, nullable=False, default=False)
+    charged_cost = Column(Integer, nullable=False, default=0)
+    submission_id = Column(String(64), nullable=True, unique=True, index=True)
+    refunded_at = Column(DateTime, nullable=True)
     
     # State tracking for the Selenium Bot worker
     status = Column(String, default="pending") 

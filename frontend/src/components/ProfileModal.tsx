@@ -10,6 +10,8 @@ import type { LedgerEntry, SupportTicket } from '../types/api';
 import { CopyField } from './CopyField';
 import { LANGUAGE_OPTIONS, languageLabel } from '../utils/languages';
 import { isRtlLanguage } from '../i18n';
+import { useToast } from '../context/ToastContext';
+import { errorText } from '../utils/formMessages';
 
 type ProfileTab = 'settings' | 'referrals' | 'transactions' | 'tickets';
 
@@ -19,6 +21,7 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
   const { t, i18n } = useTranslation();
   const { theme, toggle } = useTheme();
   const { user: apiUser, refreshUser } = useUser();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const isRTL = isRtlLanguage(i18n.language);
   const user = WebApp.initDataUnsafe?.user;
@@ -34,9 +37,13 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
 
   useEffect(() => {
-    if (isOpen && tab === 'transactions') getLedger().then(setLedger);
-    if (isOpen && tab === 'tickets') getTickets().then(setTickets);
-  }, [isOpen, tab]);
+    if (isOpen && tab === 'transactions') {
+      getLedger().then(setLedger).catch(error => toast(errorText(error, t), 'error'));
+    }
+    if (isOpen && tab === 'tickets') {
+      getTickets().then(setTickets).catch(error => toast(errorText(error, t), 'error'));
+    }
+  }, [isOpen, tab, t, toast]);
 
   if (!isOpen) return null;
 
@@ -63,7 +70,7 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
     await i18n.changeLanguage(code);
     void updateLanguage(code)
       .then(() => refreshUser())
-      .catch(() => undefined);
+      .catch(error => toast(errorText(error, t), 'error'));
   };
 
   return (
@@ -78,7 +85,7 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
         </div>
 
         <div className="flex justify-end px-5 py-2">
-          <button onClick={onClose} className="text-textSecondary hover:text-textPrimary transition p-1">
+          <button type="button" onClick={onClose} aria-label={t('Close')} className="text-textSecondary hover:text-textPrimary transition p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -104,6 +111,9 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
         {tab === 'settings' && (
           <div className="px-5 space-y-2">
             <button
+              type="button"
+              role="switch"
+              aria-checked={theme === 'light'}
               onClick={toggle}
               className="w-full flex items-center justify-between bg-background rounded-2xl px-4 py-3 hover:bg-card3/30 transition"
             >
@@ -117,7 +127,7 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
                 </span>
               </div>
               <div className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${theme === 'light' ? 'bg-gold' : 'bg-card3'}`}>
-                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-300 ${theme === 'light' ? 'right-1' : 'left-1'}`} />
+                <div className={`absolute start-1 top-1 h-4 w-4 rounded-full bg-white shadow transition-transform duration-300 ${theme === 'light' ? 'ltr:translate-x-5 rtl:-translate-x-5' : ''}`} />
               </div>
             </button>
 
@@ -196,7 +206,7 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
                   : <TrendingDown className="w-4 h-4 text-rose-400 flex-shrink-0" />
                 }
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-ui text-textPrimary truncate">{item.title}</p>
+                  <p dir="auto" className="text-sm font-ui text-textPrimary truncate">{t(item.title_key, item.title_params)}</p>
                   <p className="text-xs font-light-ui text-textSecondary">{fmtDate(item.created_at)} · {t(item.status)}</p>
                 </div>
                 <span className={`text-sm font-ui flex-shrink-0 ${item.direction === 'credit' ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -234,7 +244,7 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
                     <p className="text-[11px] text-textSecondary mb-1">
                       {msg.sender === 'admin' ? t('Support Team') : t('You')} · {fmtDate(msg.created_at)}
                     </p>
-                    <p className="text-sm text-textPrimary leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                    <p dir="auto" className="text-sm text-textPrimary leading-relaxed whitespace-pre-wrap">{msg.message}</p>
                   </div>
                 ))}
               </div>

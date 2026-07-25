@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-
-interface Props { value?: string; onChange: (isoDate: string) => void; }
+interface Props {
+  value?: string;
+  onChange: (isoDate: string) => void;
+  minDate?: string;
+  ariaLabel?: string;
+}
 
 const parseIsoDate = (value?: string) => {
   const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -12,103 +15,144 @@ const parseIsoDate = (value?: string) => {
   const year = Number(match[1]);
   const month = Number(match[2]) - 1;
   const day = Number(match[3]);
-  const date = new Date(year, month, day);
-  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : null;
+  const result = new Date(year, month, day);
+  return result.getFullYear() === year
+    && result.getMonth() === month
+    && result.getDate() === day
+    ? result
+    : null;
 };
 
-export const PersianDatePicker = ({ value, onChange }: Props) => {
-  const now   = new Date();
+const isoDate = (value: Date) =>
+  `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+
+export const PersianDatePicker = ({
+  value,
+  onChange,
+  minDate,
+  ariaLabel,
+}: Props) => {
+  const { t, i18n } = useTranslation();
+  const buttonId = useId();
+  const now = new Date();
   const initialDate = parseIsoDate(value);
-  const [sel,   setSel]   = useState<Date | null>(initialDate);
-  const [viewY, setViewY] = useState(initialDate?.getFullYear() ?? now.getFullYear());
-  const [viewM, setViewM] = useState(initialDate?.getMonth() ?? now.getMonth()); // 0-indexed
-  const [open,  setOpen]  = useState(false);
+  const minimum = parseIsoDate(minDate);
+  const [selected, setSelected] = useState<Date | null>(initialDate);
+  const [viewYear, setViewYear] = useState(initialDate?.getFullYear() ?? now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initialDate?.getMonth() ?? now.getMonth());
+  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const close = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const prevM = () => viewM === 0  ? (setViewY(y => y - 1), setViewM(11)) : setViewM(m => m - 1);
-  const nextM = () => viewM === 11 ? (setViewY(y => y + 1), setViewM(0))  : setViewM(m => m + 1);
-
-  const daysInMonth = new Date(viewY, viewM + 1, 0).getDate();
-  const firstDay    = new Date(viewY, viewM, 1).getDay(); // 0=Sunday
-
+  const moveMonth = (offset: number) => {
+    const next = new Date(viewYear, viewMonth + offset, 1);
+    setViewYear(next.getFullYear());
+    setViewMonth(next.getMonth());
+  };
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const cells: (number | null)[] = Array(firstDay).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  for (let day = 1; day <= daysInMonth; day += 1) cells.push(day);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const pick = (d: number) => {
-    const date = new Date(viewY, viewM, d);
-    setSel(date);
-    onChange(`${viewY}-${String(viewM + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
-    setOpen(false);
-  };
-
-  const todayY = now.getFullYear();
-  const todayM = now.getMonth();
-  const todayD = now.getDate();
-
-  const displayLabel = sel
-    ? `${sel.getFullYear()}/${String(sel.getMonth() + 1).padStart(2, '0')}/${String(sel.getDate()).padStart(2, '0')}`
-    : 'Select release date';
+  const locale = i18n.language.startsWith('fa')
+    ? 'fa-IR-u-ca-gregory'
+    : i18n.language.startsWith('ar')
+      ? 'ar-u-ca-gregory'
+      : i18n.language.startsWith('ru')
+        ? 'ru-RU'
+        : 'en-US';
+  const weekdays = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(
+      new Date(2026, 0, 4 + index),
+    ));
+  const monthLabel = new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(viewYear, viewMonth, 1));
 
   return (
     <div className="relative w-full" ref={ref} dir="ltr">
       <button
+        id={buttonId}
         type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full text-start bg-transparent border-none outline-none"
+        aria-label={ariaLabel ?? t('Select release date')}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        className="w-full rounded-sm bg-transparent text-start outline-none focus-visible:ring-2 focus-visible:ring-gold"
       >
-        <span className={`font-ui text-sm ${sel ? 'text-textPrimary' : 'text-textSecondary'}`}>
-          {displayLabel}
+        <span className={`font-ui text-sm ${selected ? 'text-textPrimary' : 'text-textSecondary'}`}>
+          {selected ? isoDate(selected) : t('Select release date')}
         </span>
       </button>
 
       {open && (
-        <div className="absolute top-full mt-2 z-50 rounded-2xl border border-gold/25 bg-card1 shadow-[0_12px_40px_rgba(0,0,0,0.7)] p-4 w-72">
-          {/* Month navigation */}
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={prevM} className="p-1 rounded-lg hover:bg-gold/20 transition">
-              <ChevronLeft className="w-4 h-4 text-gold" />
+        <div
+          role="dialog"
+          aria-label={ariaLabel ?? t('Select release date')}
+          className="absolute start-0 top-full z-50 mt-2 w-72 rounded-2xl border border-gold/25 bg-card1 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.7)]"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => moveMonth(-1)}
+              aria-label={t('Previous month')}
+              className="min-h-9 min-w-9 rounded-lg p-1 text-gold hover:bg-gold/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            >
+              <ChevronLeft className="mx-auto h-4 w-4" />
             </button>
-            <span className="font-ui text-gold text-sm">{MONTHS[viewM]} {viewY}</span>
-            <button type="button" onClick={nextM} className="p-1 rounded-lg hover:bg-gold/20 transition">
-              <ChevronRight className="w-4 h-4 text-gold" />
+            <span className="text-sm font-ui text-gold">{monthLabel}</span>
+            <button
+              type="button"
+              onClick={() => moveMonth(1)}
+              aria-label={t('Next month')}
+              className="min-h-9 min-w-9 rounded-lg p-1 text-gold hover:bg-gold/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            >
+              <ChevronRight className="mx-auto h-4 w-4" />
             </button>
           </div>
-
-          {/* Weekday headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {DAYS.map(w => (
-              <div key={w} className="text-center text-xs font-ui text-gold/60 py-0.5">{w}</div>
+          <div className="mb-1 grid grid-cols-7">
+            {weekdays.map((weekday, index) => (
+              <div key={`${weekday}-${index}`} className="py-0.5 text-center text-xs font-ui text-gold/60">
+                {weekday}
+              </div>
             ))}
           </div>
-
-          {/* Days grid */}
           <div className="grid grid-cols-7 gap-y-0.5">
-            {cells.map((day, i) => {
-              if (!day) return <div key={i} />;
-              const isToday = viewY === todayY && viewM === todayM && day === todayD;
-              const isSel   = sel && sel.getFullYear() === viewY && sel.getMonth() === viewM && sel.getDate() === day;
+            {cells.map((day, index) => {
+              if (!day) return <div key={`empty-${index}`} />;
+              const candidate = new Date(viewYear, viewMonth, day);
+              const disabled = Boolean(minimum && candidate < minimum);
+              const isToday = isoDate(candidate) === isoDate(now);
+              const isSelected = Boolean(selected && isoDate(candidate) === isoDate(selected));
               return (
                 <button
-                  key={i}
+                  key={isoDate(candidate)}
                   type="button"
-                  onClick={() => pick(day)}
+                  disabled={disabled}
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    setSelected(candidate);
+                    onChange(isoDate(candidate));
+                    setOpen(false);
+                  }}
                   className={[
-                    'mx-auto w-8 h-8 rounded-full text-xs flex items-center justify-center transition',
-                    isSel   ? 'bg-gold text-background font-title shadow-[0_0_8px_rgba(212,175,55,0.5)]' : '',
-                    isToday && !isSel ? 'bg-gold/20 text-gold font-ui' : '',
-                    !isSel && !isToday ? 'text-textPrimary font-light-ui hover:bg-gold/15' : '',
+                    'mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold',
+                    isSelected ? 'bg-gold text-background font-title' : '',
+                    isToday && !isSelected ? 'bg-gold/20 text-gold font-ui' : '',
+                    !isSelected && !isToday ? 'text-textPrimary font-light-ui hover:bg-gold/15' : '',
+                    disabled ? 'cursor-not-allowed opacity-25 hover:bg-transparent' : '',
                   ].join(' ')}
                 >
-                  {day}
+                  {new Intl.NumberFormat(locale, { useGrouping: false }).format(day)}
                 </button>
               );
             })}

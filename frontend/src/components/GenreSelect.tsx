@@ -33,6 +33,7 @@ interface DropdownProps {
 }
 
 const CustomDropdown = ({ icon, value, placeholder, options, onChange }: DropdownProps) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -56,7 +57,7 @@ const CustomDropdown = ({ icon, value, placeholder, options, onChange }: Dropdow
       >
         {icon}
         <span className={`flex-1 text-start font-ui text-sm ${value ? 'text-textPrimary' : 'text-textSecondary'}`}>
-          {value || placeholder}
+          {value ? t(value) : placeholder}
         </span>
         <ChevronDown
           className={`w-4 h-4 text-textSecondary flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180 text-gold' : ''}`}
@@ -78,7 +79,7 @@ const CustomDropdown = ({ icon, value, placeholder, options, onChange }: Dropdow
                     : 'text-textPrimary hover:bg-gold/10 hover:text-gold',
                 ].join(' ')}
               >
-                {opt}
+                {t(opt)}
               </button>
             ))}
           </div>

@@ -3,7 +3,7 @@
     # those endpoints over the private Docker network (backend:8000); publishing
     # them would put the worker bridge behind only a bearer secret on the open web.
     @api {
-        path /users/* /releases/* /transactions/* /support/*
+        path /users /users/* /releases /releases/* /transactions /transactions/* /support /support/* /pricing /pricing/*
     }
     @minio {
         path /{$S3_BUCKET:nitro-bot}/*

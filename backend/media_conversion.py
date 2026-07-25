@@ -22,7 +22,7 @@ def _ffmpeg_to_wav(content: bytes) -> bytes:
             stderr=subprocess.PIPE,
         )
         if proc.returncode != 0:
-            raise HTTPException(status_code=400, detail="Audio conversion failed")
+            raise HTTPException(status_code=400, detail="audio_conversion_failed")
         with open(dst, "rb") as f:
             return f.read()
 
@@ -32,7 +32,7 @@ def _cover_to_png(content: bytes) -> bytes:
         img = Image.open(io.BytesIO(content))
         img.load()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid image file")
+        raise HTTPException(status_code=400, detail="image_type_invalid")
 
     w, h = img.size
     side = min(w, h)

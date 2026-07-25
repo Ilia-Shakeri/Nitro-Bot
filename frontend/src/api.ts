@@ -1,5 +1,13 @@
 import WebApp from '@twa-dev/sdk';
-import type { User, Transaction, Release, LedgerEntry, SupportTicket } from './types/api';
+import type {
+  LedgerEntry,
+  PaymentConfig,
+  Pricing,
+  Release,
+  SupportTicket,
+  Transaction,
+  User,
+} from './types/api';
 
 const isDev = import.meta.env.MODE === 'development';
 const BASE   = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
@@ -56,13 +64,13 @@ export const updateLanguage = (lang: string) =>
   });
 
 export const getTransactions = () =>
-  request<Transaction[]>('/users/me/transactions').catch((): Transaction[] => []);
+  request<Transaction[]>('/users/me/transactions');
 
 export const getLedger = () =>
-  request<LedgerEntry[]>('/transactions/ledger').catch((): LedgerEntry[] => []);
+  request<LedgerEntry[]>('/transactions/ledger');
 
 export const getReleases = () =>
-  request<Release[]>('/users/me/releases').catch((): Release[] => []);
+  request<Release[]>('/users/me/releases');
 
 export const submitRelease = (formData: FormData) =>
   request<{ status: string; release_id: number; credits_left: number; cost_deducted: number }>(
@@ -78,10 +86,15 @@ export const submitTicket = (subject: string, message: string) =>
   });
 
 export const getTickets = () =>
-  request<SupportTicket[]>('/support/tickets').catch((): SupportTicket[] => []);
+  request<SupportTicket[]>('/support/tickets');
 
 export const getUsdtRate = () =>
   request<{ rate_toman: number; cached: boolean }>('/transactions/usdt-rate');
+
+export const getPricing = () => request<Pricing>('/pricing');
+
+export const getPaymentConfig = () =>
+  request<PaymentConfig>('/pricing/payment-config');
 
 export const submitReceipt = (file: File | null, amount: number, paymentMethod: string) => {
   const form = new FormData();

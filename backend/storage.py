@@ -5,16 +5,23 @@ import uuid
 
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile
 
 from media_conversion import convert_audio_to_wav as _convert_audio_to_wav
 from media_conversion import convert_cover_to_png
 
+_ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 _S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://localhost:9000")
 _S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT") or os.getenv("MINI_APP_URL") or _S3_ENDPOINT
-_S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "admin")
-_S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "password123")
+_S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "local-development-access")
+_S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "local-development-secret")
 BUCKET_NAME = os.getenv("S3_BUCKET", "nitro-bot")
+
+if _ENVIRONMENT == "production" and (
+    not os.getenv("S3_ACCESS_KEY") or not os.getenv("S3_SECRET_KEY")
+):
+    raise RuntimeError("S3 credentials are required in production")
 
 _client = boto3.client(
     "s3",
@@ -63,24 +70,24 @@ def _sig_match(header: bytes, sigs: list[tuple[bytes, bytes | None]]) -> bool:
 async def read_audio(file: UploadFile, max_mb: int = 50) -> bytes:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in _AUDIO_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Music file must be MP3 or WAV")
+        raise HTTPException(status_code=400, detail="audio_format_invalid")
     content = await file.read()
     if not _sig_match(content[:12], _AUDIO_SIGS):
-        raise HTTPException(status_code=400, detail="Invalid audio file type")
+        raise HTTPException(status_code=400, detail="audio_type_invalid")
     if len(content) > max_mb * 1024 * 1024:
-        raise HTTPException(status_code=400, detail=f"Audio file exceeds {max_mb} MB limit")
+        raise HTTPException(status_code=400, detail="audio_too_large")
     return content
 
 
 async def read_image(file: UploadFile, max_mb: int = 10) -> bytes:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in _IMAGE_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Cover image must be JPG, PNG, or WEBP")
+        raise HTTPException(status_code=400, detail="image_format_invalid")
     content = await file.read()
     if not _sig_match(content[:12], _IMAGE_SIGS):
-        raise HTTPException(status_code=400, detail="Invalid image file type")
+        raise HTTPException(status_code=400, detail="image_type_invalid")
     if len(content) > max_mb * 1024 * 1024:
-        raise HTTPException(status_code=400, detail=f"Image file exceeds {max_mb} MB limit")
+        raise HTTPException(status_code=400, detail="image_too_large")
     return content
 
 
@@ -117,5 +124,7 @@ async def download(key: str) -> bytes:
 async def ensure_bucket() -> None:
     try:
         await asyncio.to_thread(_client.create_bucket, Bucket=BUCKET_NAME)
-    except Exception:
-        pass
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code not in {"BucketAlreadyExists", "BucketAlreadyOwnedByYou"}:
+            raise

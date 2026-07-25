@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "esbuild tests/release-form.check.ts --bundle --platform=node --format=esm --outfile=.test-dist/release-form-check.mjs && node .test-dist/release-form-check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -9,6 +9,8 @@ from fastapi import Header, HTTPException
 
 _BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 SKIP_TELEGRAM_AUTH = os.getenv("SKIP_TELEGRAM_AUTH", "false").lower() == "true"
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and SKIP_TELEGRAM_AUTH:
+    raise RuntimeError("SKIP_TELEGRAM_AUTH cannot be enabled in production")
 _DEV_USER_ID = 123_456_789
 # Reject initData older than this. Telegram's initData is replayable forever once
 # captured, so we bound its lifetime to limit the stolen-token window.
