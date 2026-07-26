@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HomeHeader } from '../components/HomeHeader';
 import { useUser } from '../context/UserContext';
@@ -8,17 +9,22 @@ export const PolicyPage = () => {
   const { user } = useUser();
   const isRTL = isRtlLanguage(i18n.language);
 
+  useEffect(() => {
+    const anchor = window.location.hash.slice(1);
+    if (anchor) document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
+  }, []);
+
   return (
     <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
       <HomeHeader credits={user?.credits ?? 0} lang={i18n.language} />
 
       <main className="px-4 py-4 space-y-5">
-        <section className="bg-card1 border border-inputBorder rounded-xl p-4">
+        <section id="terms" className="scroll-mt-4 bg-card1 border border-inputBorder rounded-xl p-4">
           <h1 className="font-title text-2xl text-textPrimary mb-3">{t('Terms and Conditions')}</h1>
           <p className="text-sm text-textSecondary leading-relaxed">{t('Terms placeholder')}</p>
         </section>
 
-        <section className="bg-card1 border border-inputBorder rounded-xl p-4">
+        <section id="privacy" className="scroll-mt-4 bg-card1 border border-inputBorder rounded-xl p-4">
           <h2 className="font-title text-2xl text-textPrimary mb-3">{t('Privacy Policy')}</h2>
           <p className="text-sm text-textSecondary leading-relaxed">{t('Privacy placeholder')}</p>
         </section>

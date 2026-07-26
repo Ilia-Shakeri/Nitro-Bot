@@ -4,14 +4,25 @@ import pytest
 
 from release_validation import (
     ReleaseValidationError,
+    legacy_artist_name,
+    normalize_artist_mappings,
     normalize_artists,
+    normalize_english_text,
     normalize_names,
     normalize_required_names,
     validate_release_mapping,
     validate_release_dates,
+    validate_policy_acceptance,
 )
 
 TODAY = date(2026, 7, 26)
+
+
+def test_policy_acceptance_requires_explicit_true():
+    for value in (None, False):
+        with pytest.raises(ReleaseValidationError, match="policy_acceptance_required"):
+            validate_policy_acceptance(value)
+    validate_policy_acceptance(True)
 
 
 def test_past_scheduled_date_rejected():
@@ -94,21 +105,54 @@ def test_single_artist_is_automatically_primary():
     assert artists == [{"name": "One", "role": "primary"}]
 
 
-def test_artist_list_requires_exactly_one_primary():
-    with pytest.raises(ReleaseValidationError, match="artists_one_primary"):
+def test_artist_list_requires_one_to_three_primary():
+    with pytest.raises(ReleaseValidationError, match="artists_primary_required"):
         normalize_artists(
             [
                 {"name": "One", "role": "featured"},
                 {"name": "Two", "role": "featured"},
             ]
         )
-    with pytest.raises(ReleaseValidationError, match="artists_one_primary"):
+    assert len(normalize_artists(
+        [
+            {"name": "One", "role": "primary"},
+            {"name": "Two", "role": "primary"},
+        ]
+    )) == 2
+    with pytest.raises(ReleaseValidationError, match="artists_primary_max"):
         normalize_artists(
             [
                 {"name": "One", "role": "primary"},
                 {"name": "Two", "role": "primary"},
+                {"name": "Three", "role": "primary"},
+                {"name": "Four", "role": "primary"},
             ]
         )
+
+
+@pytest.mark.parametrize("count", range(1, 7))
+def test_one_through_six_artists_are_accepted(count):
+    artists = normalize_artists([
+        {"name": f"Artist {index}", "role": "primary" if index == 0 else "featured"}
+        for index in range(count)
+    ])
+    assert len(artists) == count
+
+
+def test_seventh_artist_is_rejected():
+    with pytest.raises(ReleaseValidationError, match="artists_max"):
+        normalize_artists([
+            {"name": f"Artist {index}", "role": "primary" if index == 0 else "featured"}
+            for index in range(7)
+        ])
+
+
+def test_legacy_artist_name_keeps_all_primary_artists_in_order():
+    assert legacy_artist_name([
+        {"name": "One", "role": "primary"},
+        {"name": "Two", "role": "primary"},
+        {"name": "Guest", "role": "featured"},
+    ]) == "One, Two feat. Guest"
 
 
 def test_duplicate_artists_are_case_insensitive():
@@ -188,3 +232,70 @@ def test_new_profile_mapping_requires_email():
     assert email == "artist@example.com"
     assert spotify is None
     assert apple is None
+
+
+@pytest.mark.parametrize("value", ["آهنگ", "Песня", "Song 🎵", ""])
+def test_non_english_release_text_is_rejected(value):
+    with pytest.raises(ReleaseValidationError, match="english_only_input"):
+        normalize_english_text(value)
+
+
+def test_artist_mappings_require_one_complete_record_per_artist():
+    artists = normalize_artists([
+        {"name": "One", "role": "primary"},
+        {"name": "Two", "role": "featured"},
+    ])
+    mappings = normalize_artist_mappings([
+        {
+            "artist_name": "one",
+            "requires_new_profile": False,
+            "spotify_url": "https://open.spotify.com/artist/one",
+        },
+        {
+            "artist_name": "Two",
+            "requires_new_profile": True,
+            "profile_email": "two@example.com",
+        },
+    ], artists)
+    assert [item["artist_name"] for item in mappings] == ["One", "Two"]
+
+    with pytest.raises(ReleaseValidationError, match="artist_mappings_incomplete"):
+        normalize_artist_mappings(mappings[:1], artists)
+
+
+@pytest.mark.parametrize(
+    ("mappings", "error"),
+    [
+        (
+            [
+                {"artist_name": "One", "requires_new_profile": False, "spotify_url": "https://x.example/a"},
+                {"artist_name": "one", "requires_new_profile": False, "spotify_url": "https://x.example/b"},
+            ],
+            "artist_mapping_duplicate",
+        ),
+        (
+            [
+                {"artist_name": "One", "requires_new_profile": False, "spotify_url": "https://x.example/a"},
+                {"artist_name": "Unknown", "requires_new_profile": False, "spotify_url": "https://x.example/b"},
+            ],
+            "artist_mapping_unknown_artist",
+        ),
+    ],
+)
+def test_duplicate_and_unknown_mappings_are_rejected(mappings, error):
+    artists = normalize_artists([
+        {"name": "One", "role": "primary"},
+        {"name": "Two", "role": "featured"},
+    ])
+    with pytest.raises(ReleaseValidationError, match=error):
+        normalize_artist_mappings(mappings, artists)
+
+
+def test_legacy_single_artist_mapping_fallback():
+    artists = normalize_artists([{"name": "One", "role": "primary"}])
+    mappings = normalize_artist_mappings(
+        None,
+        artists,
+        legacy_mapping_spotify="https://open.spotify.com/artist/one",
+    )
+    assert mappings[0]["spotify_url"].endswith("/one")

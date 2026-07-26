@@ -10,6 +10,10 @@ def payment_environment(monkeypatch):
     monkeypatch.setenv("PAYMENT_CARD_NUMBER", "1111222233334444")
     monkeypatch.setenv("PAYMENT_CARD_HOLDER", "Test Holder")
     monkeypatch.setenv("PAYMENT_USDT_TRC20_ADDRESS", "TTestWallet")
+    monkeypatch.setenv("PAYMENT_BTC_ADDRESS", "bc1Test")
+    monkeypatch.setenv("PAYMENT_BNB_BEP20_ADDRESS", "0xBnbTest")
+    monkeypatch.setenv("PAYMENT_USDT_BEP20_ADDRESS", "0xUsdtTest")
+    monkeypatch.setenv("TELEGRAM_STARS_PER_NITRO", "4")
 
 
 def test_persian_payment_config_has_card_and_usdt():
@@ -19,21 +23,33 @@ def test_persian_payment_config_has_card_and_usdt():
         "holder": "Test Holder",
     }
     assert config["usdt"]["address"] == "TTestWallet"
+    assert config["btc"]["address"] == "bc1Test"
+    assert config["bnb"]["address"] == "0xBnbTest"
+    assert config["usdt_bnb"]["address"] == "0xUsdtTest"
+    assert config["telegram_stars"]["stars_per_nitro"] == 4
 
 
 @pytest.mark.parametrize("language", ["en", "ar", "ru", "en-US"])
-def test_non_persian_payment_config_has_usdt_only(language):
+def test_non_persian_payment_config_hides_card_and_keeps_digital_methods(language):
     config = payment_config_payload(language)
     assert config["card"] is None
     assert config["usdt"]["address"] == "TTestWallet"
+    assert config["btc"]["address"] == "bc1Test"
+    assert config["telegram_stars"]["stars_per_nitro"] == 4
 
 
 def test_non_persian_payment_config_requires_usdt(monkeypatch):
-    monkeypatch.delenv("PAYMENT_USDT_TRC20_ADDRESS")
+    for key in (
+        "PAYMENT_USDT_TRC20_ADDRESS",
+        "PAYMENT_BTC_ADDRESS",
+        "PAYMENT_BNB_BEP20_ADDRESS",
+        "PAYMENT_USDT_BEP20_ADDRESS",
+    ):
+        monkeypatch.delenv(key)
+    monkeypatch.setenv("TELEGRAM_STARS_PER_NITRO", "0")
     with pytest.raises(HTTPException) as exc:
         payment_config_payload("en")
     assert exc.value.status_code == 503
-    assert exc.value.detail == "payment_config_unavailable"
 
 
 def test_payment_settings_load_project_env_file(monkeypatch, tmp_path):

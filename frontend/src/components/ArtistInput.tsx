@@ -5,31 +5,38 @@ import type { ReleaseArtist } from '../types/api';
 import {
   addArtist as addArtistValue,
   removeArtist as removeArtistValue,
-  selectPrimaryArtist,
-  naturalInputDirection,
+  toggleArtistRole,
 } from '../utils/releaseForm';
-import { isRtlLanguage } from '../i18n';
 
 interface Props {
   artists: ReleaseArtist[];
   onChange: (artists: ReleaseArtist[]) => void;
+  pendingValue: string;
+  onPendingChange: (value: string) => void;
+  externalError?: string;
   labelPrefix?: string;
 }
 
-export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
-  const { t, i18n } = useTranslation();
+export const ArtistInput = ({
+  artists,
+  onChange,
+  pendingValue,
+  onPendingChange,
+  externalError,
+  labelPrefix,
+}: Props) => {
+  const { t } = useTranslation();
   const inputId = useId();
-  const [value, setValue] = useState('');
   const [error, setError] = useState('');
 
   const addArtist = () => {
-    const result = addArtistValue(artists, value);
+    const result = addArtistValue(artists, pendingValue);
     if (result.error) {
       setError(t(result.error));
       return;
     }
     onChange(result.artists);
-    setValue('');
+    onPendingChange('');
     setError('');
   };
 
@@ -37,9 +44,16 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
     onChange(removeArtistValue(artists, index));
   };
 
-  const setPrimary = (index: number) => {
-    onChange(selectPrimaryArtist(artists, index));
+  const toggleRole = (index: number) => {
+    const result = toggleArtistRole(artists, index);
+    if (result.error) {
+      setError(t(result.error));
+      return;
+    }
+    onChange(result.artists);
+    setError('');
   };
+  const shownError = externalError ? t(externalError) : error;
 
   return (
     <div>
@@ -51,9 +65,9 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
           <Users aria-hidden="true" className="h-5 w-5 flex-shrink-0 text-textSecondary" />
           <input
             id={inputId}
-            value={value}
+            value={pendingValue}
             onChange={event => {
-              setValue(event.target.value);
+              onPendingChange(event.target.value);
               setError('');
             }}
             onKeyDown={event => {
@@ -62,10 +76,12 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
                 addArtist();
               }
             }}
-            dir={naturalInputDirection(value, isRtlLanguage(i18n.language))}
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? `${inputId}-error` : undefined}
-            className="min-w-0 flex-1 bg-transparent text-textPrimary font-ui outline-none"
+            dir="ltr"
+            lang="en"
+            enterKeyHint="done"
+            aria-invalid={Boolean(shownError)}
+            aria-describedby={shownError ? `${inputId}-error` : undefined}
+            className="min-w-0 flex-1 bg-transparent text-left text-textPrimary font-ui outline-none"
             placeholder={t('artist_placeholder')}
           />
           <button
@@ -77,9 +93,15 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
             <Plus aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
-        {error && <p id={`${inputId}-error`} role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
+        {shownError && <p id={`${inputId}-error`} role="alert" className="mt-2 text-start text-xs text-red-400">{shownError}</p>}
         {artists.length > 0 && (
-          <div className="mt-3 space-y-2" role="radiogroup" aria-label={t('Choose primary artist')}>
+          <div className="mt-3 space-y-2">
+            <p className="text-start text-xs text-textSecondary">
+              {t('primary_artist_count', {
+                count: artists.filter(artist => artist.role === 'primary').length,
+                max: 3,
+              })}
+            </p>
             {artists.map((artist, index) => (
               <div
                 key={`${artist.name}-${index}`}
@@ -87,9 +109,9 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
               >
                 <button
                   type="button"
-                  role="radio"
+                  role="switch"
                   aria-checked={artist.role === 'primary'}
-                  onClick={() => setPrimary(index)}
+                  onClick={() => toggleRole(index)}
                   className={`min-h-9 rounded-lg border px-2 text-xs font-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
                     artist.role === 'primary'
                       ? 'border-gold bg-gold text-background'
@@ -98,7 +120,7 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
                 >
                   {t(artist.role === 'primary' ? 'Primary Artist' : 'Featured Artist')}
                 </button>
-                <span dir="auto" className="min-w-0 flex-1 truncate text-sm text-textPrimary">
+                <span dir="ltr" lang="en" className="min-w-0 flex-1 truncate text-left text-sm text-textPrimary">
                   {artist.name}
                 </span>
                 <button

@@ -33,6 +33,13 @@ class TransactionOut(BaseModel):
     payment_method: str
     usd_amount_cents: int
     toman_amount_cents: int | None
+    quote_asset: str | None = None
+    quote_network: str | None = None
+    quoted_amount: str | None = None
+    quoted_usd_rate: str | None = None
+    quote_created_at: datetime | None = None
+    quote_expires_at: datetime | None = None
+    stars_amount: int | None = None
     created_at: datetime
 
 
@@ -69,6 +76,14 @@ class ReleaseArtistOut(BaseModel):
     role: Literal["primary", "featured"]
 
 
+class ArtistMappingOut(BaseModel):
+    artist_name: str
+    requires_new_profile: bool
+    profile_email: str | None = None
+    spotify_url: str | None = None
+    apple_music_url: str | None = None
+
+
 class ReleaseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -87,6 +102,9 @@ class ReleaseOut(BaseModel):
     mapping_apple: str | None
     profile_email: str | None
     requires_new_profile: bool
+    artist_mappings: list[ArtistMappingOut] = Field(default_factory=list)
+    policy_accepted_at: datetime | None = None
+    policy_version: str | None = None
     status: str
     cover_url: str
     is_edit: bool
@@ -117,6 +135,9 @@ class PendingReleaseOut(BaseModel):
     mapping_apple: str | None
     profile_email: str | None
     requires_new_profile: bool
+    artist_mappings: list[ArtistMappingOut] = Field(default_factory=list)
+    policy_accepted_at: datetime | None = None
+    policy_version: str | None = None
     is_edit: bool
     copyright_requested: bool
     charged_cost: int
@@ -160,14 +181,37 @@ class PricingOut(BaseModel):
 
 class PaymentMethodOut(BaseModel):
     network: str | None = None
+    asset: str | None = None
     address: str | None = None
     number: str | None = None
     holder: str | None = None
+    stars_per_nitro: int | None = None
 
 
 class PaymentConfigOut(BaseModel):
     card: PaymentMethodOut | None = None
     usdt: PaymentMethodOut | None = None
+    btc: PaymentMethodOut | None = None
+    bnb: PaymentMethodOut | None = None
+    usdt_bnb: PaymentMethodOut | None = None
+    telegram_stars: PaymentMethodOut | None = None
+
+
+class CryptoQuoteOut(BaseModel):
+    transaction_id: int
+    payment_method: str
+    asset: str
+    network: str
+    amount: str
+    usd_rate: str
+    quoted_at: datetime
+    expires_at: datetime
+
+
+class StarsInvoiceOut(BaseModel):
+    transaction_id: int
+    invoice_url: str
+    stars_amount: int
 
 
 class OkResponse(BaseModel):

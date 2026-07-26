@@ -19,6 +19,14 @@ class PaymentSettings(BaseSettings):
     payment_card_number: str = Field(default="", repr=False)
     payment_card_holder: str = Field(default="", repr=False)
     payment_usdt_trc20_address: str = Field(default="", repr=False)
+    payment_btc_address: str = Field(default="", repr=False)
+    payment_bnb_bep20_address: str = Field(default="", repr=False)
+    payment_usdt_bep20_address: str = Field(default="", repr=False)
+    telegram_stars_per_nitro: int = Field(default=0, ge=0)
+    crypto_quote_url: str = Field(
+        default="https://api.coingecko.com/api/v3/simple/price",
+        repr=False,
+    )
 
 
 def load_payment_settings(env_file: Path | str | None = None) -> PaymentSettings:

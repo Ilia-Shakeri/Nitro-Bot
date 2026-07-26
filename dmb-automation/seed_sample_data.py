@@ -4,6 +4,7 @@ Robot suite can be run by hand (`robot automation/create_album.robot`) without t
 In production the worker writes this table instead (see worker.py).
 """
 import os
+import json
 import sqlite3
 
 base_path  = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,7 @@ cursor.execute(
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         title            TEXT NOT NULL,
         artist_name      TEXT NOT NULL,
+        artists_json     TEXT NOT NULL DEFAULT '[]',
         legal_name       TEXT NOT NULL,
         cover_image_path TEXT NOT NULL,
         music_file_path  TEXT NOT NULL,
@@ -34,14 +36,31 @@ cursor.execute(
     )
     """
 )
+columns = {row[1] for row in cursor.execute("PRAGMA table_info(album_metadata)").fetchall()}
+if "artists_json" not in columns:
+    cursor.execute(
+        "ALTER TABLE album_metadata ADD COLUMN artists_json TEXT NOT NULL DEFAULT '[]'"
+    )
 cursor.execute("DELETE FROM album_metadata")
 cursor.execute(
     """
     INSERT INTO album_metadata
-        (title, artist_name, legal_name, cover_image_path, music_file_path, release_date, genre)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+        (title, artist_name, artists_json, legal_name, cover_image_path, music_file_path, release_date, genre)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """,
-    ("Sample Album One", "Artist A", "Mitrxv", cover_path, music_path, "2026-12-05", "HipHop / Rap [Urban]"),
+    (
+        "Sample Album One",
+        "Artist A feat. Artist B",
+        json.dumps([
+            {"name": "Artist A", "role": "primary"},
+            {"name": "Artist B", "role": "featured"},
+        ]),
+        "Sample Legal Name",
+        cover_path,
+        music_path,
+        "2026-12-05",
+        "HipHop / Rap [Urban]",
+    ),
 )
 
 conn.commit()

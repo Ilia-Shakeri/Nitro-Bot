@@ -10,16 +10,22 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import BufferedInputFile, ForceReply
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 
 from database import AsyncSessionLocal
 from models import User, Transaction, SupportMessage, SupportTicket, get_naive_utc
+from payment_stars import stars_payment_matches
 from user_identity import sync_telegram_profile
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
-ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
 APP_VERSION = os.getenv("APP_VERSION", "2026-07-06-producers-convert-v5")
 logger = logging.getLogger("nitro.bot")
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN is required")
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and not ADMIN_GROUP_ID:
+    raise RuntimeError("ADMIN_GROUP_ID is required in production")
 
 
 def _parse_manager_ids(raw: str) -> set[int]:
@@ -146,7 +152,9 @@ async def _send_media_group(**kwargs: Any) -> Any:
 
 def _mini_app_url() -> str:
     """Return the Mini App URL with a deploy version to bypass Telegram webview cache."""
-    raw = os.getenv("MINI_APP_URL", "https://example.com").strip()
+    raw = os.getenv("MINI_APP_URL", "").strip()
+    if not raw:
+        raise RuntimeError("MINI_APP_URL is required")
     parts = urlsplit(raw)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query["v"] = APP_VERSION
@@ -237,6 +245,106 @@ async def cmd_version(message: types.Message):
     await message.answer(f"Mini App version: {APP_VERSION}\n{_mini_app_url()}")
 
 
+async def _valid_stars_transaction(
+    *,
+    payload: str,
+    tg_id: int,
+    currency: str,
+    total_amount: int,
+) -> bool:
+    if currency != "XTR":
+        return False
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Transaction)
+            .where(Transaction.invoice_payload == payload)
+            .with_for_update()
+        )
+        tx = result.scalars().first()
+        valid = bool(tx and stars_payment_matches(tx, tg_id, currency, total_amount))
+        await db.rollback()
+        return valid
+
+
+@dp.pre_checkout_query()
+async def validate_stars_pre_checkout(query: types.PreCheckoutQuery):
+    valid = await _valid_stars_transaction(
+        payload=query.invoice_payload,
+        tg_id=query.from_user.id,
+        currency=query.currency,
+        total_amount=query.total_amount,
+    )
+    await query.answer(
+        ok=valid,
+        error_message=None if valid else "Payment details are no longer valid.",
+    )
+
+
+@dp.message(F.successful_payment)
+async def fulfill_stars_payment(message: types.Message):
+    payment = message.successful_payment
+    if payment is None:
+        return
+    charge_id = payment.telegram_payment_charge_id
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Transaction)
+            .where(Transaction.invoice_payload == payment.invoice_payload)
+            .with_for_update()
+        )
+        tx = result.scalars().first()
+        if not tx:
+            logger.error("Stars payment has unknown invoice payload")
+            await db.rollback()
+            return
+        if tx.status == "approved" and tx.provider_charge_id == charge_id:
+            await db.rollback()
+            return
+        if (
+            not stars_payment_matches(
+                tx,
+                message.from_user.id,
+                payment.currency,
+                payment.total_amount,
+            )
+        ):
+            logger.error("Stars payment validation failed for transaction %s", tx.id)
+            await db.rollback()
+            return
+        duplicate = await db.execute(
+            select(Transaction.id).where(Transaction.provider_charge_id == charge_id)
+        )
+        if duplicate.scalar_one_or_none() is not None:
+            await db.rollback()
+            return
+        user_result = await db.execute(
+            select(User)
+            .where(User.telegram_id == tx.user_id)
+            .with_for_update()
+        )
+        user = user_result.scalars().first()
+        if not user:
+            await db.rollback()
+            return
+        tx.provider_charge_id = charge_id
+        tx.status = "approved"
+        user.credits += tx.amount
+        if user.referred_by:
+            await db.execute(
+                update(User)
+                .where(User.telegram_id == user.referred_by)
+                .values(credits=User.credits + 1)
+            )
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            logger.warning("Duplicate Stars charge ignored")
+            return
+    lang = await _user_lang(message.from_user.id)
+    await message.answer(_TRANSLATIONS[lang]["tx_approved"].format(tx.amount))
+
+
 async def notify_admin_new_ticket(ticket_id: int, tg_id: int, name: str, username: str, subject: str, message: str):
     subj_line = f"Subject: {subject}\n" if subject else ""
     builder = InlineKeyboardBuilder()
@@ -266,13 +374,16 @@ async def notify_admin_new_receipt(
     receipt_filename: str | None,
     usd_amount_cents: int,
     toman_amount_cents: int | None,
+    quote_asset: str | None = None,
+    quote_network: str | None = None,
+    quoted_amount: str | None = None,
 ):
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(text="✅ APPROVE", callback_data=f"tx_approve_{tx_id}"),
         types.InlineKeyboardButton(text="Reject", callback_data=f"tx_reject_{tx_id}"),
     )
-    title = "New USDT Payment Claim" if payment_method == "usdt" and receipt_bytes is None else "New Payment Receipt"
+    title = "New Crypto Payment Claim" if quote_asset else "New Payment Receipt"
     usd_amount = f"{usd_amount_cents // 100}.{usd_amount_cents % 100:02d}"
     toman_line = (
         f"\nQuoted Toman amount: {toman_amount_cents // 100:,}"
@@ -286,7 +397,9 @@ async def notify_admin_new_receipt(
         f"From: {submitter}\n"
         f"Method: {payment_method.upper()}\n"
         f"Amount: {amount} Nitro\n"
-        f"Quoted value: {usd_amount} USDT"
+        f"USD value: {usd_amount}\n"
+        f"Quoted payment: {quoted_amount or '-'} {quote_asset or '-'}\n"
+        f"Network: {quote_network or '-'}"
         f"{toman_line}"
     )
     if receipt_bytes is None:
@@ -339,6 +452,7 @@ async def notify_admin_new_release(
     mapping_apple: str | None,
     requires_new_profile: bool,
     profile_email: str | None,
+    artist_mappings: list[dict],
     is_edit: bool,
     copyright_requested: bool,
     cost: int,
@@ -348,21 +462,36 @@ async def notify_admin_new_release(
     cover_bytes: bytes | None,
     cover_filename: str | None,
 ):
-    primary_artist = next(
-        (artist["name"] for artist in artists if artist["role"] == "primary"),
-        "-",
-    )
+    primary_artists = [
+        artist["name"] for artist in artists if artist["role"] == "primary"
+    ]
     featured_artists = [
         artist["name"] for artist in artists if artist["role"] == "featured"
     ]
     manager_prefix = "#MANAGER\n" if submitter_tg_id in MANAGER_IDS else ""
+    mapping_lines = []
+    roles_by_name = {
+        artist["name"].casefold(): artist["role"] for artist in artists
+    }
+    for index, mapping in enumerate(artist_mappings, start=1):
+        artist = mapping.get("artist_name", "-")
+        role = roles_by_name.get(str(artist).casefold(), "featured")
+        if mapping.get("requires_new_profile"):
+            details = f"new profile; email: {mapping.get('profile_email') or '-'}"
+        else:
+            details = (
+                f"Spotify: {mapping.get('spotify_url') or '-'}; "
+                f"Apple Music: {mapping.get('apple_music_url') or '-'}"
+            )
+        mapping_lines.append(f"{index}. {artist} ({role}): {details}")
+    mappings_text = "\n".join(mapping_lines) or "-"
     caption = (
         f"{manager_prefix}"
         f"New Release (Staging)\n"
         f"Release ID: {release_id}\n"
         f"From: {submitter}\n"
         f"Song: {song_name}\n"
-        f"Primary artist: {primary_artist}\n"
+        f"Primary artists: {', '.join(primary_artists) or '-'}\n"
         f"Featured artists: {', '.join(featured_artists) or '-'}\n"
         f"Legal names: {', '.join(legal_names)}\n"
         f"Producers: {', '.join(producers) or '-'}\n"
@@ -371,10 +500,7 @@ async def notify_admin_new_release(
         f"Re-release: {'yes' if is_rerelease else 'no'}\n"
         f"{'Re-release' if is_rerelease else 'Release'} date: {release_date}\n"
         f"Original release date: {original_release_date or '-'}\n"
-        f"Spotify: {mapping_spotify or '-'}\n"
-        f"Apple Music: {mapping_apple or '-'}\n"
-        f"New profile: {'yes' if requires_new_profile else 'no'}\n"
-        f"Profile email: {profile_email or '-'}\n"
+        f"Artist mappings:\n{mappings_text}\n"
         f"Edit order: {'yes' if is_edit else 'no'}\n"
         f"Copyright: {'yes' if copyright_requested else 'no'}\n"
         f"Cost: {cost} Nitro"
@@ -456,6 +582,12 @@ async def _append_status(message: types.Message, suffix: str) -> None:
 
 @dp.callback_query(F.data.startswith("tx_"))
 async def handle_tx_decision(callback: types.CallbackQuery):
+    if (
+        callback.message is None
+        or str(callback.message.chat.id) != str(ADMIN_GROUP_ID)
+    ):
+        await callback.answer("Not allowed.", show_alert=True)
+        return
     parts = callback.data.split("_")
     action, tx_id = parts[1], int(parts[2])
 

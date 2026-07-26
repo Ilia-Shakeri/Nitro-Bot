@@ -1,4 +1,4 @@
-import type { ReleaseArtist } from '../types/api';
+import type { ArtistMapping, ReleaseArtist } from '../types/api';
 import { validSubGenre } from './genres';
 
 export interface ReleaseMetadata {
@@ -12,6 +12,9 @@ export interface ReleaseMetadata {
   genre: string;
   subGenre: string;
   copyrightRequested: boolean;
+  pendingArtist: string;
+  pendingProducer: string;
+  pendingLegalName: string;
 }
 
 export const emptyReleaseMetadata = (): ReleaseMetadata => ({
@@ -25,7 +28,24 @@ export const emptyReleaseMetadata = (): ReleaseMetadata => ({
   genre: '',
   subGenre: '',
   copyrightRequested: false,
+  pendingArtist: '',
+  pendingProducer: '',
+  pendingLegalName: '',
 });
+
+export type ReleaseStep = 'details' | 'mapping' | 'review';
+export const MAX_ARTISTS = 6;
+export const MAX_PRIMARY_ARTISTS = 3;
+const ENGLISH_RELEASE_TEXT = /^[A-Za-z0-9 .,'&()[\]\-_/+!?:#]+$/;
+const ENGLISH_ALNUM = /[A-Za-z0-9]/;
+
+export const normalizeEnglishReleaseText = (raw: string) => {
+  const value = raw.trim().replace(/\s+/g, ' ');
+  if (!value || !ENGLISH_RELEASE_TEXT.test(value) || !ENGLISH_ALNUM.test(value)) {
+    return { value, error: 'english_only_input' };
+  }
+  return { value, error: null };
+};
 
 export const localTodayIso = () => {
   const today = new Date();
@@ -33,8 +53,10 @@ export const localTodayIso = () => {
 };
 
 export const addUniqueValue = (values: string[], raw: string) => {
-  const value = raw.trim();
-  if (!value) return { values, error: 'value_empty' };
+  const normalized = normalizeEnglishReleaseText(raw);
+  const value = normalized.value;
+  if (!raw.trim()) return { values, error: 'value_empty' };
+  if (normalized.error) return { values, error: normalized.error };
   if (values.some(item => item.toLocaleLowerCase() === value.toLocaleLowerCase())) {
     return { values, error: 'value_duplicate' };
   }
@@ -45,8 +67,11 @@ export const removeValue = (values: string[], index: number) =>
   values.filter((_, itemIndex) => itemIndex !== index);
 
 export const addArtist = (artists: ReleaseArtist[], raw: string) => {
-  const name = raw.trim();
+  const normalized = normalizeEnglishReleaseText(raw);
+  const name = normalized.value;
   if (!name) return { artists, error: 'artists_empty' };
+  if (normalized.error) return { artists, error: normalized.error };
+  if (artists.length >= MAX_ARTISTS) return { artists, error: 'artists_max' };
   if (artists.some(artist => artist.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
     return { artists, error: 'artists_duplicate' };
   }
@@ -67,38 +92,37 @@ export const removeArtist = (artists: ReleaseArtist[], index: number) => {
   return next;
 };
 
-export const selectPrimaryArtist = (artists: ReleaseArtist[], index: number) =>
-  artists.map((artist, artistIndex) => ({
-    ...artist,
-    role: artistIndex === index ? 'primary' as const : 'featured' as const,
-  }));
+export const toggleArtistRole = (artists: ReleaseArtist[], index: number) => {
+  const target = artists[index];
+  if (!target) return { artists, error: 'artists_invalid' };
+  const primaryCount = artists.filter(artist => artist.role === 'primary').length;
+  if (target.role === 'primary' && primaryCount === 1) {
+    return { artists, error: 'artists_primary_required' };
+  }
+  if (target.role === 'featured' && primaryCount >= MAX_PRIMARY_ARTISTS) {
+    return { artists, error: 'artists_primary_max' };
+  }
+  return {
+    artists: artists.map((artist, artistIndex) => (
+      artistIndex === index
+        ? { ...artist, role: artist.role === 'primary' ? 'featured' : 'primary' }
+        : artist
+    )) as ReleaseArtist[],
+    error: null,
+  };
+};
 
 export const dateFieldMode = (metadata: ReleaseMetadata) =>
   metadata.isRerelease ? ['rerelease', 'original'] as const : ['scheduled'] as const;
 
-export const naturalInputDirection = (
-  value: string,
-  interfaceIsRtl: boolean,
-): 'auto' | 'rtl' | 'ltr' => value ? 'auto' : interfaceIsRtl ? 'rtl' : 'ltr';
-
 export const releaseStepAction = (
-  step: 'form' | 'review',
+  step: ReleaseStep,
   valid: boolean,
-): 'stay' | 'review' | 'submit' => {
+): 'stay' | 'mapping' | 'review' | 'submit' => {
   if (!valid) return 'stay';
-  return step === 'form' ? 'review' : 'submit';
-};
-
-export const validateMappingChoice = (
-  needsNewProfile: boolean,
-  profileEmail: string,
-  spotifyUrl: string,
-  appleUrl: string,
-): string | null => {
-  if (needsNewProfile) {
-    return profileEmail.trim() ? null : 'profile_email_required';
-  }
-  return spotifyUrl.trim() || appleUrl.trim() ? null : 'mapping_required';
+  if (step === 'details') return 'mapping';
+  if (step === 'mapping') return 'review';
+  return 'submit';
 };
 
 export const validateReleaseMetadata = (
@@ -106,16 +130,21 @@ export const validateReleaseMetadata = (
   unchangedHistoricalDate?: string,
 ): string | null => {
   if (!data.songName.trim() || !data.genre || !data.releaseDate) return 'required_fields_missing';
+  if (normalizeEnglishReleaseText(data.songName).error) return 'english_only_input';
   if (data.artists.length === 0) return 'artists_required';
+  if (data.artists.length > MAX_ARTISTS) return 'artists_max';
   if (data.producers.length === 0) return 'producers_required';
   if (data.legalNames.length === 0) return 'legal_names_required';
   if (data.producers.some(name => !name.trim())) return 'producers_empty';
   if (new Set(data.artists.map(artist => artist.name.trim().toLocaleLowerCase())).size !== data.artists.length) {
     return 'artists_duplicate';
   }
-  if (data.artists.filter(artist => artist.role === 'primary').length !== 1) {
-    return 'artists_one_primary';
-  }
+  if (data.artists.some(artist => normalizeEnglishReleaseText(artist.name).error)) return 'english_only_input';
+  if (data.producers.some(name => normalizeEnglishReleaseText(name).error)) return 'english_only_input';
+  if (data.legalNames.some(name => normalizeEnglishReleaseText(name).error)) return 'english_only_input';
+  const primaryCount = data.artists.filter(artist => artist.role === 'primary').length;
+  if (primaryCount === 0) return 'artists_primary_required';
+  if (primaryCount > MAX_PRIMARY_ARTISTS) return 'artists_primary_max';
   if (new Set(data.legalNames.map(name => name.trim().toLocaleLowerCase())).size !== data.legalNames.length) {
     return 'legal_names_duplicate';
   }
@@ -133,6 +162,127 @@ export const validateReleaseMetadata = (
     if (!data.originalReleaseDate) return 'original_release_date_required';
     if (data.originalReleaseDate >= data.releaseDate) {
       return 'original_release_date_not_before_rerelease';
+    }
+  }
+  return null;
+};
+
+export const metadataErrorField = (
+  data: ReleaseMetadata,
+  error: string,
+): 'song' | 'artists' | 'producers' | 'legal_names' | null => {
+  if (error.startsWith('artists_')) return 'artists';
+  if (error.startsWith('producers_')) return 'producers';
+  if (error.startsWith('legal_names_')) return 'legal_names';
+  if (error !== 'english_only_input') return null;
+  if (normalizeEnglishReleaseText(data.songName).error) return 'song';
+  if (data.artists.some(artist => normalizeEnglishReleaseText(artist.name).error)) return 'artists';
+  if (data.producers.some(name => normalizeEnglishReleaseText(name).error)) return 'producers';
+  if (data.legalNames.some(name => normalizeEnglishReleaseText(name).error)) return 'legal_names';
+  return null;
+};
+
+export interface PendingCommitResult {
+  metadata: ReleaseMetadata;
+  error: string | null;
+  field: 'song' | 'artists' | 'producers' | 'legal_names' | null;
+}
+
+export const commitPendingMetadata = (data: ReleaseMetadata): PendingCommitResult => {
+  let metadata = { ...data };
+  if (metadata.songName.trim()) {
+    const song = normalizeEnglishReleaseText(metadata.songName);
+    if (song.error) return { metadata, error: song.error, field: 'song' };
+    metadata = { ...metadata, songName: song.value };
+  }
+  if (metadata.pendingArtist.trim()) {
+    const result = addArtist(metadata.artists, metadata.pendingArtist);
+    if (result.error) return { metadata, error: result.error, field: 'artists' };
+    metadata = { ...metadata, artists: result.artists, pendingArtist: '' };
+  }
+  if (metadata.pendingProducer.trim()) {
+    const result = addUniqueValue(metadata.producers, metadata.pendingProducer);
+    if (result.error) return { metadata, error: result.error, field: 'producers' };
+    metadata = { ...metadata, producers: result.values, pendingProducer: '' };
+  }
+  if (metadata.pendingLegalName.trim()) {
+    const result = addUniqueValue(metadata.legalNames, metadata.pendingLegalName);
+    if (result.error) return { metadata, error: result.error, field: 'legal_names' };
+    metadata = { ...metadata, legalNames: result.values, pendingLegalName: '' };
+  }
+  return { metadata, error: null, field: null };
+};
+
+export const blankArtistMapping = (artistName: string): ArtistMapping => ({
+  artist_name: artistName,
+  requires_new_profile: false,
+  profile_email: null,
+  spotify_url: null,
+  apple_music_url: null,
+});
+
+export const reconcileArtistMappings = (
+  artists: ReleaseArtist[],
+  mappings: ArtistMapping[],
+) => {
+  const existing = new Map(
+    mappings.map(mapping => [mapping.artist_name.trim().toLocaleLowerCase(), mapping]),
+  );
+  return artists.map(artist => {
+    const mapping = existing.get(artist.name.trim().toLocaleLowerCase());
+    return mapping ? { ...mapping, artist_name: artist.name } : blankArtistMapping(artist.name);
+  });
+};
+
+const ASCII_EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
+const isAscii = (value: string) =>
+  Array.from(value).every(character => character.charCodeAt(0) <= 127);
+const isValidHttpsUrl = (value: string) => {
+  if (!isAscii(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+};
+export interface ArtistMappingValidationError {
+  key: string;
+  artist?: string;
+}
+
+export const validateArtistMappings = (
+  artists: ReleaseArtist[],
+  mappings: ArtistMapping[],
+): ArtistMappingValidationError | null => {
+  const reconciled = reconcileArtistMappings(artists, mappings);
+  if (reconciled.length !== artists.length || mappings.length !== artists.length) {
+    return { key: 'artist_mappings_incomplete' };
+  }
+  for (const mapping of reconciled) {
+    if (mapping.requires_new_profile) {
+      const email = mapping.profile_email?.trim() ?? '';
+      if (!ASCII_EMAIL.test(email) || !isAscii(email)) {
+        return {
+          key: 'artist_mapping_email_required_for_artist',
+          artist: mapping.artist_name,
+        };
+      }
+    } else {
+      const spotify = mapping.spotify_url?.trim() ?? '';
+      const apple = mapping.apple_music_url?.trim() ?? '';
+      if (!spotify && !apple) {
+        return {
+          key: 'artist_mapping_link_required_for_artist',
+          artist: mapping.artist_name,
+        };
+      }
+      if ((spotify && !isValidHttpsUrl(spotify)) || (apple && !isValidHttpsUrl(apple))) {
+        return {
+          key: 'artist_mapping_url_invalid_for_artist',
+          artist: mapping.artist_name,
+        };
+      }
     }
   }
   return null;

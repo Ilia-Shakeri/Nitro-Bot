@@ -29,7 +29,9 @@ export const GenreSelect = ({
           id={genreId}
           value={genre}
           onChange={event => onGenreChange(event.target.value)}
-          className="min-h-11 w-full appearance-auto bg-transparent text-start text-sm font-ui text-textPrimary outline-none"
+          dir="ltr"
+          aria-label={t('Main Genre')}
+          className="relative z-10 min-h-11 w-full cursor-pointer appearance-auto bg-transparent text-left text-sm font-ui text-textPrimary outline-none"
         >
           <option value="" className="bg-card1 text-textPrimary">{t('Select a genre')}</option>
           {Object.keys(GENRE_TREE).map(option => (
@@ -40,11 +42,13 @@ export const GenreSelect = ({
 
       {genre && subGenres.length > 0 && (
         <ReleaseField id={subGenreId} label={t('Subgenre')} icon={<ListTree className="h-5 w-5" />}>
-          <select
+        <select
             id={subGenreId}
             value={subGenre}
             onChange={event => onSubGenreChange(event.target.value)}
-            className="min-h-11 w-full appearance-auto bg-transparent text-start text-sm font-ui text-textPrimary outline-none"
+            dir="ltr"
+            aria-label={t('Subgenre')}
+            className="relative z-10 min-h-11 w-full cursor-pointer appearance-auto bg-transparent text-left text-sm font-ui text-textPrimary outline-none"
           >
             <option value="" className="bg-card1 text-textPrimary">{t('Select a subgenre')}</option>
             {subGenres.map(option => (

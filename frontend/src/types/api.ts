@@ -49,6 +49,14 @@ export interface ReleaseArtist {
   role: ArtistRole;
 }
 
+export interface ArtistMapping {
+  artist_name: string;
+  requires_new_profile: boolean;
+  profile_email: string | null;
+  spotify_url: string | null;
+  apple_music_url: string | null;
+}
+
 export interface Release {
   id: number;
   song_name: string;
@@ -66,6 +74,9 @@ export interface Release {
   mapping_apple: string | null;
   profile_email: string | null;
   requires_new_profile: boolean;
+  artist_mappings: ArtistMapping[];
+  policy_accepted_at: string | null;
+  policy_version: string | null;
   status: string;
   cover_url: string;
   is_edit: boolean;
@@ -86,12 +97,42 @@ export interface Pricing {
 
 export interface PaymentMethod {
   network?: string | null;
+  asset?: string | null;
   address?: string | null;
   number?: string | null;
   holder?: string | null;
+  stars_per_nitro?: number | null;
 }
 
 export interface PaymentConfig {
   card: PaymentMethod | null;
   usdt: PaymentMethod | null;
+  btc: PaymentMethod | null;
+  bnb: PaymentMethod | null;
+  usdt_bnb: PaymentMethod | null;
+  telegram_stars: PaymentMethod | null;
+}
+
+export interface CryptoQuote {
+  transaction_id: number;
+  payment_method: string;
+  quote_asset?: string | null;
+  quote_network?: string | null;
+  quoted_amount?: string | null;
+  quoted_usd_rate?: string | null;
+  quote_created_at?: string | null;
+  quote_expires_at?: string | null;
+  stars_amount?: number | null;
+  asset: string;
+  network: string;
+  amount: string;
+  usd_rate: string;
+  quoted_at: string;
+  expires_at: string;
+}
+
+export interface StarsInvoice {
+  transaction_id: number;
+  invoice_url: string;
+  stars_amount: number;
 }

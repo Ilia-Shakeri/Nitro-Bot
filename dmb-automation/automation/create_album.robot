@@ -33,14 +33,17 @@ And User Fetches Album Data From Database
     ${result}=    Get Album Data From DB
     ${ALBUM_TITLE}=    Set Variable    ${result}[0][0]
     ${ARTIST_NAME}=    Set Variable    ${result}[0][1]
-    ${LEGAL_NAME}=    Set Variable    ${result}[0][2]
-    ${COVER_PATH}=    Set Variable    ${result}[0][3]
-    ${MUSIC_PATH}=    Set Variable    ${result}[0][4]
-    ${RELEASE_DATE}=    Set Variable    ${result}[0][5]
-    ${GENRE}=    Set Variable    ${result}[0][6]
+    ${ARTISTS_JSON}=    Set Variable    ${result}[0][2]
+    ${ARTISTS}=    Evaluate    json.loads($ARTISTS_JSON)    json
+    ${LEGAL_NAME}=    Set Variable    ${result}[0][3]
+    ${COVER_PATH}=    Set Variable    ${result}[0][4]
+    ${MUSIC_PATH}=    Set Variable    ${result}[0][5]
+    ${RELEASE_DATE}=    Set Variable    ${result}[0][6]
+    ${GENRE}=    Set Variable    ${result}[0][7]
     ${COPYRIGHT_YEAR}=    Get Substring    ${RELEASE_DATE}    0    4
     Set Suite Variable    ${ALBUM_TITLE}
     Set Suite Variable    ${ARTIST_NAME}
+    Set Suite Variable    ${ARTISTS}
     Set Suite Variable    ${LEGAL_NAME}
     Set Suite Variable    ${RELEASE_DATE}
     Set Suite Variable    ${COVER_PATH}
@@ -61,7 +64,10 @@ And User Fills Album Form With Database Data
     Set Release Dates    ${RELEASE_DATE}    2099-12-31
     Set Price Codes
     Set Copyright Details    ${COPYRIGHT_YEAR}    ${LEGAL_NAME}
-    Add Contributor    ${ARTIST_NAME}
+    FOR    ${artist}    IN    @{ARTISTS}
+        Log    Adding contributor ${artist}[name] with role ${artist}[role]
+        Add Contributor    ${artist}[name]
+    END
     Click Next Button
 
 And User Uploads Track

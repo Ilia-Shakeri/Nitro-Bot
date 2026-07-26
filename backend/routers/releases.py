@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -15,10 +16,12 @@ from pricing import has_sufficient_credits, release_cost
 from release_validation import (
     ReleaseValidationError,
     legacy_artist_name,
+    normalize_artist_mappings,
     normalize_artists,
+    normalize_english_text,
     normalize_names,
     normalize_required_names,
-    validate_release_mapping,
+    validate_policy_acceptance,
     validate_release_dates,
 )
 from release_service import refund_is_due, user_for_update_statement
@@ -128,6 +131,7 @@ async def _background_convert_and_notify(
                 mapping_apple=release.mapping_apple,
                 requires_new_profile=release.requires_new_profile,
                 profile_email=release.profile_email,
+                artist_mappings=release.artist_mappings,
                 is_edit=release.is_edit,
                 copyright_requested=release.copyright_requested,
                 cost=release.charged_cost,
@@ -162,15 +166,22 @@ async def create_release(
     mapping_spotify: str | None = Form(None),
     mapping_apple: str | None = Form(None),
     profile_email: str | None = Form(None),
+    artist_mappings: str | None = Form(None),
     edited_release_id: int | None = Form(None),
     submission_id: str | None = Form(None),
     requires_new_profile: bool | None = Form(None),
     is_edit: bool = Form(False),
     copyright_requested: bool = Form(False),
+    policy_accepted: bool = Form(False),
     audio: UploadFile | None = File(None),
     cover: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        validate_policy_acceptance(policy_accepted)
+    except ReleaseValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
     normalized_submission_id = (submission_id or "").strip() or None
     if not normalized_submission_id or len(normalized_submission_id) > 64:
         raise HTTPException(status_code=400, detail="submission_id_invalid")
@@ -209,12 +220,13 @@ async def create_release(
     if not is_edit and not all((song_name, release_date, genre, audio, cover)):
         raise HTTPException(status_code=400, detail="required_fields_missing")
 
-    final_song_name = (song_name or (source_release.song_name if source_release else "")).strip()
+    raw_song_name = song_name or (source_release.song_name if source_release else "")
     final_genre = (genre or (source_release.genre if source_release else "") or "").strip()
-    if not final_song_name or not final_genre:
+    if not raw_song_name or not final_genre:
         raise HTTPException(status_code=400, detail="required_fields_missing")
 
     try:
+        final_song_name = normalize_english_text(raw_song_name)
         if artists is not None:
             final_artists = normalize_artists(artists)
         elif artist_name and artist_name.strip():
@@ -280,39 +292,49 @@ async def create_release(
     except ReleaseValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
-    final_requires_new_profile = (
-        bool(requires_new_profile)
-        if requires_new_profile is not None
-        else bool(source_release.requires_new_profile) if source_release else False
-    )
-    final_profile_email = (
-        profile_email.strip()
-        if profile_email
-        else source_release.profile_email if source_release else None
-    )
-    final_mapping_spotify = (
-        mapping_spotify
-        if mapping_spotify is not None
-        else source_release.mapping_spotify if source_release else None
-    )
-    final_mapping_apple = (
-        mapping_apple
-        if mapping_apple is not None
-        else source_release.mapping_apple if source_release else None
-    )
+    mappings_payload: str | list | None = artist_mappings
+    if mappings_payload is None and source_release and source_release.artist_mappings:
+        mappings_payload = source_release.artist_mappings
     try:
-        (
-            final_profile_email,
-            final_mapping_spotify,
-            final_mapping_apple,
-        ) = validate_release_mapping(
-            requires_new_profile=final_requires_new_profile,
-            profile_email=final_profile_email,
-            mapping_spotify=final_mapping_spotify,
-            mapping_apple=final_mapping_apple,
+        final_artist_mappings = normalize_artist_mappings(
+            mappings_payload,
+            final_artists,
+            legacy_requires_new_profile=(
+                requires_new_profile
+                if requires_new_profile is not None
+                else source_release.requires_new_profile if source_release else False
+            ),
+            legacy_profile_email=(
+                profile_email
+                if profile_email is not None
+                else source_release.profile_email if source_release else None
+            ),
+            legacy_mapping_spotify=(
+                mapping_spotify
+                if mapping_spotify is not None
+                else source_release.mapping_spotify if source_release else None
+            ),
+            legacy_mapping_apple=(
+                mapping_apple
+                if mapping_apple is not None
+                else source_release.mapping_apple if source_release else None
+            ),
         )
     except ReleaseValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    first_primary = next(
+        artist for artist in final_artists if artist["role"] == "primary"
+    )
+    legacy_mapping = next(
+        mapping
+        for mapping in final_artist_mappings
+        if mapping["artist_name"].casefold() == first_primary["name"].casefold()
+    )
+    final_requires_new_profile = legacy_mapping["requires_new_profile"]
+    final_profile_email = legacy_mapping["profile_email"]
+    final_mapping_spotify = legacy_mapping["spotify_url"]
+    final_mapping_apple = legacy_mapping["apple_music_url"]
     final_sub_genre = (
         sub_genre
         if sub_genre is not None
@@ -374,6 +396,9 @@ async def create_release(
         mapping_apple=final_mapping_apple,
         profile_email=final_profile_email,
         requires_new_profile=final_requires_new_profile,
+        artist_mappings=final_artist_mappings,
+        policy_accepted_at=_utc_now(),
+        policy_version=os.getenv("POLICY_VERSION", "1.0").strip() or "1.0",
         is_edit=is_edit,
         copyright_requested=copyright_requested,
         charged_cost=total_cost,

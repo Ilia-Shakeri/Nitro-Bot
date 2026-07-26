@@ -3,8 +3,6 @@ import { Plus, Tags, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addUniqueValue, removeValue } from '../utils/releaseForm';
-import { naturalInputDirection } from '../utils/releaseForm';
-import { isRtlLanguage } from '../i18n';
 
 interface Props {
   label: string;
@@ -18,6 +16,9 @@ interface Props {
   icon?: ReactNode;
   emptyErrorKey?: string;
   duplicateErrorKey?: string;
+  pendingValue: string;
+  onPendingChange: (value: string) => void;
+  externalError?: string;
 }
 
 export const MultiValueInput = ({
@@ -32,20 +33,22 @@ export const MultiValueInput = ({
   icon,
   emptyErrorKey = 'value_empty',
   duplicateErrorKey = 'value_duplicate',
+  pendingValue,
+  onPendingChange,
+  externalError,
 }: Props) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const inputId = useId();
-  const [value, setValue] = useState('');
   const [error, setError] = useState('');
 
   const addValue = () => {
-    const result = addUniqueValue(values, value);
+    const result = addUniqueValue(values, pendingValue);
     if (result.error) {
       setError(t(result.error === 'value_empty' ? emptyErrorKey : duplicateErrorKey));
       return;
     }
     onChange(result.values);
-    setValue('');
+    onPendingChange('');
     setError('');
   };
 
@@ -62,9 +65,9 @@ export const MultiValueInput = ({
           <input
             id={inputId}
             type="text"
-            value={value}
+            value={pendingValue}
             onChange={event => {
-              setValue(event.target.value);
+              onPendingChange(event.target.value);
               setError('');
             }}
             onKeyDown={event => {
@@ -73,10 +76,12 @@ export const MultiValueInput = ({
                 addValue();
               }
             }}
-            dir={naturalInputDirection(value, isRtlLanguage(i18n.language))}
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? `${inputId}-error` : undefined}
-            className="min-w-0 flex-1 bg-transparent text-textPrimary font-ui outline-none"
+            dir="ltr"
+            lang="en"
+            enterKeyHint="done"
+            aria-invalid={Boolean(externalError || error)}
+            aria-describedby={externalError || error ? `${inputId}-error` : undefined}
+            className="min-w-0 flex-1 bg-transparent text-left text-textPrimary font-ui outline-none"
             placeholder={placeholder}
           />
           <button
@@ -88,9 +93,9 @@ export const MultiValueInput = ({
             <Plus aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
-        {error && (
+        {(externalError || error) && (
           <p id={`${inputId}-error`} role="alert" className="mt-2 text-xs text-red-400">
-            {error}
+            {externalError ? t(externalError) : error}
           </p>
         )}
         {values.length > 0 && (
@@ -98,10 +103,11 @@ export const MultiValueInput = ({
             {values.map((name, index) => (
               <span
                 key={`${name}-${index}`}
-                dir="auto"
+                dir="ltr"
+                lang="en"
                 className="inline-flex max-w-full items-center gap-1 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-ui text-gold"
               >
-                <span className="truncate">{name}</span>
+                <span className="truncate text-left">{name}</span>
                 <button
                   type="button"
                   onClick={() => onChange(removeValue(values, index))}

@@ -12,6 +12,7 @@ Runtime:    designed to run in the Docker image (Firefox + geckodriver + Xvfb)
 """
 
 import logging
+import json
 import os
 import shutil
 import sqlite3
@@ -27,8 +28,8 @@ import requests
 API_BASE_URL   = os.getenv("API_BASE_URL", "http://backend:8000").rstrip("/")
 SECRET         = os.getenv("SELENIUM_SECRET_KEY", "")
 S3_ENDPOINT    = os.getenv("S3_ENDPOINT", "http://minio:9000")
-S3_ACCESS_KEY  = os.getenv("S3_ACCESS_KEY", "admin")
-S3_SECRET_KEY  = os.getenv("S3_SECRET_KEY", "password123")
+S3_ACCESS_KEY  = os.getenv("S3_ACCESS_KEY", "")
+S3_SECRET_KEY  = os.getenv("S3_SECRET_KEY", "")
 S3_BUCKET      = os.getenv("S3_BUCKET", "nitro-bot")
 POLL_INTERVAL  = int(os.getenv("POLL_INTERVAL", "30"))
 DRY_RUN        = os.getenv("DRY_RUN", "false").lower() == "true"
@@ -86,11 +87,7 @@ def download(key: str, dest_dir: Path, label: str) -> Path:
 
 
 def format_release_date(value: str) -> str:
-    """
-    The mini-app sends Gregorian YYYY-MM-DD, which the DMB date field currently accepts.
-    If the live DMB form turns out to require DD.MM.YYYY (German platform), reformat here.
-    See plan Part G.
-    """
+    """Keep the canonical Gregorian date accepted by the DMB form."""
     return value
 
 
@@ -105,6 +102,7 @@ def write_sqlite(rel: dict, cover_path: Path, music_path: Path) -> None:
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
                 title            TEXT NOT NULL,
                 artist_name      TEXT NOT NULL,
+                artists_json     TEXT NOT NULL DEFAULT '[]',
                 legal_name       TEXT NOT NULL,
                 cover_image_path TEXT NOT NULL,
                 music_file_path  TEXT NOT NULL,
@@ -113,16 +111,28 @@ def write_sqlite(rel: dict, cover_path: Path, music_path: Path) -> None:
             )
             """
         )
+        columns = {
+            row[1] for row in cur.execute("PRAGMA table_info(album_metadata)").fetchall()
+        }
+        if "artists_json" not in columns:
+            cur.execute(
+                "ALTER TABLE album_metadata ADD COLUMN artists_json TEXT NOT NULL DEFAULT '[]'"
+            )
         cur.execute("DELETE FROM album_metadata")
         cur.execute(
             """
             INSERT INTO album_metadata
-                (title, artist_name, legal_name, cover_image_path, music_file_path, release_date, genre)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (title, artist_name, artists_json, legal_name, cover_image_path, music_file_path, release_date, genre)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 rel["song_name"],
                 rel["artist_name"],
+                json.dumps(
+                    rel.get("artists")
+                    or [{"name": rel["artist_name"], "role": "primary"}],
+                    ensure_ascii=True,
+                ),
                 rel["legal_name"],
                 str(cover_path),
                 str(music_path),
@@ -183,6 +193,9 @@ def main() -> None:
     if not SECRET:
         log.error("SELENIUM_SECRET_KEY is not set; refusing to start.")
         sys.exit(1)
+    if not S3_ACCESS_KEY or not S3_SECRET_KEY:
+        log.error("S3 storage credentials are not set; refusing to start.")
+        sys.exit(1)
     if not DRY_RUN and (not DMB_USERNAME or not DMB_PASSWORD):
         log.error("DMB_USERNAME / DMB_PASSWORD not set; refusing to start (set DRY_RUN=true to test without them).")
         sys.exit(1)
@@ -191,8 +204,6 @@ def main() -> None:
         "DMB automation worker started. api=%s bucket=%s poll=%ss dry_run=%s",
         API_BASE_URL, S3_BUCKET, POLL_INTERVAL, DRY_RUN,
     )
-    # NOTE (plan follow-up): a release marked "processing" that crashes mid-run stays
-    # "processing" and won't be re-picked. A future sweep could reset stale rows.
     while True:
         try:
             pending = get_pending()

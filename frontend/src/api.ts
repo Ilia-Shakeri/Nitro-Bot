@@ -1,11 +1,13 @@
 import WebApp from '@twa-dev/sdk';
 import type {
   LedgerEntry,
+  CryptoQuote,
   PaymentConfig,
   Pricing,
   Release,
   SupportTicket,
   Transaction,
+  StarsInvoice,
   User,
 } from './types/api';
 import { parseApiResponse } from './utils/apiResponse';
@@ -102,12 +104,34 @@ export const getPricing = () => request<Pricing>('/pricing');
 export const getPaymentConfig = () =>
   request<PaymentConfig>('/pricing/payment-config');
 
-export const submitReceipt = (file: File | null, amount: number, paymentMethod: string) => {
+export const submitReceipt = (
+  file: File | null,
+  amount: number,
+  paymentMethod: string,
+  quoteTransactionId?: number,
+) => {
   const form = new FormData();
   form.append('amount', amount.toString());
   form.append('payment_method', paymentMethod);
+  if (quoteTransactionId !== undefined) {
+    form.append('quote_transaction_id', quoteTransactionId.toString());
+  }
   if (file) form.append('receipt', file);
   return request<{ status: string; transaction_id: number }>('/transactions/receipt', {
+    method: 'POST',
+    body: form,
+  });
+};
+
+export const getPaymentQuote = (amount: number, paymentMethod: string) =>
+  request<CryptoQuote>(
+    `/transactions/quote?amount=${encodeURIComponent(amount)}&payment_method=${encodeURIComponent(paymentMethod)}`,
+  );
+
+export const createStarsInvoice = (amount: number) => {
+  const form = new FormData();
+  form.append('amount', amount.toString());
+  return request<StarsInvoice>('/transactions/stars-invoice', {
     method: 'POST',
     body: form,
   });

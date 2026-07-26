@@ -14,6 +14,8 @@ from routers import internal, pricing, releases, transactions, users, support
 _MINI_APP_URL = os.getenv("MINI_APP_URL", "").strip()
 _ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 logger = logging.getLogger("nitro.bot")
+if _ENVIRONMENT == "production" and not _MINI_APP_URL:
+    raise RuntimeError("MINI_APP_URL is required in production")
 
 
 async def _run_polling() -> None:

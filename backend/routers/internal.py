@@ -24,13 +24,27 @@ def _require_secret(authorization: str = Header(None)) -> None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
+def claimable_release_statement():
+    return (
+        select(Release)
+        .where(Release.status.in_(("pending", "manual_staging")))
+        .order_by(Release.created_at.asc())
+        .limit(1)
+        .with_for_update(skip_locked=True)
+    )
+
+
 @router.get("/releases/pending", response_model=list[PendingReleaseOut])
 async def get_pending_releases(
     _: None = Depends(_require_secret),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Release).where(Release.status == "pending"))
-    return result.scalars().all()
+    result = await db.execute(claimable_release_statement())
+    releases = result.scalars().all()
+    for release in releases:
+        release.status = "processing"
+    await db.commit()
+    return releases
 
 
 @router.post("/releases/{release_id}/status", response_model=OkResponse)

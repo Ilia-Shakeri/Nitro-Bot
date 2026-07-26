@@ -75,7 +75,10 @@ async def update_language(
 async def get_transactions(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Transaction)
-        .where(Transaction.user_id == tg_id)
+        .where(
+            Transaction.user_id == tg_id,
+            Transaction.status != "quoted",
+        )
         .order_by(Transaction.created_at.desc())
     )
     return result.scalars().all()

@@ -1,12 +1,11 @@
-import { Image as ImageIcon, Music } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ArrowRight, Image as ImageIcon, Music } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { submitRelease } from '../api';
-import { HomeHeader } from '../components/HomeHeader';
+import { ArtistMappingStep } from '../components/ArtistMappingStep';
 import { CopyrightOption } from '../components/CopyrightOption';
-import { NitroCostSummary } from '../components/NitroCostSummary';
-import { PlatformMappingFields } from '../components/PlatformMappingFields';
+import { HomeHeader } from '../components/HomeHeader';
 import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
 import { ReleaseReview } from '../components/ReleaseReview';
 import { useReleases } from '../context/ReleaseContext';
@@ -14,19 +13,27 @@ import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import { isRtlLanguage } from '../i18n';
 import { usePricing } from '../pricing';
+import type { ArtistMapping } from '../types/api';
 import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
 import {
   appendReleaseMetadata,
+  commitPendingMetadata,
   emptyReleaseMetadata,
-  releaseStepAction,
-  validateMappingChoice,
+  metadataErrorField,
+  reconcileArtistMappings,
+  type ReleaseMetadata,
+  type ReleaseStep,
+  type ArtistMappingValidationError,
+  validateArtistMappings,
   validateReleaseMetadata,
 } from '../utils/releaseForm';
-import { useObjectUrl } from '../utils/useObjectUrl';
 import { releaseTotal } from '../utils/releasePresentation';
+import { useObjectUrl } from '../utils/useObjectUrl';
 
 const newSubmissionId = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+type FieldErrors = Partial<Record<'song' | 'artists' | 'producers' | 'legal_names', string>>;
 
 export const UploadPage = () => {
   const { t, i18n } = useTranslation();
@@ -37,19 +44,34 @@ export const UploadPage = () => {
   const { pricing } = usePricing();
   const submissionId = useRef(newSubmissionId());
   const submitting = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [step, setStep] = useState<ReleaseStep>('details');
   const [metadata, setMetadata] = useState(emptyReleaseMetadata);
+  const [artistMappings, setArtistMappings] = useState<ArtistMapping[]>([]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [reviewing, setReviewing] = useState(false);
-  const [needsNewProfile, setNeedsNewProfile] = useState(false);
-  const [profileEmail, setProfileEmail] = useState('');
-  const [spotifyUrl, setSpotifyUrl] = useState('');
-  const [appleUrl, setAppleUrl] = useState('');
+  const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [policyError, setPolicyError] = useState('');
+  const [mappingError, setMappingError] = useState<ArtistMappingValidationError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const coverPreview = useObjectUrl(coverFile);
-  const lang = i18n.language;
   const credits = user?.credits ?? 0;
   const totalCost = releaseTotal(pricing, false, metadata.copyrightRequested);
+
+  useEffect(() => {
+    if (step === 'details') {
+      headingRef.current?.focus();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [step]);
+
+  const updateMetadata = (next: ReleaseMetadata) => {
+    setMetadata(next);
+    setPolicyAccepted(false);
+    setPolicyError('');
+    setFieldErrors({});
+  };
 
   const handleAudioFile = (file?: File) => {
     if (!file) return;
@@ -58,6 +80,7 @@ export const UploadPage = () => {
       return;
     }
     setAudioFile(file);
+    setPolicyAccepted(false);
   };
 
   const handleCoverFile = (file?: File) => {
@@ -67,42 +90,57 @@ export const UploadPage = () => {
       return;
     }
     setCoverFile(file);
+    setPolicyAccepted(false);
   };
 
-  const validateDraft = () => {
-    const validationError = validateReleaseMetadata(metadata);
-    if (!audioFile || !coverFile || validationError) {
-      toast(t(validationError ?? 'required_fields_missing'), 'error');
-      return false;
+  const continueToMapping = () => {
+    const committed = commitPendingMetadata(metadata);
+    setMetadata(committed.metadata);
+    if (committed.error) {
+      setFieldErrors({ [committed.field ?? 'artists']: committed.error });
+      return;
     }
-    const mappingError = validateMappingChoice(
-      needsNewProfile,
-      profileEmail,
-      spotifyUrl,
-      appleUrl,
-    );
-    if (mappingError) {
-      toast(t(mappingError), 'error');
-      return false;
+    const validationError = validateReleaseMetadata(committed.metadata);
+    if (!audioFile || !coverFile || validationError) {
+      const error = validationError ?? 'required_fields_missing';
+      const field = metadataErrorField(committed.metadata, error);
+      setFieldErrors(field ? { [field]: error } : {});
+      toast(t(error), 'error');
+      return;
+    }
+    setFieldErrors({});
+    setArtistMappings(current => reconcileArtistMappings(committed.metadata.artists, current));
+    setStep('mapping');
+  };
+
+  const continueToReview = () => {
+    const error = validateArtistMappings(metadata.artists, artistMappings);
+    if (error) {
+      setMappingError(error);
+      return;
     }
     if (credits < totalCost) {
       toast(t('insufficient_credits'), 'error');
-      return false;
+      return;
     }
-    return true;
-  };
-
-  const openReview = () => {
-    if (releaseStepAction('form', validateDraft()) === 'review') setReviewing(true);
+    setMappingError(null);
+    setStep('review');
   };
 
   const submitFinal = async () => {
-    if (
-      submitting.current
-      || releaseStepAction('review', validateDraft()) !== 'submit'
-      || !audioFile
-      || !coverFile
-    ) return;
+    if (submitting.current) return;
+    if (!policyAccepted) {
+      setPolicyError('policy_acceptance_required');
+      return;
+    }
+    const metadataError = validateReleaseMetadata(metadata);
+    const mappingValidation = validateArtistMappings(metadata.artists, artistMappings);
+    if (metadataError || mappingValidation || !audioFile || !coverFile) {
+      toast(t(metadataError ?? mappingValidation?.key ?? 'required_fields_missing', {
+        artist: mappingValidation?.artist,
+      }), 'error');
+      return;
+    }
     submitting.current = true;
     setLoading(true);
     try {
@@ -110,14 +148,10 @@ export const UploadPage = () => {
       form.append('audio', audioFile);
       form.append('cover', coverFile);
       appendReleaseMetadata(form, metadata);
+      form.append('artist_mappings', JSON.stringify(artistMappings));
+      form.append('policy_accepted', 'true');
       form.append('submission_id', submissionId.current);
-      form.append('requires_new_profile', String(needsNewProfile));
       form.append('is_edit', 'false');
-      if (profileEmail.trim()) form.append('profile_email', profileEmail.trim());
-      if (!needsNewProfile) {
-        if (spotifyUrl.trim()) form.append('mapping_spotify', spotifyUrl.trim());
-        if (appleUrl.trim()) form.append('mapping_apple', appleUrl.trim());
-      }
       await submitRelease(form);
       invalidateReleases();
       await refreshUser();
@@ -131,22 +165,25 @@ export const UploadPage = () => {
     }
   };
 
-  if (reviewing) {
+  if (step === 'review') {
     return (
-      <div dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}>
+      <div dir={isRtlLanguage(i18n.language) ? 'rtl' : 'ltr'}>
         <ReleaseReview
           metadata={metadata}
+          artistMappings={artistMappings}
           pricing={pricing}
           balance={credits}
           audioFile={audioFile}
           coverFile={coverFile}
           coverPreview={coverPreview}
-          needsNewProfile={needsNewProfile}
-          profileEmail={profileEmail}
-          spotifyUrl={spotifyUrl}
-          appleUrl={appleUrl}
           submitting={loading}
-          onBack={() => setReviewing(false)}
+          policyAccepted={policyAccepted}
+          policyError={policyError}
+          onPolicyAcceptedChange={accepted => {
+            setPolicyAccepted(accepted);
+            setPolicyError('');
+          }}
+          onBack={() => setStep('mapping')}
           onConfirm={submitFinal}
         />
       </div>
@@ -156,102 +193,96 @@ export const UploadPage = () => {
   return (
     <div
       className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background"
-      dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}
+      dir={isRtlLanguage(i18n.language) ? 'rtl' : 'ltr'}
     >
-      <HomeHeader credits={credits} lang={lang} />
+      <HomeHeader credits={credits} lang={i18n.language} />
       <main className="mx-auto max-w-md px-4 py-2">
-        <h1 className="mb-2 text-start text-3xl font-title">{t('Upload Your Art')}</h1>
-        <p className="mb-8 text-start text-sm font-ui leading-relaxed text-textSecondary">
-          {t('Publish your next track with clean metadata and platform mapping.')}
-        </p>
-
-        <div className="mb-6">
-          <label htmlFor="audio-upload" className="mb-2 block text-start font-ui text-gold">
-            1. {t('Audio File')} *
-          </label>
-          <input
-            id="audio-upload"
-            type="file"
-            accept=".mp3,.wav,audio/mpeg,audio/wav"
-            onChange={event => handleAudioFile(event.target.files?.[0])}
-            className="sr-only"
+        {step === 'mapping' ? (
+          <ArtistMappingStep
+            artists={metadata.artists}
+            mappings={artistMappings}
+            error={mappingError}
+            onChange={mappings => {
+              setArtistMappings(mappings);
+              setMappingError(null);
+              setPolicyAccepted(false);
+            }}
+            onBack={() => setStep('details')}
+            onContinue={continueToReview}
           />
-          <label
-            htmlFor="audio-upload"
-            className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold"
-          >
-            <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
-              <Music aria-hidden="true" className="h-6 w-6 text-gold" />
-            </span>
-            <span className="min-w-0 text-start">
-              <span dir="auto" className="block truncate font-ui">
-                {audioFile?.name ?? t('Drop audio or choose file')}
-              </span>
-              <span className="text-xs text-textSecondary">{t('MP3, WAV')}</span>
-            </span>
-          </label>
-        </div>
+        ) : (
+          <>
+            <h1 ref={headingRef} tabIndex={-1} className="mb-2 text-start text-3xl font-title outline-none">
+              {t('Release Details')}
+            </h1>
+            <p className="mb-8 text-start text-sm font-ui leading-relaxed text-textSecondary">
+              {t('Publish your next track with clean metadata and platform mapping.')}
+            </p>
 
-        <div className="mb-6">
-          <label htmlFor="cover-upload" className="mb-2 block text-start font-ui text-gold">
-            2. {t('Cover Art')} *
-          </label>
-          <input
-            id="cover-upload"
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-            onChange={event => handleCoverFile(event.target.files?.[0])}
-            className="sr-only"
-          />
-          <label
-            htmlFor="cover-upload"
-            className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold"
-          >
-            <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
-              <ImageIcon aria-hidden="true" className="h-6 w-6 text-gold" />
-            </span>
-            <span className="min-w-0 text-start">
-              <span dir="auto" className="block truncate font-ui">
-                {coverFile?.name ?? t('Drop cover art or choose file')}
-              </span>
-              <span className="text-xs text-textSecondary">{t('JPG, PNG, WEBP')}</span>
-            </span>
-          </label>
-        </div>
+            <div className="mb-6">
+              <label htmlFor="audio-upload" className="mb-2 block text-start font-ui text-gold">
+                1. {t('Audio File')} *
+              </label>
+              <input
+                id="audio-upload"
+                type="file"
+                accept=".mp3,.wav,audio/mpeg,audio/wav"
+                onChange={event => handleAudioFile(event.target.files?.[0])}
+                className="sr-only"
+              />
+              <label htmlFor="audio-upload" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold">
+                <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
+                  <Music aria-hidden="true" className="h-6 w-6 text-gold" />
+                </span>
+                <span className="min-w-0 text-start">
+                  <span dir="ltr" className="block truncate text-left font-ui">
+                    {audioFile?.name ?? t('Drop audio or choose file')}
+                  </span>
+                  <span className="text-xs text-textSecondary">{t('MP3, WAV')}</span>
+                </span>
+              </label>
+            </div>
 
-        <ReleaseMetadataFields value={metadata} onChange={setMetadata} />
-        <PlatformMappingFields
-          needsNewProfile={needsNewProfile}
-          onNeedsNewProfileChange={setNeedsNewProfile}
-          profileEmail={profileEmail}
-          onProfileEmailChange={setProfileEmail}
-          spotifyUrl={spotifyUrl}
-          onSpotifyUrlChange={setSpotifyUrl}
-          appleUrl={appleUrl}
-          onAppleUrlChange={setAppleUrl}
-        />
+            <div className="mb-6">
+              <label htmlFor="cover-upload" className="mb-2 block text-start font-ui text-gold">
+                2. {t('Cover Art')} *
+              </label>
+              <input
+                id="cover-upload"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                onChange={event => handleCoverFile(event.target.files?.[0])}
+                className="sr-only"
+              />
+              <label htmlFor="cover-upload" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold">
+                <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
+                  <ImageIcon aria-hidden="true" className="h-6 w-6 text-gold" />
+                </span>
+                <span className="min-w-0 text-start">
+                  <span dir="ltr" className="block truncate text-left font-ui">
+                    {coverFile?.name ?? t('Drop cover art or choose file')}
+                  </span>
+                  <span className="text-xs text-textSecondary">{t('JPG, PNG, WEBP')}</span>
+                </span>
+              </label>
+            </div>
 
-        <div className="pb-8">
-          <CopyrightOption
-            checked={metadata.copyrightRequested}
-            price={pricing.copyright_price}
-            onChange={copyrightRequested => setMetadata(current => ({
-              ...current,
-              copyrightRequested,
-            }))}
-          />
-          <NitroCostSummary
-            pricing={pricing}
-            copyrightRequested={metadata.copyrightRequested}
-          />
-          <button
-            type="button"
-            onClick={openReview}
-            className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-          >
-            {t('Continue to review')}
-          </button>
-        </div>
+            <ReleaseMetadataFields value={metadata} onChange={updateMetadata} fieldErrors={fieldErrors} />
+            <CopyrightOption
+              checked={metadata.copyrightRequested}
+              price={pricing.copyright_price}
+              onChange={copyrightRequested => updateMetadata({ ...metadata, copyrightRequested })}
+            />
+            <button
+              type="button"
+              onClick={continueToMapping}
+              className="mb-8 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            >
+              {t('Continue to Artist Mapping')}
+              <ArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+            </button>
+          </>
+        )}
       </main>
     </div>
   );

@@ -34,6 +34,15 @@ class Transaction(Base):
     receipt_url = Column(String, nullable=True)
     usd_amount_cents = Column(Integer, nullable=False, default=0)
     toman_amount_cents = Column(BigInteger, nullable=True)
+    quote_asset = Column(String(16), nullable=True)
+    quote_network = Column(String(64), nullable=True)
+    quoted_amount = Column(String(64), nullable=True)
+    quoted_usd_rate = Column(String(64), nullable=True)
+    quote_created_at = Column(DateTime, nullable=True)
+    quote_expires_at = Column(DateTime, nullable=True)
+    stars_amount = Column(Integer, nullable=True)
+    invoice_payload = Column(String(255), nullable=True, unique=True)
+    provider_charge_id = Column(String(255), nullable=True, unique=True)
     created_at = Column(DateTime, default=get_naive_utc)
 
 class SupportTicket(Base):
@@ -81,6 +90,9 @@ class Release(Base):
     mapping_apple = Column(String, nullable=True)
     profile_email = Column(String, nullable=True)
     requires_new_profile = Column(Boolean, nullable=False, default=False)
+    artist_mappings = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
+    policy_accepted_at = Column(DateTime, nullable=True)
+    policy_version = Column(String(64), nullable=True)
     
     # Financial and Logic Flags
     is_edit = Column(Boolean, nullable=False, default=False)

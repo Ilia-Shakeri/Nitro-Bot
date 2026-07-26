@@ -45,32 +45,54 @@ def payment_config_payload(
     card_number = normalized_card_number(payment_settings.payment_card_number)
     card_holder = payment_settings.payment_card_holder
     usdt_address = payment_settings.payment_usdt_trc20_address
+    btc_address = payment_settings.payment_btc_address
+    bnb_address = payment_settings.payment_bnb_bep20_address
+    usdt_bnb_address = payment_settings.payment_usdt_bep20_address
     card = (
         {"number": card_number, "holder": card_holder}
         if is_persian and card_number and card_holder
         else None
     )
     usdt = (
-        {"network": "USDT (TRC20)", "address": usdt_address}
+        {"network": "TRON (TRC20)", "asset": "USDT", "address": usdt_address}
         if usdt_address
         else None
     )
-    missing = []
-    if not usdt_address:
-        missing.append("PAYMENT_USDT_TRC20_ADDRESS")
-    if is_persian and not card_number:
-        missing.append("PAYMENT_CARD_NUMBER")
-    if is_persian and not card_holder:
-        missing.append("PAYMENT_CARD_HOLDER")
-    if missing:
-        logger.warning(
-            "Payment destinations incomplete for language %s; missing: %s",
-            (language or "unknown").split("-")[0],
-            ", ".join(missing),
-        )
-    if not card and not usdt:
+    btc = (
+        {"network": "Bitcoin", "asset": "BTC", "address": btc_address}
+        if btc_address
+        else None
+    )
+    bnb = (
+        {"network": "BNB Smart Chain (BEP20)", "asset": "BNB", "address": bnb_address}
+        if bnb_address
+        else None
+    )
+    usdt_bnb = (
+        {
+            "network": "BNB Smart Chain (BEP20)",
+            "asset": "USDT",
+            "address": usdt_bnb_address,
+        }
+        if usdt_bnb_address
+        else None
+    )
+    telegram_stars = (
+        {
+            "network": "Telegram",
+            "asset": "XTR",
+            "stars_per_nitro": payment_settings.telegram_stars_per_nitro,
+        }
+        if payment_settings.telegram_stars_per_nitro > 0
+        else None
+    )
+    if not any((card, usdt, btc, bnb, usdt_bnb, telegram_stars)):
         raise HTTPException(status_code=503, detail="payment_config_unavailable")
     return {
         "card": card,
         "usdt": usdt,
+        "btc": btc,
+        "bnb": bnb,
+        "usdt_bnb": usdt_bnb,
+        "telegram_stars": telegram_stars,
     }

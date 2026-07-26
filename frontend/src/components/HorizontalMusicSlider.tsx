@@ -58,8 +58,10 @@ export const HorizontalMusicSlider = () => {
       ) : (
         <div className="flex snap-x gap-4 overflow-x-auto pb-4 hide-scrollbar">
           {releases.slice(0, 8).map(release => {
-            const primary = release.artists?.find(artist => artist.role === 'primary')?.name
-              ?? release.artist_name;
+            const primaryArtists = release.artists?.filter(artist => artist.role === 'primary') ?? [];
+            const primary = primaryArtists.length
+              ? primaryArtists.map(artist => artist.name).join(', ')
+              : release.artist_name;
             const date = formatReleaseDate(release.release_date, i18n.language);
             return (
               <article key={release.id} className="w-32 flex-shrink-0 snap-start">
@@ -89,8 +91,8 @@ export const HorizontalMusicSlider = () => {
                     <Edit3 aria-hidden="true" className="h-4 w-4" />
                   </button>
                 </div>
-                <h3 dir="auto" className="truncate text-start text-sm font-ui">{release.song_name}</h3>
-                <p dir="auto" className="truncate text-start text-xs font-light-ui text-textSecondary">
+                <h3 dir="ltr" lang="en" className="truncate text-left text-sm font-ui">{release.song_name}</h3>
+                <p dir="ltr" lang="en" className="truncate text-left text-xs font-light-ui text-textSecondary">
                   {primary}
                 </p>
                 <p className="mt-1 truncate text-start text-[10px] leading-4 text-textSecondary">

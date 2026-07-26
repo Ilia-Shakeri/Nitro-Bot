@@ -128,6 +128,8 @@ export const PaymentDetails = ({
     );
   }
   if (method === 'card' && config.card) return <BankCard info={config.card} />;
-  if (method === 'usdt' && config.usdt) return <CryptoCard info={config.usdt} />;
+  if (method === 'telegram_stars') return null;
+  const info = config[method];
+  if (info) return <CryptoCard info={info} />;
   return <p role="alert" className="text-sm text-red-400">{t('payment_method_unavailable')}</p>;
 };

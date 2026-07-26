@@ -1,24 +1,50 @@
 import logging
 import os
+import secrets
 import time
+from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from aiogram.types import LabeledPrice
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from auth import get_tg_id
 from database import get_db
 from models import User, Transaction, Release
-from payment_methods import ALLOWED_PAYMENT_METHODS
+from payment_config import load_payment_settings
+from payment_methods import (
+    ALLOWED_PAYMENT_METHODS,
+    MANUAL_CRYPTO_METHODS,
+    normalize_payment_method,
+    receipt_is_required,
+)
+from payment_quotes import create_payment_quote
 from pricing import PRICING
-from schemas import LedgerOut, ReceiptSubmitResponse, UsdtRateOut
+from schemas import (
+    CryptoQuoteOut,
+    LedgerOut,
+    ReceiptSubmitResponse,
+    StarsInvoiceOut,
+    UsdtRateOut,
+)
 import storage
-from bot import notify_admin_new_receipt
+from bot import bot, notify_admin_new_receipt
 
 logger = logging.getLogger("nitro.transactions")
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+_FRIENDLY_LEDGER_METHODS = {
+    "card",
+    "usdt",
+    "tether",
+    "btc",
+    "bnb",
+    "usdt_bnb",
+    "telegram_stars",
+}
 
 _NOBITEX_ORDERBOOK_URL = os.getenv("NOBITEX_ORDERBOOK_URL") or \
     "https://api.nobitex.ir/v2/orderbook/USDTIRT"
@@ -130,9 +156,126 @@ async def usdt_rate(_: int = Depends(get_tg_id)):
     return {"rate_toman": rate, "cached": cached}
 
 
+def _method_is_configured(payment_method: str) -> bool:
+    settings = load_payment_settings()
+    return {
+        "card": bool(settings.payment_card_number and settings.payment_card_holder),
+        "usdt": bool(settings.payment_usdt_trc20_address),
+        "btc": bool(settings.payment_btc_address),
+        "bnb": bool(settings.payment_bnb_bep20_address),
+        "usdt_bnb": bool(settings.payment_usdt_bep20_address),
+        "telegram_stars": settings.telegram_stars_per_nitro > 0,
+    }.get(payment_method, False)
+
+
+@router.get("/quote", response_model=CryptoQuoteOut)
+async def payment_quote(
+    amount: int = Query(...),
+    payment_method: str = Query(...),
+    tg_id: int = Depends(get_tg_id),
+    db: AsyncSession = Depends(get_db),
+):
+    normalized = normalize_payment_method(payment_method)
+    if normalized not in MANUAL_CRYPTO_METHODS:
+        raise HTTPException(status_code=400, detail="payment_method_invalid")
+    if not _method_is_configured(normalized):
+        raise HTTPException(status_code=503, detail="payment_method_unavailable")
+    try:
+        quote = await create_payment_quote(normalized, amount)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except (httpx.HTTPError, ArithmeticError):
+        logger.exception("Crypto quote failed for %s", normalized)
+        raise HTTPException(status_code=503, detail="payment_quote_unavailable") from None
+    user_result = await db.execute(select(User).where(User.telegram_id == tg_id))
+    if not user_result.scalars().first():
+        raise HTTPException(status_code=404, detail="user_not_found")
+    await db.execute(
+        delete(Transaction).where(
+            Transaction.user_id == tg_id,
+            Transaction.status == "quoted",
+            Transaction.quote_expires_at < quote.quoted_at,
+        )
+    )
+    tx = Transaction(
+        user_id=tg_id,
+        amount=amount,
+        payment_method=normalized,
+        status="quoted",
+        usd_amount_cents=amount * PRICING.nitro_usd_price_cents,
+        quote_asset=quote.asset,
+        quote_network=quote.network,
+        quoted_amount=format(quote.amount, "f"),
+        quoted_usd_rate=format(quote.usd_rate, "f"),
+        quote_created_at=quote.quoted_at,
+        quote_expires_at=quote.expires_at,
+    )
+    db.add(tx)
+    await db.commit()
+    await db.refresh(tx)
+    return {"transaction_id": tx.id, **quote.payload()}
+
+
+@router.post("/stars-invoice", response_model=StarsInvoiceOut)
+async def create_stars_invoice(
+    amount: int = Form(...),
+    tg_id: int = Depends(get_tg_id),
+    db: AsyncSession = Depends(get_db),
+):
+    settings = load_payment_settings()
+    if amount < PRICING.minimum_topup_nitro:
+        raise HTTPException(status_code=400, detail="minimum_topup")
+    if settings.telegram_stars_per_nitro <= 0:
+        raise HTTPException(status_code=503, detail="payment_method_unavailable")
+    result = await db.execute(select(User).where(User.telegram_id == tg_id))
+    if not result.scalars().first():
+        raise HTTPException(status_code=404, detail="user_not_found")
+
+    stars_amount = amount * settings.telegram_stars_per_nitro
+    payload = f"nitro:{secrets.token_urlsafe(32)}"
+    tx = Transaction(
+        user_id=tg_id,
+        amount=amount,
+        payment_method="telegram_stars",
+        status="pending",
+        usd_amount_cents=amount * PRICING.nitro_usd_price_cents,
+        stars_amount=stars_amount,
+        invoice_payload=payload,
+        quote_asset="XTR",
+        quote_network="Telegram",
+        quoted_amount=str(stars_amount),
+    )
+    db.add(tx)
+    await db.commit()
+    await db.refresh(tx)
+    try:
+        invoice_url = await bot.create_invoice_link(
+            title="Nitro top-up",
+            description=f"{amount} Nitro",
+            payload=payload,
+            currency="XTR",
+            prices=[LabeledPrice(label=f"{amount} Nitro", amount=stars_amount)],
+        )
+    except Exception:
+        tx.status = "failed"
+        await db.commit()
+        logger.exception("Stars invoice creation failed for transaction %s", tx.id)
+        raise HTTPException(status_code=503, detail="invoice_creation_failed") from None
+    return {
+        "transaction_id": tx.id,
+        "invoice_url": invoice_url,
+        "stars_amount": stars_amount,
+    }
+
+
 @router.get("/ledger", response_model=list[LedgerOut])
 async def get_ledger(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends(get_db)):
-    tx_result = await db.execute(select(Transaction).where(Transaction.user_id == tg_id))
+    tx_result = await db.execute(
+        select(Transaction).where(
+            Transaction.user_id == tg_id,
+            Transaction.status != "quoted",
+        )
+    )
     release_result = await db.execute(select(Release).where(Release.user_id == tg_id))
 
     entries = [
@@ -141,7 +284,13 @@ async def get_ledger(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends
             "amount": tx.amount,
             "direction": "credit",
             "title": f"Nitro top-up ({tx.payment_method})",
-            "title_key": "ledger_refund" if tx.status == "rollback" else "ledger_topup",
+            "title_key": (
+                "ledger_refund"
+                if tx.status == "rollback"
+                else f"ledger_topup_{tx.payment_method}"
+                if tx.payment_method in _FRIENDLY_LEDGER_METHODS
+                else "ledger_topup"
+            ),
             "title_params": {"method": tx.payment_method},
             "status": tx.status,
             "created_at": tx.created_at,
@@ -173,12 +322,13 @@ async def submit_receipt(
     tg_id: int = Depends(get_tg_id),
     amount: int = Form(...),
     payment_method: str = Form(...),
+    quote_transaction_id: int | None = Form(None),
     receipt: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
     if amount < PRICING.minimum_topup_nitro:
         raise HTTPException(status_code=400, detail="minimum_topup")
-    normalized_payment_method = "usdt" if payment_method == "tether" else payment_method
+    normalized_payment_method = normalize_payment_method(payment_method)
     if normalized_payment_method not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(
             status_code=400,
@@ -189,10 +339,16 @@ async def submit_receipt(
     user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="user_not_found")
-    if (user.language_preference or "").split("-")[0] != "fa" and normalized_payment_method != "usdt":
-        raise HTTPException(status_code=400, detail="usdt_only_for_non_persian")
+    if normalized_payment_method == "telegram_stars":
+        raise HTTPException(status_code=400, detail="stars_invoice_required")
+    if normalized_payment_method == "card" and (
+        user.language_preference or ""
+    ).split("-")[0] != "fa":
+        raise HTTPException(status_code=400, detail="card_only_for_persian")
+    if not _method_is_configured(normalized_payment_method):
+        raise HTTPException(status_code=503, detail="payment_method_unavailable")
 
-    if normalized_payment_method != "usdt" and receipt is None:
+    if receipt_is_required(normalized_payment_method) and receipt is None:
         raise HTTPException(status_code=400, detail="receipt_required_for_card")
 
     receipt_bytes = None
@@ -203,20 +359,46 @@ async def submit_receipt(
 
     usd_amount_cents = amount * PRICING.nitro_usd_price_cents
     toman_amount_cents = None
+    tx = None
     if normalized_payment_method == "card":
         rate, _ = await _current_usdt_rate()
         toman_amount_cents = usd_amount_cents * rate
+    elif normalized_payment_method in MANUAL_CRYPTO_METHODS:
+        if quote_transaction_id is None:
+            raise HTTPException(status_code=400, detail="payment_quote_required")
+        quote_result = await db.execute(
+            select(Transaction)
+            .where(
+                Transaction.id == quote_transaction_id,
+                Transaction.user_id == tg_id,
+            )
+            .with_for_update()
+        )
+        tx = quote_result.scalars().first()
+        if (
+            not tx
+            or tx.status != "quoted"
+            or tx.payment_method != normalized_payment_method
+            or tx.amount != amount
+            or not tx.quote_expires_at
+            or tx.quote_expires_at
+            < datetime.now(timezone.utc).replace(tzinfo=None)
+        ):
+            raise HTTPException(status_code=400, detail="payment_quote_expired")
 
-    tx = Transaction(
-        user_id=tg_id,
-        amount=amount,
-        payment_method=normalized_payment_method,
-        status="pending",
-        receipt_url=receipt_key,
-        usd_amount_cents=usd_amount_cents,
-        toman_amount_cents=toman_amount_cents,
-    )
-    db.add(tx)
+    if tx is None:
+        tx = Transaction(
+            user_id=tg_id,
+            amount=amount,
+            payment_method=normalized_payment_method,
+            status="pending",
+            receipt_url=receipt_key,
+            usd_amount_cents=usd_amount_cents,
+            toman_amount_cents=toman_amount_cents,
+        )
+        db.add(tx)
+    else:
+        tx.status = "pending"
     await db.commit()
     await db.refresh(tx)
 
@@ -235,6 +417,9 @@ async def submit_receipt(
             receipt_filename=receipt.filename if receipt else None,
             usd_amount_cents=usd_amount_cents,
             toman_amount_cents=toman_amount_cents,
+            quote_asset=tx.quote_asset,
+            quote_network=tx.quote_network,
+            quoted_amount=tx.quoted_amount,
         )
     except Exception:
         logger.exception("Failed to notify admin of receipt %s", tx.id)

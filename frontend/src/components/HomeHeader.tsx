@@ -34,6 +34,8 @@ export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
         {/* Left (always): user avatar */}
         <div className="flex items-center gap-3">
           <button
+            type="button"
+            aria-label={t('Open profile')}
             onClick={() => { setProfileInitialTab('settings'); setProfileOpen(true); }}
             className="w-10 h-10 rounded-full border border-gold/30 shadow-md hover:border-gold/70 hover:shadow-[0_0_12px_rgba(212,175,55,0.3)] transition overflow-hidden bg-gradient-to-br from-card3 to-card2 flex items-center justify-center flex-shrink-0"
           >
@@ -48,6 +50,8 @@ export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
         <div className="flex items-center gap-2">
           {!isHome ? (
             <button
+              type="button"
+              aria-label={t('Back')}
               onClick={() => navigate(-1)}
               className="w-9 h-9 flex items-center justify-center rounded-full bg-card1 border border-card3 hover:bg-card3/50 transition"
             >
@@ -58,6 +62,8 @@ export const HomeHeader = ({ credits, lang, onBuyNitro }: Props) => {
             </button>
           ) : (
             <button
+              type="button"
+              aria-label={t('Refill Nitro')}
               onClick={() => setCreditsOpen(true)}
               className={`flex ${isRTL ? 'flex-row-reverse' : 'flex-row'} items-center gap-2 bg-card3/30 border border-gold/30 rounded-full px-3 py-1.5 hover:bg-gold/10 transition`}
             >

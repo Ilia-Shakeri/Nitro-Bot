@@ -6,9 +6,19 @@ interface Props {
   producers: string[];
   onChange: (producers: string[]) => void;
   labelPrefix?: string;
+  pendingValue: string;
+  onPendingChange: (value: string) => void;
+  externalError?: string;
 }
 
-export const ProducerTagInput = ({ producers, onChange, labelPrefix }: Props) => {
+export const ProducerTagInput = ({
+  producers,
+  onChange,
+  pendingValue,
+  onPendingChange,
+  externalError,
+  labelPrefix,
+}: Props) => {
   const { t } = useTranslation();
   return (
     <MultiValueInput
@@ -16,6 +26,9 @@ export const ProducerTagInput = ({ producers, onChange, labelPrefix }: Props) =>
       placeholder={t('producer_placeholder')}
       values={producers}
       onChange={onChange}
+      pendingValue={pendingValue}
+      onPendingChange={onPendingChange}
+      externalError={externalError}
       addLabel={t('Add producer')}
       removeLabel={t('Remove producer')}
       labelPrefix={labelPrefix}
