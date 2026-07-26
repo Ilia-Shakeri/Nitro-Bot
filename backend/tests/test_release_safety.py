@@ -12,6 +12,10 @@ def test_copyright_defaults_off():
     assert Release.copyright_requested.default.arg is False
 
 
+def test_explicit_content_defaults_off():
+    assert Release.explicit_content.default.arg is False
+
+
 def test_credit_deduction_uses_postgres_row_lock():
     statement = user_for_update_statement(123)
     compiled = str(statement.compile(dialect=postgresql.dialect()))
@@ -84,3 +88,16 @@ def test_artist_mapping_policy_and_payment_migration_is_backward_compatible():
     assert '"invoice_payload"' in migration
     assert "def downgrade()" in migration
     assert 'op.drop_column("releases", "artist_mappings")' in migration
+
+
+def test_explicit_content_migration_is_safe_and_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "011_add_release_explicit_content.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "010"' in migration
+    assert '"explicit_content"' in migration
+    assert "server_default=sa.false()" in migration
+    assert 'op.drop_column("releases", "explicit_content")' in migration

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { submitRelease } from '../api';
 import { ArtistMappingStep } from '../components/ArtistMappingStep';
 import { CopyrightOption } from '../components/CopyrightOption';
+import { ExplicitContentOption } from '../components/ExplicitContentOption';
 import { HomeHeader } from '../components/HomeHeader';
 import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
 import { ReleaseReview } from '../components/ReleaseReview';
@@ -272,6 +273,10 @@ export const UploadPage = () => {
               checked={metadata.copyrightRequested}
               price={pricing.copyright_price}
               onChange={copyrightRequested => updateMetadata({ ...metadata, copyrightRequested })}
+            />
+            <ExplicitContentOption
+              checked={metadata.explicitContent}
+              onChange={explicitContent => updateMetadata({ ...metadata, explicitContent })}
             />
             <button
               type="button"

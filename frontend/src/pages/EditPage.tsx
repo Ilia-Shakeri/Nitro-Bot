@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { submitRelease } from '../api';
 import { ArtistMappingStep } from '../components/ArtistMappingStep';
 import { CopyrightOption } from '../components/CopyrightOption';
+import { ExplicitContentOption } from '../components/ExplicitContentOption';
 import { HomeHeader } from '../components/HomeHeader';
 import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
 import { ReleaseReview } from '../components/ReleaseReview';
@@ -43,6 +44,7 @@ const releaseMetadata = (release: Release): ReleaseMetadata => ({
   genre: release.genre ?? '',
   subGenre: release.sub_genre ?? '',
   copyrightRequested: false,
+  explicitContent: release.explicit_content,
   pendingArtist: '',
   pendingProducer: '',
   pendingLegalName: '',
@@ -328,6 +330,10 @@ export const EditPage = () => {
                   checked={metadata.copyrightRequested}
                   price={pricing.copyright_price}
                   onChange={copyrightRequested => updateMetadata({ ...metadata, copyrightRequested })}
+                />
+                <ExplicitContentOption
+                  checked={metadata.explicitContent}
+                  onChange={explicitContent => updateMetadata({ ...metadata, explicitContent })}
                 />
                 <button
                   type="button"

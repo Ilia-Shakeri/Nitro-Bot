@@ -85,6 +85,7 @@ export const ReleaseCard = ({ release }: { release: Release }) => {
         <Detail direction={humanDirection} label={t('Original Release Date')} value={release.original_release_date ? formatReleaseDate(release.original_release_date, i18n.language) : empty} />
         <Detail direction={humanDirection} label={t('This track is a re-release')} value={t(release.is_rerelease ? 'Yes' : 'No')} />
         <Detail direction={humanDirection} label={t('Copyright')} value={t(release.copyright_requested ? 'Enabled' : 'Disabled')} />
+        <Detail direction={humanDirection} label={t('Explicit Content')} value={t(release.explicit_content ? 'Yes' : 'No')} />
         <Detail direction={humanDirection} label={t('Charged amount')} value={`${release.charged_cost} ${t('Nitro')}`} />
         <Detail direction={humanDirection} label={t('Submitted on')} value={new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(new Date(release.created_at))} />
       </dl>

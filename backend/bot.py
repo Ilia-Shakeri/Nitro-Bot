@@ -455,6 +455,7 @@ async def notify_admin_new_release(
     artist_mappings: list[dict],
     is_edit: bool,
     copyright_requested: bool,
+    explicit_content: bool,
     cost: int,
     submitter: str,
     audio_bytes: bytes | None,
@@ -503,6 +504,7 @@ async def notify_admin_new_release(
         f"Artist mappings:\n{mappings_text}\n"
         f"Edit order: {'yes' if is_edit else 'no'}\n"
         f"Copyright: {'yes' if copyright_requested else 'no'}\n"
+        f"Explicit content: {'yes' if explicit_content else 'no'}\n"
         f"Cost: {cost} Nitro"
     )
 

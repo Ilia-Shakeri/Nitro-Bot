@@ -97,6 +97,7 @@ class Release(Base):
     # Financial and Logic Flags
     is_edit = Column(Boolean, nullable=False, default=False)
     copyright_requested = Column(Boolean, nullable=False, default=False)
+    explicit_content = Column(Boolean, nullable=False, default=False)
     charged_cost = Column(Integer, nullable=False, default=0)
     submission_id = Column(String(64), nullable=True, unique=True, index=True)
     refunded_at = Column(DateTime, nullable=True)

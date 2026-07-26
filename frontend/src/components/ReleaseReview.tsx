@@ -157,6 +157,9 @@ export const ReleaseReview = ({
             <SummaryRow label={t('Copyright')}>
               {t(metadata.copyrightRequested ? 'Enabled' : 'Disabled')}
             </SummaryRow>
+            <SummaryRow label={t('Explicit Content')}>
+              {t(metadata.explicitContent ? 'Yes' : 'No')}
+            </SummaryRow>
           </dl>
         </section>
 

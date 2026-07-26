@@ -134,6 +134,7 @@ async def _background_convert_and_notify(
                 artist_mappings=release.artist_mappings,
                 is_edit=release.is_edit,
                 copyright_requested=release.copyright_requested,
+                explicit_content=release.explicit_content,
                 cost=release.charged_cost,
                 submitter=submitter,
                 audio_bytes=wav_bytes,
@@ -172,6 +173,7 @@ async def create_release(
     requires_new_profile: bool | None = Form(None),
     is_edit: bool = Form(False),
     copyright_requested: bool = Form(False),
+    explicit_content: bool | None = Form(None),
     policy_accepted: bool = Form(False),
     audio: UploadFile | None = File(None),
     cover: UploadFile | None = File(None),
@@ -216,6 +218,14 @@ async def create_release(
         source_release = source_result.scalars().first()
         if not source_release:
             raise HTTPException(status_code=404, detail="source_release_not_found")
+
+    final_explicit_content = (
+        explicit_content
+        if explicit_content is not None
+        else source_release.explicit_content
+        if source_release
+        else False
+    )
 
     if not is_edit and not all((song_name, release_date, genre, audio, cover)):
         raise HTTPException(status_code=400, detail="required_fields_missing")
@@ -401,6 +411,7 @@ async def create_release(
         policy_version=os.getenv("POLICY_VERSION", "1.0").strip() or "1.0",
         is_edit=is_edit,
         copyright_requested=copyright_requested,
+        explicit_content=final_explicit_content,
         charged_cost=total_cost,
         submission_id=normalized_submission_id,
         status="staging",

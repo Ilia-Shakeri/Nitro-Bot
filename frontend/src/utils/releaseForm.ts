@@ -12,6 +12,7 @@ export interface ReleaseMetadata {
   genre: string;
   subGenre: string;
   copyrightRequested: boolean;
+  explicitContent: boolean;
   pendingArtist: string;
   pendingProducer: string;
   pendingLegalName: string;
@@ -28,6 +29,7 @@ export const emptyReleaseMetadata = (): ReleaseMetadata => ({
   genre: '',
   subGenre: '',
   copyrightRequested: false,
+  explicitContent: false,
   pendingArtist: '',
   pendingProducer: '',
   pendingLegalName: '',
@@ -301,4 +303,5 @@ export const appendReleaseMetadata = (form: FormData, data: ReleaseMetadata) => 
   form.append('genre', data.genre);
   if (data.subGenre) form.append('sub_genre', data.subGenre);
   form.append('copyright_requested', String(data.copyrightRequested));
+  form.append('explicit_content', String(data.explicitContent));
 };

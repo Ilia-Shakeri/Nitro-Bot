@@ -11,6 +11,7 @@ import {
 import {
   addArtist,
   addUniqueValue,
+  appendReleaseMetadata,
   blankArtistMapping,
   commitPendingMetadata,
   dateFieldMode,
@@ -72,6 +73,10 @@ assert(invalidResponseError === 'api_response_invalid', 'HTML response must not 
 
 const initial = emptyReleaseMetadata();
 assert(!initial.copyrightRequested, 'copyright must start off');
+assert(!initial.explicitContent, 'explicit content must start off');
+const explicitForm = new FormData();
+appendReleaseMetadata(explicitForm, { ...initial, explicitContent: true });
+assert(explicitForm.get('explicit_content') === 'true', 'explicit content must be sent to backend');
 assert(!initial.isRerelease, 're-release must start off');
 same(dateFieldMode(initial), ['scheduled'], 'normal release must show scheduled date');
 same(dateFieldMode({ ...initial, isRerelease: true }), ['rerelease', 'original'], 're-release must show two dates');

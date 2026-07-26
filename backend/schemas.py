@@ -109,6 +109,7 @@ class ReleaseOut(BaseModel):
     cover_url: str
     is_edit: bool
     copyright_requested: bool
+    explicit_content: bool
     charged_cost: int
     refunded_at: datetime | None
     created_at: datetime
@@ -140,6 +141,7 @@ class PendingReleaseOut(BaseModel):
     policy_version: str | None = None
     is_edit: bool
     copyright_requested: bool
+    explicit_content: bool
     charged_cost: int
     status: str
     created_at: datetime

@@ -81,6 +81,7 @@ export interface Release {
   cover_url: string;
   is_edit: boolean;
   copyright_requested: boolean;
+  explicit_content: boolean;
   charged_cost: number;
   refunded_at: string | null;
   created_at: string;
