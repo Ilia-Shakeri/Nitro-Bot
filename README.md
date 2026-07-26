@@ -118,7 +118,17 @@ nitrobot.duckdns.org {
 Start the entire stack using Docker Compose:
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
+```
+
+The payment variables in the project `.env` file are required. Recreating the
+backend container is required after changing the card holder, card number, or
+USDT wallet address; restarting an existing container does not reload its
+environment.
+
+```bash
+docker compose config
+docker compose up -d --build --force-recreate backend frontend
 ```
 
 This command will:

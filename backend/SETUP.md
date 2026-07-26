@@ -21,6 +21,16 @@ Required variables:
 - `ORDER_TOPIC_ID`: Topic ID for order notifications
 - `PAYMENT_TOPIC_ID`: Topic ID for payment receipts
 - `TICKET_TOPIC_ID`: Topic ID for support tickets
+- `PAYMENT_CARD_NUMBER`: Card-to-card destination for Persian users
+- `PAYMENT_CARD_HOLDER`: Card holder name for Persian users
+- `PAYMENT_USDT_TRC20_ADDRESS`: USDT TRC20 wallet for all supported languages
+
+After changing payment values, recreate the backend container so it receives
+the new environment:
+
+```bash
+docker compose up -d --build --force-recreate backend
+```
 
 ## Upload Flow
 

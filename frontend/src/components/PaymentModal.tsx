@@ -29,6 +29,9 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [rateLoading, setRateLoading] = useState(true);
   const [rateError, setRateError] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
+  const [paymentConfigLoading, setPaymentConfigLoading] = useState(true);
+  const [paymentConfigError, setPaymentConfigError] = useState<string | null>(null);
+  const [paymentConfigAttempt, setPaymentConfigAttempt] = useState(0);
   const effectiveMethod = effectivePaymentMethod(lang, method);
   const isCrypto = effectiveMethod === 'usdt';
   const validAmount = Number.isInteger(amount) && amount >= pricing.minimum_topup_nitro ? amount : 0;
@@ -40,15 +43,24 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     let cancelled = false;
     getPaymentConfig()
       .then(config => {
-        if (!cancelled) setPaymentConfig(config);
+        if (!cancelled) {
+          setPaymentConfig(config);
+          setPaymentConfigError(null);
+        }
       })
-      .catch(() => {
-        if (!cancelled) setPaymentConfig(null);
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setPaymentConfig(null);
+          setPaymentConfigError(errorText(error, t));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentConfigLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [isOpen]);
+  }, [isOpen, lang, paymentConfigAttempt, t]);
 
   useEffect(() => {
     if (!isOpen || !isPersian) return;
@@ -212,7 +224,18 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             </div>
           )}
 
-          <PaymentDetails method={effectiveMethod} config={paymentConfig} />
+          <PaymentDetails
+            method={effectiveMethod}
+            config={paymentConfig}
+            loading={paymentConfigLoading}
+            error={paymentConfigError}
+            onRetry={() => {
+              setPaymentConfig(null);
+              setPaymentConfigError(null);
+              setPaymentConfigLoading(true);
+              setPaymentConfigAttempt(current => current + 1);
+            }}
+          />
 
           {isCrypto ? (
             <>
