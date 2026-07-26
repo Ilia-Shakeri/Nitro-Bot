@@ -1,7 +1,6 @@
 import { BadgeCheck, Calendar, Music } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ArtistInput } from './ArtistInput';
-import { FormToggle } from './FormToggle';
 import { GenreSelect } from './GenreSelect';
 import { MultiValueInput } from './MultiValueInput';
 import { PersianDatePicker } from './PersianDatePicker';
@@ -10,6 +9,7 @@ import { ReleaseField } from './ReleaseField';
 import { isRtlLanguage } from '../i18n';
 import type { ReleaseMetadata } from '../utils/releaseForm';
 import { localTodayIso, naturalInputDirection } from '../utils/releaseForm';
+import { changeMainGenre } from '../utils/genres';
 
 interface Props {
   value: ReleaseMetadata;
@@ -133,18 +133,8 @@ export const ReleaseMetadataFields = ({ value, onChange }: Props) => {
         <GenreSelect
           genre={value.genre}
           subGenre={value.subGenre}
-          onGenreChange={genre => update('genre', genre)}
+          onGenreChange={genre => onChange({ ...value, ...changeMainGenre(genre) })}
           onSubGenreChange={subGenre => update('subGenre', subGenre)}
-        />
-      </div>
-
-      <div className="rounded-xl border border-inputBorder bg-card1 p-4">
-        <FormToggle
-          id="copyrightRequested"
-          checked={value.copyrightRequested}
-          onChange={() => update('copyrightRequested', !value.copyrightRequested)}
-          label={t('Add Copyright Protection')}
-          tone="gold"
         />
       </div>
     </div>

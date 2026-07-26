@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { submitRelease } from '../api';
 import { HomeHeader } from '../components/HomeHeader';
+import { CopyrightOption } from '../components/CopyrightOption';
 import { NitroCostSummary } from '../components/NitroCostSummary';
 import { PlatformMappingFields } from '../components/PlatformMappingFields';
 import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
@@ -224,6 +225,14 @@ export const UploadPage = () => {
         />
 
         <div className="pb-8">
+          <CopyrightOption
+            checked={metadata.copyrightRequested}
+            price={pricing.copyright_price}
+            onChange={copyrightRequested => setMetadata(current => ({
+              ...current,
+              copyrightRequested,
+            }))}
+          />
           <NitroCostSummary
             pricing={pricing}
             copyrightRequested={metadata.copyrightRequested}

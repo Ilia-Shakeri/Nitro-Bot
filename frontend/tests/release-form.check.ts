@@ -5,6 +5,7 @@ import {
   discountPercent,
   formatReleaseDate,
   releaseDateSentenceKey,
+  releaseHistoryDirection,
   releaseStatusKey,
   releaseTotal,
 } from '../src/utils/releasePresentation';
@@ -85,6 +86,11 @@ assert(nitroUsdCents(3, DEFAULT_PRICING) === 240, 'three Nitro must equal 240 ce
 assert(tomanCents(3, 100_000, DEFAULT_PRICING) === 24_000_000, 'Toman calculation must use integer cents');
 assert(isRtlLanguage('fa') && isRtlLanguage('ar'), 'Persian and Arabic must be RTL');
 assert(!isRtlLanguage('en') && !isRtlLanguage('ru'), 'English and Russian must be LTR');
+assert(releaseHistoryDirection('fa') === 'rtl', 'Persian release names must be RTL');
+assert(releaseHistoryDirection('ar') === 'rtl', 'Arabic release names must be RTL');
+assert(releaseHistoryDirection('en') === 'ltr', 'English release names must be LTR');
+assert(releaseHistoryDirection('ru') === 'ltr', 'Russian release names must be LTR');
+assert(releaseHistoryDirection('fa', true) === 'ltr', 'technical release values must stay LTR');
 assert(naturalInputDirection('', true) === 'rtl', 'empty Persian and Arabic input must be RTL');
 assert(naturalInputDirection('', false) === 'ltr', 'empty English and Russian input must be LTR');
 assert(naturalInputDirection('نام Artist', true) === 'auto', 'filled mixed-script name must use automatic direction');
@@ -109,7 +115,16 @@ for (const language of ['en', 'fa', 'ar', 'ru'] as const) {
     assert(Boolean(TRANSLATIONS[language][status as keyof typeof TRANSLATIONS[typeof language]]), `${language} status ${status} must translate`);
   }
 }
-assert(TRANSLATIONS.fa['Add Copyright Protection'] === 'افزودن کپی‌رایت', 'Persian copyright text must match');
+assert(
+  TRANSLATIONS.fa.copyright_option_label === 'افزودن کپی‌رایت ({{price}} {{unit}})',
+  'Persian copyright text and price slot must match',
+);
+for (const language of ['en', 'fa', 'ar', 'ru'] as const) {
+  assert(
+    TRANSLATIONS[language].copyright_option_label.includes('{{price}}'),
+    `${language} copyright label must show backend price`,
+  );
+}
 
 const englishKeys = Object.keys(TRANSLATIONS.en).sort();
 for (const language of ['fa', 'ar', 'ru'] as const) {

@@ -1,4 +1,5 @@
 import type { Pricing, Release } from '../types/api';
+import { isRtlLanguage } from '../i18n';
 
 export const parseProducers = (raw: string | null): string[] => {
   if (!raw) return [];
@@ -50,3 +51,8 @@ export const releaseTotal = (
 
 export const releaseStatusKey = (release: Pick<Release, 'status' | 'refunded_at'>) =>
   release.refunded_at ? 'rollback' : release.status;
+
+export const releaseHistoryDirection = (
+  language: string,
+  technical = false,
+): 'rtl' | 'ltr' => technical ? 'ltr' : isRtlLanguage(language) ? 'rtl' : 'ltr';

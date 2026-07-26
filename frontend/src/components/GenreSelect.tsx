@@ -1,7 +1,7 @@
 import { ListTree, Tag } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GENRE_TREE, changeMainGenre } from '../utils/genres';
+import { GENRE_TREE } from '../utils/genres';
 import { ReleaseField } from './ReleaseField';
 
 interface Props {
@@ -28,11 +28,7 @@ export const GenreSelect = ({
         <select
           id={genreId}
           value={genre}
-          onChange={event => {
-            const next = changeMainGenre(event.target.value);
-            onGenreChange(next.genre);
-            onSubGenreChange(next.subGenre);
-          }}
+          onChange={event => onGenreChange(event.target.value)}
           className="min-h-11 w-full appearance-auto bg-transparent text-start text-sm font-ui text-textPrimary outline-none"
         >
           <option value="" className="bg-card1 text-textPrimary">{t('Select a genre')}</option>
