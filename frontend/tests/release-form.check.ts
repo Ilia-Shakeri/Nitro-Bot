@@ -1,12 +1,22 @@
 import { isRtlLanguage, TRANSLATIONS } from '../src/i18n';
 import { DEFAULT_PRICING, nitroUsdCents, tomanCents } from '../src/pricingValues';
+import { changeMainGenre, validSubGenre } from '../src/utils/genres';
+import {
+  discountPercent,
+  formatReleaseDate,
+  releaseDateSentenceKey,
+  releaseStatusKey,
+  releaseTotal,
+} from '../src/utils/releasePresentation';
 import {
   addArtist,
   addUniqueValue,
   dateFieldMode,
   emptyReleaseMetadata,
+  naturalInputDirection,
   removeArtist,
   removeValue,
+  releaseStepAction,
   selectPrimaryArtist,
   validateReleaseMetadata,
 } from '../src/utils/releaseForm';
@@ -45,11 +55,16 @@ const required = {
   ...initial,
   songName: 'Song',
   artists: [{ name: 'Artist', role: 'primary' as const }],
+  producers: ['Producer'],
   legalNames: ['Legal'],
   genre: 'Pop',
   releaseDate: '2000-01-01',
 };
 assert(validateReleaseMetadata(required) === 'release_date_past', 'past scheduled date must fail');
+assert(
+  validateReleaseMetadata({ ...required, producers: [] }) === 'producers_required',
+  'producer must be required before review',
+);
 assert(
   validateReleaseMetadata({
     ...required,
@@ -63,10 +78,38 @@ assert(
 assert(DEFAULT_PRICING.original_release_price === 20, 'original release price must be 20');
 assert(DEFAULT_PRICING.discounted_release_price === 8, 'discounted release price must be 8');
 assert(DEFAULT_PRICING.discounted_release_price + DEFAULT_PRICING.copyright_price === 10, 'copyright total must be 10');
+assert(releaseTotal(DEFAULT_PRICING, false, false) === 8, 'release total must be 8 without copyright');
+assert(releaseTotal(DEFAULT_PRICING, false, true) === 10, 'release total must be 10 with copyright');
+assert(discountPercent(DEFAULT_PRICING) === 60, 'discount must derive to 60 percent');
 assert(nitroUsdCents(3, DEFAULT_PRICING) === 240, 'three Nitro must equal 240 cents');
 assert(tomanCents(3, 100_000, DEFAULT_PRICING) === 24_000_000, 'Toman calculation must use integer cents');
 assert(isRtlLanguage('fa') && isRtlLanguage('ar'), 'Persian and Arabic must be RTL');
 assert(!isRtlLanguage('en') && !isRtlLanguage('ru'), 'English and Russian must be LTR');
+assert(naturalInputDirection('', true) === 'rtl', 'empty Persian and Arabic input must be RTL');
+assert(naturalInputDirection('', false) === 'ltr', 'empty English and Russian input must be LTR');
+assert(naturalInputDirection('نام Artist', true) === 'auto', 'filled mixed-script name must use automatic direction');
+same(changeMainGenre('Rock'), { genre: 'Rock', subGenre: '' }, 'main genre change must clear subgenre');
+assert(validSubGenre('Rock', 'Punk'), 'matching subgenre must pass');
+assert(!validSubGenre('Pop', 'Punk'), 'stale subgenre must fail');
+assert(releaseStepAction('form', true) === 'review', 'first valid action must only open review');
+assert(releaseStepAction('review', true) === 'submit', 'review confirmation may submit');
+assert(releaseStepAction('form', false) === 'stay', 'invalid form must stay');
+assert(
+  releaseDateSentenceKey({ is_rerelease: false }) === 'scheduled_sentence',
+  'scheduled history sentence key must be selected',
+);
+assert(
+  releaseDateSentenceKey({ is_rerelease: true }) === 'rerelease_scheduled_sentence',
+  're-release history sentence key must be selected',
+);
+assert(formatReleaseDate('2026-08-12', 'en').includes('2026'), 'release date must be locale formatted');
+assert(releaseStatusKey({ status: 'failed', refunded_at: '2026-01-01' }) === 'rollback', 'refunded release must show rollback');
+for (const language of ['en', 'fa', 'ar', 'ru'] as const) {
+  for (const status of ['pending', 'staging', 'manual_staging', 'processing', 'completed', 'failed', 'rollback']) {
+    assert(Boolean(TRANSLATIONS[language][status as keyof typeof TRANSLATIONS[typeof language]]), `${language} status ${status} must translate`);
+  }
+}
+assert(TRANSLATIONS.fa['Add Copyright Protection'] === 'افزودن کپی‌رایت', 'Persian copyright text must match');
 
 const englishKeys = Object.keys(TRANSLATIONS.en).sort();
 for (const language of ['fa', 'ar', 'ru'] as const) {

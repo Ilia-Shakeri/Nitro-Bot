@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
 import { Image as ImageIcon, Music } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getReleases, submitRelease } from '../api';
+import { submitRelease } from '../api';
 import { HomeHeader } from '../components/HomeHeader';
 import { NitroCostSummary } from '../components/NitroCostSummary';
+import { PlatformMappingFields } from '../components/PlatformMappingFields';
 import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
+import { ReleaseReview } from '../components/ReleaseReview';
+import { useReleases } from '../context/ReleaseContext';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import { isRtlLanguage } from '../i18n';
@@ -15,21 +18,12 @@ import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/fo
 import {
   appendReleaseMetadata,
   emptyReleaseMetadata,
+  releaseStepAction,
   type ReleaseMetadata,
   validateReleaseMetadata,
 } from '../utils/releaseForm';
-
-const parseProducers = (raw: string | null) => {
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === 'string')
-      : [];
-  } catch {
-    return [];
-  }
-};
+import { parseProducers, releaseTotal } from '../utils/releasePresentation';
+import { useObjectUrl } from '../utils/useObjectUrl';
 
 const releaseMetadata = (release: Release): ReleaseMetadata => ({
   songName: release.song_name,
@@ -54,6 +48,7 @@ export const EditPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, refreshUser } = useUser();
+  const { loadRelease, invalidateReleases } = useReleases();
   const { toast } = useToast();
   const { pricing } = usePricing();
   const submitting = useRef(false);
@@ -63,23 +58,31 @@ export const EditPage = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [prefillLoading, setPrefillLoading] = useState(true);
+  const [prefillLoading, setPrefillLoading] = useState(Number.isInteger(Number(id)));
+  const [reviewing, setReviewing] = useState(false);
+  const [needsNewProfile, setNeedsNewProfile] = useState(false);
+  const [profileEmail, setProfileEmail] = useState('');
+  const [spotifyUrl, setSpotifyUrl] = useState('');
+  const [appleUrl, setAppleUrl] = useState('');
+  const replacementCoverPreview = useObjectUrl(coverFile);
   const credits = user?.credits ?? 0;
-  const totalCost = pricing.edit_release_price
-    + (metadata.copyrightRequested ? pricing.copyright_price : 0);
+  const totalCost = releaseTotal(pricing, true, metadata.copyrightRequested);
 
   useEffect(() => {
     let cancelled = false;
-    getReleases()
-      .then(releases => {
+    const releaseId = Number(id);
+    if (!Number.isInteger(releaseId)) {
+      return;
+    }
+    loadRelease(releaseId)
+      .then(found => {
         if (cancelled) return;
-        const found = releases.find(item => String(item.id) === String(id));
-        if (!found) {
-          toast(t('source_release_not_found'), 'error');
-          return;
-        }
         setSource(found);
         setMetadata(releaseMetadata(found));
+        setNeedsNewProfile(found.requires_new_profile);
+        setProfileEmail(found.profile_email ?? '');
+        setSpotifyUrl(found.mapping_spotify ?? '');
+        setAppleUrl(found.mapping_apple ?? '');
       })
       .catch(error => {
         if (!cancelled) toast(errorText(error, t), 'error');
@@ -90,7 +93,7 @@ export const EditPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, t, toast]);
+  }, [id, loadRelease, t, toast]);
 
   const handleAudioFile = (file?: File) => {
     if (!file) return;
@@ -100,6 +103,7 @@ export const EditPage = () => {
     }
     setAudioFile(file);
   };
+
   const handleCoverFile = (file?: File) => {
     if (!file) return;
     if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
@@ -109,11 +113,10 @@ export const EditPage = () => {
     setCoverFile(file);
   };
 
-  const handleSubmit = async () => {
-    if (submitting.current) return;
+  const validateDraft = () => {
     if (!id || !source) {
       toast(t('edited_release_id_required'), 'error');
-      return;
+      return false;
     }
     const validationError = validateReleaseMetadata(
       metadata,
@@ -121,13 +124,29 @@ export const EditPage = () => {
     );
     if (validationError) {
       toast(t(validationError), 'error');
-      return;
+      return false;
+    }
+    if (needsNewProfile && !profileEmail.trim()) {
+      toast(t('profile_email_required'), 'error');
+      return false;
     }
     if (credits < totalCost) {
       toast(t('insufficient_credits'), 'error');
-      return;
+      return false;
     }
+    return true;
+  };
 
+  const openReview = () => {
+    if (releaseStepAction('form', validateDraft()) === 'review') setReviewing(true);
+  };
+
+  const submitFinal = async () => {
+    if (
+      submitting.current
+      || releaseStepAction('review', validateDraft()) !== 'submit'
+      || !id
+    ) return;
     submitting.current = true;
     setLoading(true);
     try {
@@ -138,7 +157,14 @@ export const EditPage = () => {
       form.append('edited_release_id', id);
       form.append('submission_id', submissionId.current);
       form.append('is_edit', 'true');
+      form.append('requires_new_profile', String(needsNewProfile));
+      if (profileEmail.trim()) form.append('profile_email', profileEmail.trim());
+      if (!needsNewProfile) {
+        form.append('mapping_spotify', spotifyUrl.trim());
+        form.append('mapping_apple', appleUrl.trim());
+      }
       await submitRelease(form);
+      invalidateReleases();
       await refreshUser();
       toast(t('Edit submitted successfully!'), 'success');
       navigate('/');
@@ -150,20 +176,43 @@ export const EditPage = () => {
     }
   };
 
+  if (reviewing && source) {
+    return (
+      <div dir={isRtlLanguage(i18n.language) ? 'rtl' : 'ltr'}>
+        <ReleaseReview
+          metadata={metadata}
+          pricing={pricing}
+          balance={credits}
+          audioFile={audioFile}
+          coverFile={coverFile}
+          coverPreview={replacementCoverPreview ?? source.cover_url}
+          needsNewProfile={needsNewProfile}
+          profileEmail={profileEmail}
+          spotifyUrl={spotifyUrl}
+          appleUrl={appleUrl}
+          source={source}
+          submitting={loading}
+          onBack={() => setReviewing(false)}
+          onConfirm={submitFinal}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
-      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto"
+      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background"
       dir={isRtlLanguage(i18n.language) ? 'rtl' : 'ltr'}
     >
       <HomeHeader credits={credits} lang={i18n.language} />
-      <main className="px-4 py-2">
-        <h1 className="text-3xl font-title mb-2">{t('Edit Release')}</h1>
-        <p className="text-sm font-ui text-textSecondary mb-8 leading-relaxed">
+      <main className="mx-auto max-w-md px-4 py-2">
+        <h1 className="mb-2 text-start text-3xl font-title">{t('Edit Release')}</h1>
+        <p className="mb-8 text-start text-sm font-ui leading-relaxed text-textSecondary">
           {t('Update your release metadata and assets.')}
         </p>
 
         <div className="mb-6">
-          <label htmlFor="edit-audio" className="block text-gold font-ui mb-2">
+          <label htmlFor="edit-audio" className="mb-2 block text-start font-ui text-gold">
             1. {t('Audio File')}
           </label>
           <input
@@ -173,16 +222,16 @@ export const EditPage = () => {
             onChange={event => handleAudioFile(event.target.files?.[0])}
             className="sr-only"
           />
-          <label htmlFor="edit-audio" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4">
-            <Music className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
-            <span dir="auto" className="truncate">
+          <label htmlFor="edit-audio" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 focus-within:ring-2 focus-within:ring-gold">
+            <Music aria-hidden="true" className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
+            <span dir="auto" className="truncate text-start">
               {audioFile?.name ?? t('Keep current audio or choose file')}
             </span>
           </label>
         </div>
 
         <div className="mb-6">
-          <label htmlFor="edit-cover" className="block text-gold font-ui mb-2">
+          <label htmlFor="edit-cover" className="mb-2 block text-start font-ui text-gold">
             2. {t('Cover Art')}
           </label>
           <input
@@ -192,35 +241,45 @@ export const EditPage = () => {
             onChange={event => handleCoverFile(event.target.files?.[0])}
             className="sr-only"
           />
-          <label htmlFor="edit-cover" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4">
-            <ImageIcon className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
-            <span dir="auto" className="truncate">
+          <label htmlFor="edit-cover" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 focus-within:ring-2 focus-within:ring-gold">
+            <ImageIcon aria-hidden="true" className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
+            <span dir="auto" className="truncate text-start">
               {coverFile?.name ?? t('Keep current cover or choose file')}
             </span>
           </label>
         </div>
 
         {prefillLoading ? (
-          <p className="py-10 text-center text-textSecondary">{t('Loading...')}</p>
+          <div className="space-y-4 py-4" aria-label={t('Loading...')}>
+            {[0, 1, 2, 3].map(item => (
+              <div key={item} className="h-20 animate-pulse rounded-xl bg-card1" />
+            ))}
+          </div>
         ) : source ? (
           <>
             <ReleaseMetadataFields value={metadata} onChange={setMetadata} />
+            <PlatformMappingFields
+              needsNewProfile={needsNewProfile}
+              onNeedsNewProfileChange={setNeedsNewProfile}
+              profileEmail={profileEmail}
+              onProfileEmailChange={setProfileEmail}
+              spotifyUrl={spotifyUrl}
+              onSpotifyUrlChange={setSpotifyUrl}
+              appleUrl={appleUrl}
+              onAppleUrlChange={setAppleUrl}
+            />
             <div className="pb-8">
               <NitroCostSummary
-                items={[
-                  { label: t('Edit release cost'), amount: pricing.edit_release_price },
-                  ...(metadata.copyrightRequested
-                    ? [{ label: t('Copyright protection cost'), amount: pricing.copyright_price }]
-                    : []),
-                ]}
+                pricing={pricing}
+                isEdit
+                copyrightRequested={metadata.copyrightRequested}
               />
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                onClick={openReview}
+                className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
               >
-                {loading ? t('Processing...') : t('Submit Edit')}
+                {t('Continue to review')}
               </button>
             </div>
           </>

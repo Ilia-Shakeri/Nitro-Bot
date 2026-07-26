@@ -1,4 +1,5 @@
 import type { ReleaseArtist } from '../types/api';
+import { validSubGenre } from './genres';
 
 export interface ReleaseMetadata {
   songName: string;
@@ -75,13 +76,28 @@ export const selectPrimaryArtist = (artists: ReleaseArtist[], index: number) =>
 export const dateFieldMode = (metadata: ReleaseMetadata) =>
   metadata.isRerelease ? ['rerelease', 'original'] as const : ['scheduled'] as const;
 
+export const naturalInputDirection = (
+  value: string,
+  interfaceIsRtl: boolean,
+): 'auto' | 'rtl' | 'ltr' => value ? 'auto' : interfaceIsRtl ? 'rtl' : 'ltr';
+
+export const releaseStepAction = (
+  step: 'form' | 'review',
+  valid: boolean,
+): 'stay' | 'review' | 'submit' => {
+  if (!valid) return 'stay';
+  return step === 'form' ? 'review' : 'submit';
+};
+
 export const validateReleaseMetadata = (
   data: ReleaseMetadata,
   unchangedHistoricalDate?: string,
 ): string | null => {
   if (!data.songName.trim() || !data.genre || !data.releaseDate) return 'required_fields_missing';
   if (data.artists.length === 0) return 'artists_required';
+  if (data.producers.length === 0) return 'producers_required';
   if (data.legalNames.length === 0) return 'legal_names_required';
+  if (data.producers.some(name => !name.trim())) return 'producers_empty';
   if (new Set(data.artists.map(artist => artist.name.trim().toLocaleLowerCase())).size !== data.artists.length) {
     return 'artists_duplicate';
   }
@@ -91,6 +107,10 @@ export const validateReleaseMetadata = (
   if (new Set(data.legalNames.map(name => name.trim().toLocaleLowerCase())).size !== data.legalNames.length) {
     return 'legal_names_duplicate';
   }
+  if (new Set(data.producers.map(name => name.trim().toLocaleLowerCase())).size !== data.producers.length) {
+    return 'producers_duplicate';
+  }
+  if (!validSubGenre(data.genre, data.subGenre)) return 'sub_genre_invalid';
   if (
     data.releaseDate < localTodayIso()
     && data.releaseDate !== unchangedHistoricalDate

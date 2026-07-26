@@ -17,6 +17,7 @@ from release_validation import (
     legacy_artist_name,
     normalize_artists,
     normalize_names,
+    normalize_required_names,
     validate_release_dates,
 )
 from release_service import refund_is_due, user_for_update_statement
@@ -236,11 +237,11 @@ async def create_release(
             raise ReleaseValidationError("legal_names_required")
 
         final_producer_names = (
-            normalize_names(producers, "producers")
+            normalize_required_names(producers, "producers")
             if producers is not None
-            else normalize_names(source_release.producers, "producers")
+            else normalize_required_names(source_release.producers, "producers")
             if source_release
-            else []
+            else normalize_required_names(None, "producers")
         )
 
         final_is_rerelease = (

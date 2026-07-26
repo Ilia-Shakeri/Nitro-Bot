@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { SlidersHorizontal } from 'lucide-react';
 import { MultiValueInput } from './MultiValueInput';
 
 interface Props {
@@ -18,6 +19,10 @@ export const ProducerTagInput = ({ producers, onChange, labelPrefix }: Props) =>
       addLabel={t('Add producer')}
       removeLabel={t('Remove producer')}
       labelPrefix={labelPrefix}
+      required
+      icon={<SlidersHorizontal className="h-5 w-5" />}
+      emptyErrorKey="producers_empty"
+      duplicateErrorKey="producers_duplicate"
     />
   );
 };

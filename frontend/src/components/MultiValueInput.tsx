@@ -1,7 +1,10 @@
 import { useId, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, Tags, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addUniqueValue, removeValue } from '../utils/releaseForm';
+import { naturalInputDirection } from '../utils/releaseForm';
+import { isRtlLanguage } from '../i18n';
 
 interface Props {
   label: string;
@@ -12,6 +15,9 @@ interface Props {
   removeLabel: string;
   labelPrefix?: string;
   required?: boolean;
+  icon?: ReactNode;
+  emptyErrorKey?: string;
+  duplicateErrorKey?: string;
 }
 
 export const MultiValueInput = ({
@@ -23,8 +29,11 @@ export const MultiValueInput = ({
   removeLabel,
   labelPrefix,
   required = false,
+  icon,
+  emptyErrorKey = 'value_empty',
+  duplicateErrorKey = 'value_duplicate',
 }: Props) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const inputId = useId();
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
@@ -32,7 +41,7 @@ export const MultiValueInput = ({
   const addValue = () => {
     const result = addUniqueValue(values, value);
     if (result.error) {
-      setError(t(result.error));
+      setError(t(result.error === 'value_empty' ? emptyErrorKey : duplicateErrorKey));
       return;
     }
     onChange(result.values);
@@ -47,6 +56,9 @@ export const MultiValueInput = ({
       </label>
       <div className="rounded-lg border border-inputBorder bg-inputBg p-3 focus-within:border-gold/60">
         <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center text-textSecondary">
+            {icon ?? <Tags className="h-5 w-5" />}
+          </span>
           <input
             id={inputId}
             type="text"
@@ -61,7 +73,7 @@ export const MultiValueInput = ({
                 addValue();
               }
             }}
-            dir="auto"
+            dir={naturalInputDirection(value, isRtlLanguage(i18n.language))}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${inputId}-error` : undefined}
             className="min-w-0 flex-1 bg-transparent text-textPrimary font-ui outline-none"
@@ -73,7 +85,7 @@ export const MultiValueInput = ({
             aria-label={addLabel}
             className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-gold/40 text-gold hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
-            <Plus className="h-4 w-4" />
+            <Plus aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
         {error && (
@@ -96,7 +108,7 @@ export const MultiValueInput = ({
                   className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-gold/15 hover:bg-gold/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
                   aria-label={`${removeLabel}: ${name}`}
                 >
-                  <X className="h-3 w-3" />
+                  <X aria-hidden="true" className="h-3 w-3" />
                 </button>
               </span>
             ))}

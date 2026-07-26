@@ -87,6 +87,13 @@ def normalize_names(raw: str | list[Any] | None, field: str) -> list[str]:
     return names
 
 
+def normalize_required_names(raw: str | list[Any] | None, field: str) -> list[str]:
+    names = normalize_names(raw, field)
+    if not names:
+        raise ReleaseValidationError(f"{field}_required")
+    return names
+
+
 def normalize_artists(raw: str | list[Any] | None) -> list[dict[str, str]]:
     parsed = _load_json_array(raw, "artists")
     if not parsed:

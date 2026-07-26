@@ -53,8 +53,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const getUser = () =>
-  request<User>('/users/me');
+let userRequest: Promise<User> | null = null;
+
+export const getUser = () => {
+  userRequest ??= request<User>('/users/me').finally(() => {
+    userRequest = null;
+  });
+  return userRequest;
+};
 
 export const updateLanguage = (lang: string) =>
   request<{ status: string; language: string }>('/users/me/language', {
@@ -71,6 +77,9 @@ export const getLedger = () =>
 
 export const getReleases = () =>
   request<Release[]>('/users/me/releases');
+
+export const getRelease = (releaseId: number) =>
+  request<Release>(`/users/me/releases/${releaseId}`);
 
 export const submitRelease = (formData: FormData) =>
   request<{ status: string; release_id: number; credits_left: number; cost_deducted: number }>(

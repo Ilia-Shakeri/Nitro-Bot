@@ -5,6 +5,7 @@ export { nitroUsdCents, tomanCents } from './pricingValues';
 import { DEFAULT_PRICING } from './pricingValues';
 
 let cachedPricing: Pricing | null = null;
+let pricingRequest: Promise<Pricing> | null = null;
 
 export const usePricing = () => {
   const [pricing, setPricing] = useState(cachedPricing ?? DEFAULT_PRICING);
@@ -16,9 +17,14 @@ export const usePricing = () => {
     if (cachedPricing) {
       return;
     }
-    getPricing()
+    pricingRequest ??= getPricing().then(value => {
+      cachedPricing = value;
+      return value;
+    }).finally(() => {
+      pricingRequest = null;
+    });
+    pricingRequest
       .then(value => {
-        cachedPricing = value;
         if (!cancelled) setPricing(value);
       })
       .catch(() => {

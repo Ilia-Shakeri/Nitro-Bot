@@ -16,7 +16,7 @@ const UserContext = createContext<UserContextValue | null>(null);
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser]     = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const { toast } = useToast();
 
   const refreshUser = useCallback(async () => {
@@ -25,29 +25,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setUser(u);
       i18n.changeLanguage(u.language_preference);
     } catch (error) {
-      toast(errorText(error, t), 'error');
+      toast(errorText(error, i18n.t), 'error');
     } finally {
       setLoading(false);
     }
-  }, [i18n, t, toast]);
+  }, [i18n, toast]);
 
   useEffect(() => {
     let active = true;
     const loadUser = async () => {
       try {
-        const u = await getUser();
+        const next = await getUser();
         if (!active) return;
-        setUser(u);
-        i18n.changeLanguage(u.language_preference);
+        setUser(next);
+        await i18n.changeLanguage(next.language_preference);
       } catch (error) {
-        if (active) toast(errorText(error, t), 'error');
+        if (active) toast(errorText(error, i18n.t), 'error');
       } finally {
         if (active) setLoading(false);
       }
     };
-    loadUser();
-    return () => { active = false; };
-  }, [i18n, t, toast]);
+    void loadUser();
+    return () => {
+      active = false;
+    };
+  }, [i18n, toast]);
 
   return (
     <UserContext.Provider value={{ user, loading, refreshUser }}>

@@ -1,12 +1,14 @@
+import { Image as ImageIcon, Music } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Image as ImageIcon, Mail, Music } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { submitRelease } from '../api';
-import { FormToggle } from '../components/FormToggle';
 import { HomeHeader } from '../components/HomeHeader';
 import { NitroCostSummary } from '../components/NitroCostSummary';
+import { PlatformMappingFields } from '../components/PlatformMappingFields';
 import { ReleaseMetadataFields } from '../components/ReleaseMetadataFields';
+import { ReleaseReview } from '../components/ReleaseReview';
+import { useReleases } from '../context/ReleaseContext';
 import { useToast } from '../context/ToastContext';
 import { useUser } from '../context/UserContext';
 import { isRtlLanguage } from '../i18n';
@@ -15,8 +17,11 @@ import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/fo
 import {
   appendReleaseMetadata,
   emptyReleaseMetadata,
+  releaseStepAction,
   validateReleaseMetadata,
 } from '../utils/releaseForm';
+import { useObjectUrl } from '../utils/useObjectUrl';
+import { releaseTotal } from '../utils/releasePresentation';
 
 const newSubmissionId = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -25,6 +30,7 @@ export const UploadPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user, refreshUser } = useUser();
+  const { invalidateReleases } = useReleases();
   const { toast } = useToast();
   const { pricing } = usePricing();
   const submissionId = useRef(newSubmissionId());
@@ -33,14 +39,15 @@ export const UploadPage = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [needsNewProfile, setNeedsNewProfile] = useState(false);
   const [profileEmail, setProfileEmail] = useState('');
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [appleUrl, setAppleUrl] = useState('');
+  const coverPreview = useObjectUrl(coverFile);
   const lang = i18n.language;
   const credits = user?.credits ?? 0;
-  const totalCost = pricing.discounted_release_price
-    + (metadata.copyrightRequested ? pricing.copyright_price : 0);
+  const totalCost = releaseTotal(pricing, false, metadata.copyrightRequested);
 
   const handleAudioFile = (file?: File) => {
     if (!file) return;
@@ -50,6 +57,7 @@ export const UploadPage = () => {
     }
     setAudioFile(file);
   };
+
   const handleCoverFile = (file?: File) => {
     if (!file) return;
     if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
@@ -59,22 +67,34 @@ export const UploadPage = () => {
     setCoverFile(file);
   };
 
-  const handleSubmit = async () => {
-    if (submitting.current) return;
+  const validateDraft = () => {
     const validationError = validateReleaseMetadata(metadata);
     if (!audioFile || !coverFile || validationError) {
       toast(t(validationError ?? 'required_fields_missing'), 'error');
-      return;
+      return false;
     }
     if (needsNewProfile && !profileEmail.trim()) {
       toast(t('profile_email_required'), 'error');
-      return;
+      return false;
     }
     if (credits < totalCost) {
       toast(t('insufficient_credits'), 'error');
-      return;
+      return false;
     }
+    return true;
+  };
 
+  const openReview = () => {
+    if (releaseStepAction('form', validateDraft()) === 'review') setReviewing(true);
+  };
+
+  const submitFinal = async () => {
+    if (
+      submitting.current
+      || releaseStepAction('review', validateDraft()) !== 'submit'
+      || !audioFile
+      || !coverFile
+    ) return;
     submitting.current = true;
     setLoading(true);
     try {
@@ -91,6 +111,7 @@ export const UploadPage = () => {
         if (appleUrl.trim()) form.append('mapping_apple', appleUrl.trim());
       }
       await submitRelease(form);
+      invalidateReleases();
       await refreshUser();
       toast(t('Release submitted successfully!'), 'success');
       navigate('/');
@@ -102,20 +123,42 @@ export const UploadPage = () => {
     }
   };
 
+  if (reviewing) {
+    return (
+      <div dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}>
+        <ReleaseReview
+          metadata={metadata}
+          pricing={pricing}
+          balance={credits}
+          audioFile={audioFile}
+          coverFile={coverFile}
+          coverPreview={coverPreview}
+          needsNewProfile={needsNewProfile}
+          profileEmail={profileEmail}
+          spotifyUrl={spotifyUrl}
+          appleUrl={appleUrl}
+          submitting={loading}
+          onBack={() => setReviewing(false)}
+          onConfirm={submitFinal}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
-      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background max-w-md mx-auto relative overflow-y-auto"
+      className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background"
       dir={isRtlLanguage(lang) ? 'rtl' : 'ltr'}
     >
       <HomeHeader credits={credits} lang={lang} />
-      <main className="px-4 py-2">
-        <h1 className="text-3xl font-title mb-2">{t('Upload Your Art')}</h1>
-        <p className="text-sm font-ui text-textSecondary mb-8 leading-relaxed">
+      <main className="mx-auto max-w-md px-4 py-2">
+        <h1 className="mb-2 text-start text-3xl font-title">{t('Upload Your Art')}</h1>
+        <p className="mb-8 text-start text-sm font-ui leading-relaxed text-textSecondary">
           {t('Publish your next track with clean metadata and platform mapping.')}
         </p>
 
         <div className="mb-6">
-          <label htmlFor="audio-upload" className="block text-gold font-ui mb-2">
+          <label htmlFor="audio-upload" className="mb-2 block text-start font-ui text-gold">
             1. {t('Audio File')} *
           </label>
           <input
@@ -130,9 +173,9 @@ export const UploadPage = () => {
             className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold"
           >
             <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
-              <Music className="h-6 w-6 text-gold" />
+              <Music aria-hidden="true" className="h-6 w-6 text-gold" />
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 text-start">
               <span dir="auto" className="block truncate font-ui">
                 {audioFile?.name ?? t('Drop audio or choose file')}
               </span>
@@ -142,7 +185,7 @@ export const UploadPage = () => {
         </div>
 
         <div className="mb-6">
-          <label htmlFor="cover-upload" className="block text-gold font-ui mb-2">
+          <label htmlFor="cover-upload" className="mb-2 block text-start font-ui text-gold">
             2. {t('Cover Art')} *
           </label>
           <input
@@ -154,12 +197,12 @@ export const UploadPage = () => {
           />
           <label
             htmlFor="cover-upload"
-            className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20"
+            className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 hover:bg-card3/20 focus-within:ring-2 focus-within:ring-gold"
           >
             <span className="me-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gold/50">
-              <ImageIcon className="h-6 w-6 text-gold" />
+              <ImageIcon aria-hidden="true" className="h-6 w-6 text-gold" />
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 text-start">
               <span dir="auto" className="block truncate font-ui">
                 {coverFile?.name ?? t('Drop cover art or choose file')}
               </span>
@@ -169,81 +212,28 @@ export const UploadPage = () => {
         </div>
 
         <ReleaseMetadataFields value={metadata} onChange={setMetadata} />
-
-        <section className="mb-6">
-          <h3 className="text-gold font-ui mb-2 text-sm">9. {t('Mapping')}</h3>
-          <div className="mb-4">
-            <FormToggle
-              id="newProfile"
-              checked={needsNewProfile}
-              onChange={() => setNeedsNewProfile(current => !current)}
-              label={t("I don't have a profile (Create one for me)")}
-            />
-          </div>
-          {!needsNewProfile ? (
-            <div className="space-y-3">
-              <label className="block text-xs text-textSecondary">
-                {t('Spotify')}
-                <input
-                  type="url"
-                  value={spotifyUrl}
-                  onChange={event => setSpotifyUrl(event.target.value)}
-                  dir="ltr"
-                  className="mt-1 w-full rounded-lg border border-inputBorder bg-inputBg p-3 text-textPrimary outline-none focus:border-gold/60"
-                  placeholder="https://open.spotify.com/..."
-                />
-              </label>
-              <label className="block text-xs text-textSecondary">
-                {t('Apple Music')}
-                <input
-                  type="url"
-                  value={appleUrl}
-                  onChange={event => setAppleUrl(event.target.value)}
-                  dir="ltr"
-                  className="mt-1 w-full rounded-lg border border-inputBorder bg-inputBg p-3 text-textPrimary outline-none focus:border-gold/60"
-                  placeholder="https://music.apple.com/..."
-                />
-              </label>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-gold/20 bg-gold/5 p-4">
-              <p className="mb-2 text-xs font-ui text-gold">{t('New profile info needed')}</p>
-              <label className="flex items-center rounded-lg border border-inputBorder bg-inputBg p-3">
-                <Mail className="me-3 h-5 w-5 flex-shrink-0 text-gold" />
-                <span className="sr-only">{t('Profile Email')}</span>
-                <input
-                  type="email"
-                  value={profileEmail}
-                  onChange={event => setProfileEmail(event.target.value)}
-                  dir="ltr"
-                  className="w-full bg-transparent text-sm text-textPrimary outline-none"
-                  placeholder={t('Profile Email')}
-                />
-              </label>
-            </div>
-          )}
-        </section>
+        <PlatformMappingFields
+          needsNewProfile={needsNewProfile}
+          onNeedsNewProfileChange={setNeedsNewProfile}
+          profileEmail={profileEmail}
+          onProfileEmailChange={setProfileEmail}
+          spotifyUrl={spotifyUrl}
+          onSpotifyUrlChange={setSpotifyUrl}
+          appleUrl={appleUrl}
+          onAppleUrlChange={setAppleUrl}
+        />
 
         <div className="pb-8">
           <NitroCostSummary
-            items={[
-              {
-                label: t('New release cost'),
-                amount: pricing.discounted_release_price,
-                originalAmount: pricing.original_release_price,
-              },
-              ...(metadata.copyrightRequested
-                ? [{ label: t('Copyright protection cost'), amount: pricing.copyright_price }]
-                : []),
-            ]}
+            pricing={pricing}
+            copyrightRequested={metadata.copyrightRequested}
           />
           <button
             type="button"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            onClick={openReview}
+            className="mt-4 flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-gold to-[#B8860B] py-4 font-title text-background shadow-lg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
-            {loading ? t('Processing...') : t("Let's Cook!")}
+            {t('Continue to review')}
           </button>
         </div>
       </main>

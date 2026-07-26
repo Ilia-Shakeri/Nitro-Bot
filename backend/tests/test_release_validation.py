@@ -6,6 +6,7 @@ from release_validation import (
     ReleaseValidationError,
     normalize_artists,
     normalize_names,
+    normalize_required_names,
     validate_release_dates,
 )
 
@@ -127,3 +128,17 @@ def test_duplicate_legal_names_are_case_insensitive():
 def test_malformed_json_is_rejected():
     with pytest.raises(ReleaseValidationError, match="artists_invalid"):
         normalize_artists("{broken")
+
+
+@pytest.mark.parametrize("raw", [None, "", "[]", [], '["   "]', '{"name":"x"}'])
+def test_producers_are_required_and_must_be_valid(raw):
+    with pytest.raises(
+        ReleaseValidationError,
+        match="producers_(required|empty|invalid)",
+    ):
+        normalize_required_names(raw, "producers")
+
+
+def test_producer_duplicates_are_rejected():
+    with pytest.raises(ReleaseValidationError, match="producers_duplicate"):
+        normalize_required_names('["Producer", " producer "]', "producers")

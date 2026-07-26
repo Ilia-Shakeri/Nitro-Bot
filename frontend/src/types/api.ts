@@ -1,5 +1,8 @@
 export interface User {
   telegram_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
   language_preference: string;
   credits: number;
   referral_points: number;
@@ -68,6 +71,7 @@ export interface Release {
   is_edit: boolean;
   copyright_requested: boolean;
   charged_cost: number;
+  refunded_at: string | null;
   created_at: string;
 }
 

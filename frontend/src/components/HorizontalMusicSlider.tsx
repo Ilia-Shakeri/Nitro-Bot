@@ -1,69 +1,106 @@
-import { useState, useEffect } from 'react';
+import { ArrowRight, Edit3 } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Edit3, Eye } from 'lucide-react';
-import { getReleases } from '../api';
-import type { Release } from '../types/api';
+import { useReleases } from '../context/ReleaseContext';
 import { useToast } from '../context/ToastContext';
 import { errorText } from '../utils/formMessages';
+import {
+  formatReleaseDate,
+  releaseDateSentenceKey,
+} from '../utils/releasePresentation';
+import { preloadEdit, preloadReleases } from '../utils/routePreload';
+import { ReleaseStatusBadge } from './ReleaseStatusBadge';
 
 export const HorizontalMusicSlider = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [releases, setReleases] = useState<Release[]>([]);
+  const { releases, loading, loadReleases } = useReleases();
 
   useEffect(() => {
-    getReleases().then(setReleases).catch(error => toast(errorText(error, t), 'error'));
-  }, [t, toast]);
+    if (!releases) {
+      void loadReleases().catch(error => toast(errorText(error, t), 'error'));
+    }
+  }, [loadReleases, releases, t, toast]);
 
   return (
-    <div className="w-full px-4 mb-8">
-      <div className="flex items-center gap-2 mb-1">
+    <section className="mb-8 w-full px-4">
+      <div className="mb-1 flex items-center justify-between gap-3">
         <h2 className="text-2xl font-title">{t('My Music')}</h2>
+        <button
+          type="button"
+          onPointerEnter={preloadReleases}
+          onPointerDown={preloadReleases}
+          onFocus={preloadReleases}
+          onClick={() => navigate('/releases')}
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs font-ui text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+        >
+          {t('View all')}
+          <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-180" />
+        </button>
       </div>
-      <p className="text-textSecondary text-sm font-ui mb-4">{t('Ordered by your most listened tracks')}</p>
+      <p className="mb-4 text-sm font-ui text-textSecondary">{t('Ordered by your most listened tracks')}</p>
 
-      {releases.length === 0 ? (
-        <p className="text-center font-light-ui text-sm text-textSecondary py-3">
-          {t('No releases yet')}
-        </p>
-      ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
-          {releases.map(r => (
-            <div key={r.id} className="flex-shrink-0 w-32">
-              <div className="w-32 h-32 rounded-xl mb-2 relative overflow-hidden bg-card2">
-                {r.cover_url && (
-                  <img src={r.cover_url} alt={r.song_name} className="w-full h-full object-cover" />
-                )}
-                <div
-                  className={`absolute start-2 top-2 px-2 py-0.5 rounded-full text-xs font-ui flex items-center gap-1 ${r.status === 'failed' ? 'bg-red-500/80 text-white' : 'bg-black/60'}`}
-                  title={r.status === 'failed' ? t('Release failed tooltip') : undefined}
-                >
-                  <Eye className="w-3 h-3" />
-                  {t(r.status)}
-                </div>
-                <button
-                  type="button"
-                  aria-label={t('Edit')}
-                  onClick={() => navigate(`/edit/${r.id}`)}
-                  className="absolute bottom-2 end-2 w-8 h-8 rounded-full bg-gold text-background flex items-center justify-center shadow-md hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
-              </div>
-              <h3 dir="auto" className="truncate text-start text-sm font-ui">{r.song_name}</h3>
-              <p dir="auto" className="truncate text-start text-xs font-light-ui text-textSecondary">
-                {r.artists?.find(artist => artist.role === 'primary')?.name ?? r.artist_name}
-              </p>
-              <p className="mt-1 text-start text-[10px] text-textSecondary">
-                {r.is_rerelease ? t('Re-release Date') : t('Scheduled Release Date')}:{' '}
-                <span dir="ltr" className="inline-block">{r.release_date}</span>
-              </p>
+      {loading && !releases ? (
+        <div aria-label={t('Loading...')} className="flex gap-4 overflow-hidden pb-4">
+          {[0, 1, 2].map(item => (
+            <div key={item} className="w-32 flex-shrink-0">
+              <div className="h-32 w-32 animate-pulse rounded-xl bg-card2" />
+              <div className="mt-2 h-4 w-24 animate-pulse rounded bg-card2" />
             </div>
           ))}
         </div>
+      ) : !releases?.length ? (
+        <p className="py-3 text-center text-sm font-light-ui text-textSecondary">
+          {t('No releases yet')}
+        </p>
+      ) : (
+        <div className="flex snap-x gap-4 overflow-x-auto pb-4 hide-scrollbar">
+          {releases.slice(0, 8).map(release => {
+            const primary = release.artists?.find(artist => artist.role === 'primary')?.name
+              ?? release.artist_name;
+            const date = formatReleaseDate(release.release_date, i18n.language);
+            return (
+              <article key={release.id} className="w-32 flex-shrink-0 snap-start">
+                <div className="relative mb-2 h-32 w-32 overflow-hidden rounded-xl bg-card2">
+                  {release.cover_url && (
+                    <img
+                      src={release.cover_url}
+                      alt={release.song_name}
+                      width="128"
+                      height="128"
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  )}
+                  <div className="absolute start-2 top-2">
+                    <ReleaseStatusBadge release={release} />
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={t('Edit')}
+                    onPointerEnter={preloadEdit}
+                    onPointerDown={preloadEdit}
+                    onFocus={preloadEdit}
+                    onClick={() => navigate(`/edit/${release.id}`)}
+                    className="absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-full bg-gold text-background shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    <Edit3 aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                </div>
+                <h3 dir="auto" className="truncate text-start text-sm font-ui">{release.song_name}</h3>
+                <p dir="auto" className="truncate text-start text-xs font-light-ui text-textSecondary">
+                  {primary}
+                </p>
+                <p className="mt-1 truncate text-start text-[10px] leading-4 text-textSecondary">
+                  {t(releaseDateSentenceKey(release), { date })}
+                </p>
+              </article>
+            );
+          })}
+        </div>
       )}
-    </div>
+    </section>
   );
 };

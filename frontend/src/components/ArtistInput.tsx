@@ -1,12 +1,14 @@
 import { useId, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, Users, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ReleaseArtist } from '../types/api';
 import {
   addArtist as addArtistValue,
   removeArtist as removeArtistValue,
   selectPrimaryArtist,
+  naturalInputDirection,
 } from '../utils/releaseForm';
+import { isRtlLanguage } from '../i18n';
 
 interface Props {
   artists: ReleaseArtist[];
@@ -15,7 +17,7 @@ interface Props {
 }
 
 export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const inputId = useId();
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +48,7 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
       </label>
       <div className="rounded-lg border border-inputBorder bg-inputBg p-3 focus-within:border-gold/60">
         <div className="flex items-center gap-2">
+          <Users aria-hidden="true" className="h-5 w-5 flex-shrink-0 text-textSecondary" />
           <input
             id={inputId}
             value={value}
@@ -59,7 +62,7 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
                 addArtist();
               }
             }}
-            dir="auto"
+            dir={naturalInputDirection(value, isRtlLanguage(i18n.language))}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${inputId}-error` : undefined}
             className="min-w-0 flex-1 bg-transparent text-textPrimary font-ui outline-none"
@@ -71,7 +74,7 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
             aria-label={t('Add artist')}
             className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-gold/40 text-gold hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
-            <Plus className="h-4 w-4" />
+            <Plus aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
         {error && <p id={`${inputId}-error`} role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
@@ -104,7 +107,7 @@ export const ArtistInput = ({ artists, onChange, labelPrefix }: Props) => {
                   aria-label={`${t('Remove artist')}: ${artist.name}`}
                   className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full text-textSecondary hover:bg-gold/15 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
                 >
-                  <X className="h-4 w-4" />
+                  <X aria-hidden="true" className="h-4 w-4" />
                 </button>
               </div>
             ))}

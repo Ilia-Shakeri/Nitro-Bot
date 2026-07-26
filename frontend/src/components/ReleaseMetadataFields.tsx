@@ -1,4 +1,4 @@
-import { Calendar, Music } from 'lucide-react';
+import { BadgeCheck, Calendar, Music } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ArtistInput } from './ArtistInput';
 import { FormToggle } from './FormToggle';
@@ -6,8 +6,10 @@ import { GenreSelect } from './GenreSelect';
 import { MultiValueInput } from './MultiValueInput';
 import { PersianDatePicker } from './PersianDatePicker';
 import { ProducerTagInput } from './ProducerTagInput';
+import { ReleaseField } from './ReleaseField';
+import { isRtlLanguage } from '../i18n';
 import type { ReleaseMetadata } from '../utils/releaseForm';
-import { localTodayIso } from '../utils/releaseForm';
+import { localTodayIso, naturalInputDirection } from '../utils/releaseForm';
 
 interface Props {
   value: ReleaseMetadata;
@@ -15,30 +17,30 @@ interface Props {
 }
 
 export const ReleaseMetadataFields = ({ value, onChange }: Props) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const update = <K extends keyof ReleaseMetadata>(key: K, next: ReleaseMetadata[K]) =>
     onChange({ ...value, [key]: next });
   const today = localTodayIso();
 
   return (
-    <div className="space-y-4 mb-6">
-      <div>
-        <label htmlFor="song-name" className="block text-gold font-ui mb-2 text-sm">
-          3. {t('Song Name')} *
-        </label>
-        <div className="flex items-center rounded-lg border border-inputBorder bg-inputBg p-3 focus-within:border-gold/60">
-          <Music className="me-3 h-5 w-5 flex-shrink-0 text-textSecondary" />
-          <input
-            id="song-name"
-            type="text"
-            value={value.songName}
-            dir="auto"
-            onChange={event => update('songName', event.target.value)}
-            className="w-full bg-transparent text-textPrimary font-ui outline-none"
-            placeholder={t('song_placeholder')}
-          />
-        </div>
-      </div>
+    <div className="mb-6 space-y-4">
+      <ReleaseField
+        id="song-name"
+        label={t('Song Name')}
+        labelPrefix="3."
+        required
+        icon={<Music className="h-5 w-5" />}
+      >
+        <input
+          id="song-name"
+          type="text"
+          value={value.songName}
+          dir={naturalInputDirection(value.songName, isRtlLanguage(i18n.language))}
+          onChange={event => update('songName', event.target.value)}
+          className="w-full bg-transparent text-start font-ui text-textPrimary outline-none"
+          placeholder={t('song_placeholder')}
+        />
+      </ReleaseField>
 
       <ArtistInput
         labelPrefix="4."
@@ -59,70 +61,75 @@ export const ReleaseMetadataFields = ({ value, onChange }: Props) => {
         removeLabel={t('Remove legal name')}
         labelPrefix="6."
         required
+        icon={<BadgeCheck className="h-5 w-5" />}
       />
 
-      <div className="rounded-xl border border-inputBorder bg-card1 p-3">
-        <label htmlFor="is-rerelease" className="flex min-h-11 cursor-pointer items-center gap-3">
-          <input
-            id="is-rerelease"
-            type="checkbox"
-            checked={value.isRerelease}
-            onChange={event => {
-              const checked = event.target.checked;
-              onChange({
-                ...value,
-                isRerelease: checked,
-                originalReleaseDate: checked ? value.originalReleaseDate : '',
-              });
-            }}
-            className="h-5 w-5 rounded border-inputBorder accent-[#D4AF37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-          />
-          <span className="text-sm font-ui text-textPrimary">
-            {t('This track is a re-release')}
-          </span>
-        </label>
-        <p className="mt-1 text-xs text-textSecondary">
-          {t('rerelease_description')}
-        </p>
-      </div>
-
       <div className="space-y-3">
-        <div>
-          <label className="block text-gold font-ui mb-2 text-sm">
-            7. {t(value.isRerelease ? 'Re-release Date' : 'Scheduled Release Date')} *
-          </label>
-          <div className="flex items-center rounded-lg border border-inputBorder bg-inputBg p-3">
-            <Calendar className="me-3 h-5 w-5 flex-shrink-0 text-textSecondary" />
-            <PersianDatePicker
-              value={value.releaseDate}
-              minDate={today}
-              ariaLabel={t(value.isRerelease ? 'Re-release Date' : 'Scheduled Release Date')}
-              onChange={releaseDate => update('releaseDate', releaseDate)}
+        <ReleaseField
+          id="scheduled-release-date"
+          label={t(value.isRerelease ? 'Re-release Date' : 'Scheduled Release Date')}
+          labelPrefix="7."
+          required
+          icon={<Calendar className="h-5 w-5" />}
+        >
+          <PersianDatePicker
+            id="scheduled-release-date"
+            value={value.releaseDate}
+            minDate={today}
+            ariaLabel={t(value.isRerelease ? 'Re-release Date' : 'Scheduled Release Date')}
+            onChange={releaseDate => update('releaseDate', releaseDate)}
+          />
+        </ReleaseField>
+
+        <div className="rounded-xl border border-inputBorder bg-card1 p-3">
+          <label htmlFor="is-rerelease" className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input
+              id="is-rerelease"
+              type="checkbox"
+              checked={value.isRerelease}
+              onChange={event => {
+                const checked = event.target.checked;
+                onChange({
+                  ...value,
+                  isRerelease: checked,
+                  originalReleaseDate: checked ? value.originalReleaseDate : '',
+                });
+              }}
+              className="h-5 w-5 flex-shrink-0 rounded border-inputBorder accent-[#D4AF37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
             />
-          </div>
+            <span className="text-start text-sm font-ui text-textPrimary">
+              {t('This track is a re-release')}
+            </span>
+          </label>
+          <p className="mt-1 text-start text-xs leading-relaxed text-textSecondary">
+            {t('rerelease_description')}
+          </p>
         </div>
+
         {value.isRerelease && (
-          <div>
-            <label className="block text-gold font-ui mb-2 text-sm">
-              {t('Original Release Date')} *
-            </label>
-            <div className="flex items-center rounded-lg border border-inputBorder bg-inputBg p-3">
-              <Calendar className="me-3 h-5 w-5 flex-shrink-0 text-textSecondary" />
+          <div className="space-y-1">
+            <ReleaseField
+              id="original-release-date"
+              label={t('Original Release Date')}
+              required
+              icon={<Calendar className="h-5 w-5" />}
+            >
               <PersianDatePicker
+                id="original-release-date"
                 value={value.originalReleaseDate}
                 ariaLabel={t('Original Release Date')}
                 onChange={originalReleaseDate => update('originalReleaseDate', originalReleaseDate)}
               />
-            </div>
-            <p className="mt-1 text-xs text-textSecondary">
+            </ReleaseField>
+            <p className="text-start text-xs leading-relaxed text-textSecondary">
               {t('original_release_date_description')}
             </p>
           </div>
         )}
       </div>
 
-      <div className="relative z-40">
-        <h3 className="text-gold font-ui mb-2 text-sm">8. {t('Genre')} *</h3>
+      <div>
+        <h3 className="mb-2 text-start text-sm font-ui text-gold">8. {t('Genre')} *</h3>
         <GenreSelect
           genre={value.genre}
           subGenre={value.subGenre}

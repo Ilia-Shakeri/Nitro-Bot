@@ -14,6 +14,7 @@ from sqlalchemy.future import select
 
 from database import AsyncSessionLocal
 from models import User, Transaction, SupportMessage, SupportTicket, get_naive_utc
+from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "REPLACE_WITH_YOUR_TOKEN")
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "-1000000000")
@@ -194,6 +195,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 telegram_id=tg_id,
                 username=message.from_user.username,
                 first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
                 language_preference="fa",
                 credits=0,
                 referred_by=referrer_id,
@@ -203,6 +205,13 @@ async def cmd_start(message: types.Message, command: CommandObject):
         elif referrer_id and user.referred_by is None:
             user.referred_by = referrer_id
             should_award_referral = True
+
+        sync_telegram_profile(
+            user,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+            username=message.from_user.username,
+        )
 
         if referrer_id and should_award_referral:
             ref_result = await db.execute(select(User).where(User.telegram_id == referrer_id))

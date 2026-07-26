@@ -17,6 +17,9 @@ class UserLanguageUpdate(BaseModel):
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     telegram_id: int
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     language_preference: str
     credits: int
     referral_points: int = 0
@@ -89,6 +92,7 @@ class ReleaseOut(BaseModel):
     is_edit: bool
     copyright_requested: bool
     charged_cost: int
+    refunded_at: datetime | None
     created_at: datetime
 
 

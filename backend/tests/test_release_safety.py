@@ -34,3 +34,14 @@ def test_migration_backfills_legacy_metadata_and_dates():
     assert "release_date_value" in migration
     assert "EXCEPTION WHEN datetime_field_overflow OR invalid_datetime_format" in migration
     assert "server_default=sa.false()" in migration
+
+
+def test_last_name_migration_is_nullable_and_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "009_add_user_last_name.py"
+    ).read_text(encoding="utf-8")
+    assert 'sa.Column("last_name", sa.String(), nullable=True)' in migration
+    assert 'op.drop_column("users", "last_name")' in migration

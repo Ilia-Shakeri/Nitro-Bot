@@ -55,3 +55,20 @@ async def get_tg_id(x_telegram_init_data: str = Header(None)) -> int:
         return int(user_data["id"])
     except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         raise HTTPException(status_code=401, detail="Invalid user data in Telegram auth")
+
+
+async def get_telegram_user(x_telegram_init_data: str = Header(None)) -> dict:
+    """Return profile fields only from signed Telegram initData."""
+    if SKIP_TELEGRAM_AUTH:
+        return {"id": _DEV_USER_ID}
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram authentication")
+    parsed = _verify(x_telegram_init_data)
+    if not parsed:
+        raise HTTPException(status_code=401, detail="Invalid Telegram authentication")
+    try:
+        user_data = json.loads(parsed.get("user", "{}"))
+        user_data["id"] = int(user_data["id"])
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        raise HTTPException(status_code=401, detail="Invalid user data in Telegram auth") from None
+    return user_data

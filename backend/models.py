@@ -16,6 +16,7 @@ class User(Base):
     telegram_id = Column(BigInteger, primary_key=True, index=True)
     username = Column(String, nullable=True)
     first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
     language_preference = Column(String, default="fa")
     credits = Column(Integer, default=0)
     referred_by = Column(BigInteger, nullable=True)

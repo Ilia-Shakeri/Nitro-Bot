@@ -26,9 +26,11 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
   const isRTL = isRtlLanguage(i18n.language);
   const user = WebApp.initDataUnsafe?.user;
   const telegramId = apiUser?.telegram_id ?? user?.id;
-  const telegramName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : '';
-  const name = telegramName || (telegramId != null ? String(telegramId) : '');
-  const handle = user?.username ? `@${user.username}` : `ID: ${telegramId ?? '---'}`;
+  const storedName = [apiUser?.first_name, apiUser?.last_name].filter(Boolean).join(' ');
+  const sdkName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : '';
+  const name = storedName || sdkName || (telegramId != null ? String(telegramId) : t('Unknown user'));
+  const username = apiUser?.username || user?.username;
+  const handle = username ? `@${username}` : '';
   const botUsername = String(import.meta.env.VITE_BOT_USERNAME || 'NitroBot').replace(/^@/, '');
   const referralLink = telegramId ? `https://t.me/${botUsername}?start=ref_${telegramId}` : '';
 
@@ -97,8 +99,8 @@ export const ProfileModal = ({ isOpen, onClose, initialTab = 'settings' }: Props
               : <UserRound className="w-9 h-9 text-gold" />
             }
           </div>
-          <h3 className="font-title text-xl text-textPrimary mb-1">{name}</h3>
-          <p className="font-light-ui text-sm text-textSecondary">{handle}</p>
+          <h3 dir="auto" className="mb-1 font-title text-xl text-textPrimary">{name}</h3>
+          {handle && <p dir="ltr" className="font-light-ui text-sm text-textSecondary">{handle}</p>}
         </div>
 
         <div className="grid grid-cols-2 mb-4 gap-2 p-1 bg-background rounded-2xl mx-5">

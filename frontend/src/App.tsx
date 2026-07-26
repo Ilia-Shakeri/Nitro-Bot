@@ -4,6 +4,7 @@ import WebApp from '@twa-dev/sdk';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { UserProvider } from './context/UserContext';
+import { ReleaseProvider } from './context/ReleaseContext';
 import { ToastContainer } from './components/Toast';
 import { LanguageModal } from './components/LanguageModal';
 import { HomePage } from './pages/HomePage';
@@ -12,10 +13,12 @@ const UploadPage = lazy(() => import('./pages/UploadPage').then(module => ({ def
 const EditPage = lazy(() => import('./pages/EditPage').then(module => ({ default: module.EditPage })));
 const SupportPage = lazy(() => import('./pages/SupportPage').then(module => ({ default: module.SupportPage })));
 const PolicyPage = lazy(() => import('./pages/PolicyPage').then(module => ({ default: module.PolicyPage })));
+const ReleasesPage = lazy(() => import('./pages/ReleasesPage').then(module => ({ default: module.ReleasesPage })));
 
 const RouteLoader = () => (
-  <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background flex items-center justify-center">
-    <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
+  <div className="min-h-[var(--tg-viewport-stable-height,100vh)] bg-background px-4 pt-20">
+    <div className="mx-auto h-8 w-48 animate-pulse rounded-lg bg-card1" />
+    <div className="mx-auto mt-6 h-52 max-w-md animate-pulse rounded-2xl bg-card1" />
   </div>
 );
 
@@ -40,15 +43,18 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <UserProvider>
-          <Suspense fallback={<RouteLoader />}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/upload" element={<UploadPage />} />
-              <Route path="/edit/:id" element={<EditPage />} />
-              <Route path="/support" element={<SupportPage />} />
-              <Route path="/policy" element={<PolicyPage />} />
-            </Routes>
-          </Suspense>
+          <ReleaseProvider>
+            <Suspense fallback={<RouteLoader />}>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/upload" element={<UploadPage />} />
+                <Route path="/edit/:id" element={<EditPage />} />
+                <Route path="/releases" element={<ReleasesPage />} />
+                <Route path="/support" element={<SupportPage />} />
+                <Route path="/policy" element={<PolicyPage />} />
+              </Routes>
+            </Suspense>
+          </ReleaseProvider>
           <LanguageModal />
           <ToastContainer />
         </UserProvider>

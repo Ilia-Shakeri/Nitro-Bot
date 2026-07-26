@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
+  id?: string;
   value?: string;
   onChange: (isoDate: string) => void;
   minDate?: string;
@@ -27,13 +28,15 @@ const isoDate = (value: Date) =>
   `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
 
 export const PersianDatePicker = ({
+  id,
   value,
   onChange,
   minDate,
   ariaLabel,
 }: Props) => {
   const { t, i18n } = useTranslation();
-  const buttonId = useId();
+  const generatedId = useId();
+  const buttonId = id ?? generatedId;
   const now = new Date();
   const initialDate = parseIsoDate(value);
   const minimum = parseIsoDate(minDate);
@@ -98,7 +101,7 @@ export const PersianDatePicker = ({
         <div
           role="dialog"
           aria-label={ariaLabel ?? t('Select release date')}
-          className="absolute start-0 top-full z-50 mt-2 w-72 rounded-2xl border border-gold/25 bg-card1 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.7)]"
+          className="absolute start-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-gold/25 bg-card1 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.7)]"
         >
           <div className="mb-3 flex items-center justify-between">
             <button
