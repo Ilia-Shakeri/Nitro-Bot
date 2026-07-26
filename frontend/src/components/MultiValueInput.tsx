@@ -9,6 +9,7 @@ interface Props {
   placeholder: string;
   values: string[];
   onChange: (values: string[]) => void;
+  onCommit: (values: string[]) => void;
   addLabel: string;
   removeLabel: string;
   labelPrefix?: string;
@@ -26,6 +27,7 @@ export const MultiValueInput = ({
   placeholder,
   values,
   onChange,
+  onCommit,
   addLabel,
   removeLabel,
   labelPrefix,
@@ -47,8 +49,7 @@ export const MultiValueInput = ({
       setError(t(result.error === 'value_empty' ? emptyErrorKey : duplicateErrorKey));
       return;
     }
-    onChange(result.values);
-    onPendingChange('');
+    onCommit(result.values);
     setError('');
   };
 
@@ -58,7 +59,13 @@ export const MultiValueInput = ({
         {labelPrefix ? `${labelPrefix} ` : ''}{label}{required ? ' *' : ''}
       </label>
       <div className="rounded-lg border border-inputBorder bg-inputBg p-3 focus-within:border-gold/60">
-        <div className="flex items-center gap-2">
+        <form
+          className="flex items-center gap-2"
+          onSubmit={event => {
+            event.preventDefault();
+            addValue();
+          }}
+        >
           <span aria-hidden="true" className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center text-textSecondary">
             {icon ?? <Tags className="h-5 w-5" />}
           </span>
@@ -70,29 +77,22 @@ export const MultiValueInput = ({
               onPendingChange(event.target.value);
               setError('');
             }}
-            onKeyDown={event => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                addValue();
-              }
-            }}
             dir="ltr"
             lang="en"
-            enterKeyHint="done"
+            enterKeyHint="next"
             aria-invalid={Boolean(externalError || error)}
             aria-describedby={externalError || error ? `${inputId}-error` : undefined}
             className="min-w-0 flex-1 bg-transparent text-left text-textPrimary font-ui outline-none"
             placeholder={placeholder}
           />
           <button
-            type="button"
-            onClick={addValue}
+            type="submit"
             aria-label={addLabel}
             className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-gold/40 text-gold hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
             <Plus aria-hidden="true" className="h-4 w-4" />
           </button>
-        </div>
+        </form>
         {(externalError || error) && (
           <p id={`${inputId}-error`} role="alert" className="mt-2 text-xs text-red-400">
             {externalError ? t(externalError) : error}

@@ -5,6 +5,7 @@ import { MultiValueInput } from './MultiValueInput';
 interface Props {
   producers: string[];
   onChange: (producers: string[]) => void;
+  onCommit: (producers: string[]) => void;
   labelPrefix?: string;
   pendingValue: string;
   onPendingChange: (value: string) => void;
@@ -14,6 +15,7 @@ interface Props {
 export const ProducerTagInput = ({
   producers,
   onChange,
+  onCommit,
   pendingValue,
   onPendingChange,
   externalError,
@@ -26,6 +28,7 @@ export const ProducerTagInput = ({
       placeholder={t('producer_placeholder')}
       values={producers}
       onChange={onChange}
+      onCommit={onCommit}
       pendingValue={pendingValue}
       onPendingChange={onPendingChange}
       externalError={externalError}

@@ -33,10 +33,31 @@ const same = (actual: unknown, expected: unknown, message: string) => {
 };
 
 const proxyConfig = readFileSync('nginx.conf', 'utf8');
+const artistInputSource = readFileSync('src/components/ArtistInput.tsx', 'utf8');
+const multiValueInputSource = readFileSync('src/components/MultiValueInput.tsx', 'utf8');
+const metadataFieldsSource = readFileSync('src/components/ReleaseMetadataFields.tsx', 'utf8');
 for (const route of ['users', 'releases', 'transactions', 'support', 'pricing']) {
   assert(proxyConfig.includes(route), `Nginx must proxy ${route}`);
 }
 assert(proxyConfig.includes('proxy_pass http://backend:8000'), 'Nginx must reach backend');
+assert(
+  artistInputSource.includes('onSubmit={event =>')
+    && artistInputSource.includes('onCommit(result.artists)')
+    && artistInputSource.includes('type="submit"'),
+  'artist keyboard submit must atomically commit',
+);
+assert(
+  multiValueInputSource.includes('onSubmit={event =>')
+    && multiValueInputSource.includes('onCommit(result.values)')
+    && multiValueInputSource.includes('type="submit"'),
+  'producer and legal-name keyboard submit must atomically commit',
+);
+for (const field of ['pendingArtist', 'pendingProducer', 'pendingLegalName']) {
+  assert(
+    metadataFieldsSource.includes(`${field}: ''`),
+    `${field} must clear in the same parent update as its added value`,
+  );
+}
 
 let invalidResponseError = '';
 try {

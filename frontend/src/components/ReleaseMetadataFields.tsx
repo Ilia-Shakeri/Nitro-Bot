@@ -54,6 +54,7 @@ export const ReleaseMetadataFields = ({ value, onChange, fieldErrors = {} }: Pro
         labelPrefix="4."
         artists={value.artists}
         onChange={artists => update('artists', artists)}
+        onCommit={artists => onChange({ ...value, artists, pendingArtist: '' })}
         pendingValue={value.pendingArtist}
         onPendingChange={pendingArtist => update('pendingArtist', pendingArtist)}
         externalError={fieldErrors.artists}
@@ -62,6 +63,7 @@ export const ReleaseMetadataFields = ({ value, onChange, fieldErrors = {} }: Pro
         labelPrefix="5."
         producers={value.producers}
         onChange={producers => update('producers', producers)}
+        onCommit={producers => onChange({ ...value, producers, pendingProducer: '' })}
         pendingValue={value.pendingProducer}
         onPendingChange={pendingProducer => update('pendingProducer', pendingProducer)}
         externalError={fieldErrors.producers}
@@ -71,6 +73,7 @@ export const ReleaseMetadataFields = ({ value, onChange, fieldErrors = {} }: Pro
         placeholder={t('legal_name_placeholder')}
         values={value.legalNames}
         onChange={legalNames => update('legalNames', legalNames)}
+        onCommit={legalNames => onChange({ ...value, legalNames, pendingLegalName: '' })}
         pendingValue={value.pendingLegalName}
         onPendingChange={pendingLegalName => update('pendingLegalName', pendingLegalName)}
         externalError={fieldErrors.legal_names}
