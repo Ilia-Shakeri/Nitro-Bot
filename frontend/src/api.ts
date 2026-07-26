@@ -8,6 +8,7 @@ import type {
   Transaction,
   User,
 } from './types/api';
+import { parseApiResponse } from './utils/apiResponse';
 
 const isDev = import.meta.env.MODE === 'development';
 const BASE   = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000' : '');
@@ -46,11 +47,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: { ...authHeaders(), ...(init.headers ?? {}) },
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`);
-  }
-  return res.json() as Promise<T>;
+  return parseApiResponse<T>(res);
 }
 
 let userRequest: Promise<User> | null = null;

@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { isRtlLanguage, TRANSLATIONS } from '../src/i18n';
 import { DEFAULT_PRICING, nitroUsdCents, tomanCents } from '../src/pricingValues';
 import { changeMainGenre, validSubGenre } from '../src/utils/genres';
+import { parseApiResponse } from '../src/utils/apiResponse';
 import {
   effectivePaymentMethod,
   paymentMethodsForLanguage,
@@ -34,6 +36,33 @@ const assert = (condition: unknown, message: string) => {
 const same = (actual: unknown, expected: unknown, message: string) => {
   assert(JSON.stringify(actual) === JSON.stringify(expected), message);
 };
+
+const proxyConfig = readFileSync('nginx.conf', 'utf8');
+for (const route of ['users', 'releases', 'transactions', 'support', 'pricing']) {
+  assert(proxyConfig.includes(route), `Nginx must proxy ${route}`);
+}
+assert(proxyConfig.includes('proxy_pass http://backend:8000'), 'Nginx API routes must reach backend');
+
+let invalidResponseError = '';
+try {
+  await parseApiResponse(
+    new Response('<!doctype html>', {
+      status: 200,
+      headers: { 'content-type': 'text/html' },
+    }),
+  );
+} catch (error) {
+  invalidResponseError = error instanceof Error ? error.message : '';
+}
+assert(invalidResponseError === 'api_response_invalid', 'HTML API response must not enter JSON parsing');
+
+const parsedResponse = await parseApiResponse<{ status: string }>(
+  new Response('{"status":"ok"}', {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  }),
+);
+assert(parsedResponse.status === 'ok', 'JSON API response must parse');
 
 const initial = emptyReleaseMetadata();
 assert(!initial.copyrightRequested, 'copyright must start off');

@@ -126,6 +126,9 @@ services:
         VITE_API_URL: ${VITE_API_URL:-}
         VITE_BOT_USERNAME: ${VITE_BOT_USERNAME:-}
     container_name: nitro-bot-frontend
+    depends_on:
+      backend:
+        condition: service_started
     restart: always
     networks:
       - nitro_internal_net
