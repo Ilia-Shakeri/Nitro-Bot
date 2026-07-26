@@ -10,6 +10,7 @@ from sqlalchemy.future import select
 from auth import get_tg_id
 from database import get_db
 from models import User, Transaction, Release
+from payment_methods import ALLOWED_PAYMENT_METHODS
 from pricing import PRICING
 from schemas import LedgerOut, ReceiptSubmitResponse, UsdtRateOut
 import storage
@@ -18,10 +19,6 @@ from bot import notify_admin_new_receipt
 logger = logging.getLogger("nitro.transactions")
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-
-# card = Blu Bank card-to-card, btc = Bitcoin, usdt = Tether TRC20.
-# "tether" kept for backwards compatibility with older clients.
-ALLOWED_PAYMENT_METHODS = {"card", "btc", "usdt", "tether"}
 
 _NOBITEX_ORDERBOOK_URL = os.getenv("NOBITEX_ORDERBOOK_URL") or \
     "https://api.nobitex.ir/v2/orderbook/USDTIRT"

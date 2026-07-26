@@ -128,3 +128,21 @@ def legacy_artist_name(artists: list[dict[str, str]]) -> str:
     primary = next(artist for artist in artists if artist["role"] == "primary")
     featured = [artist["name"] for artist in artists if artist["role"] == "featured"]
     return primary["name"] + (f" feat. {', '.join(featured)}" if featured else "")
+
+
+def validate_release_mapping(
+    *,
+    requires_new_profile: bool,
+    profile_email: str | None,
+    mapping_spotify: str | None,
+    mapping_apple: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    email = (profile_email or "").strip() or None
+    spotify = (mapping_spotify or "").strip() or None
+    apple = (mapping_apple or "").strip() or None
+    if requires_new_profile:
+        if not email:
+            raise ReleaseValidationError("profile_email_required")
+    elif not spotify and not apple:
+        raise ReleaseValidationError("mapping_required")
+    return email, spotify, apple

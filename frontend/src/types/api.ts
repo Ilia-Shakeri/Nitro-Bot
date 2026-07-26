@@ -93,6 +93,5 @@ export interface PaymentMethod {
 
 export interface PaymentConfig {
   card: PaymentMethod | null;
-  btc: PaymentMethod | null;
   usdt: PaymentMethod | null;
 }

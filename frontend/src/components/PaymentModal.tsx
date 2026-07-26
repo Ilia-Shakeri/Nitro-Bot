@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, Upload, X } from 'lucide-react';
+import { ChevronDown, Coins, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getPaymentConfig, getUsdtRate, submitReceipt } from '../api';
 import { useToast } from '../context/ToastContext';
@@ -8,6 +8,11 @@ import { nitroUsdCents, tomanCents, usePricing } from '../pricing';
 import type { PaymentConfig } from '../types/api';
 import { errorText } from '../utils/formMessages';
 import { localizeNumber, toFaNum } from '../utils/faNum';
+import {
+  effectivePaymentMethod,
+  isPersianPaymentLanguage,
+  type TopupPaymentMethod,
+} from '../utils/paymentMethods';
 import { PaymentDetails } from './PaymentDetails';
 
 export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
@@ -15,16 +20,16 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const { toast } = useToast();
   const { pricing } = usePricing();
   const lang = i18n.language;
-  const isPersian = lang.split('-')[0] === 'fa';
+  const isPersian = isPersianPaymentLanguage(lang);
   const [amount, setAmount] = useState(pricing.minimum_topup_nitro);
-  const [method, setMethod] = useState('card');
+  const [method, setMethod] = useState<TopupPaymentMethod>('card');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(true);
   const [rateError, setRateError] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
-  const effectiveMethod = isPersian ? method : 'usdt';
+  const effectiveMethod = effectivePaymentMethod(lang, method);
   const isCrypto = effectiveMethod === 'usdt';
   const validAmount = Number.isInteger(amount) && amount >= pricing.minimum_topup_nitro ? amount : 0;
   const usdCents = nitroUsdCents(validAmount, pricing);
@@ -151,6 +156,31 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             </div>
           </div>
 
+          <div>
+            <label htmlFor={isPersian ? 'payment-method' : undefined} className="mb-1 block text-sm text-textSecondary">
+              {t('Payment Method')}
+            </label>
+            {isPersian ? (
+              <span className="relative block">
+                <select
+                  id="payment-method"
+                  value={method}
+                  onChange={event => setMethod(event.target.value as TopupPaymentMethod)}
+                  className="w-full appearance-none rounded-xl border border-inputBorder bg-inputBg p-3 pe-9 text-start text-textPrimary outline-none focus:border-gold/50 focus-visible:ring-2 focus-visible:ring-gold/20"
+                >
+                  <option value="card" className="bg-card1 text-textPrimary">{t('Card to Card')}</option>
+                  <option value="usdt" className="bg-card1 text-textPrimary">{t('USDT (TRC20)')}</option>
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-textSecondary" />
+              </span>
+            ) : (
+              <div className="flex min-h-12 items-center gap-3 rounded-xl border border-inputBorder bg-inputBg p-3">
+                <Coins aria-hidden="true" className="h-5 w-5 flex-shrink-0 text-gold" />
+                <span dir="ltr" className="font-ui text-textPrimary">{t('USDT (TRC20)')}</span>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-lg border border-inputBorder bg-inputBg/60 p-3">
             <div className="flex items-center justify-between text-xs text-textSecondary">
               <span>{t('Unit Price')}</span>
@@ -168,24 +198,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             )}
           </div>
 
-          {isPersian && (
-            <label className="block text-sm text-textSecondary">
-              {t('Payment Method')}
-              <span className="relative mt-1 block">
-                <select
-                  value={method}
-                  onChange={event => setMethod(event.target.value)}
-                  className="w-full appearance-none rounded-lg border border-inputBorder bg-inputBg p-3 pe-9 text-center text-textPrimary outline-none focus:border-gold/50"
-                >
-                  <option value="card">{t('Card to Card')}</option>
-                  <option value="usdt">{t('USDT (TRC20)')}</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-textSecondary" />
-              </span>
-            </label>
-          )}
-
-          {isPersian && (
+          {isPersian && !isCrypto && (
             <div className="rounded-lg border border-inputBorder bg-inputBg/60 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-textSecondary">{t('Total')}</span>
@@ -223,6 +236,9 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             </>
           ) : (
             <>
+              <p className="rounded-xl border border-card3 bg-card2/50 p-3 text-xs leading-relaxed text-textSecondary">
+                {t('Send the exact amount, then upload the transaction receipt below.')}
+              </p>
               <input
                 type="file"
                 id="receiptUpload"

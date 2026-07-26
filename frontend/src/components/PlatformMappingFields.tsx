@@ -31,7 +31,10 @@ export const PlatformMappingFields = ({
   const { t } = useTranslation();
   return (
     <section className="mb-6">
-      <h3 className="mb-2 text-start text-sm font-ui text-gold">9. {t('Mapping')}</h3>
+      <h3 className="mb-1 text-start text-sm font-ui text-gold">9. {t('Mapping')} *</h3>
+      <p className="mb-3 text-start text-xs leading-relaxed text-textSecondary">
+        {t('mapping_required_description')}
+      </p>
       <div className="mb-4">
         <FormToggle
           id="newProfile"

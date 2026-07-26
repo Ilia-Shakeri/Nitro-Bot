@@ -7,6 +7,7 @@ from release_validation import (
     normalize_artists,
     normalize_names,
     normalize_required_names,
+    validate_release_mapping,
     validate_release_dates,
 )
 
@@ -142,3 +143,48 @@ def test_producers_are_required_and_must_be_valid(raw):
 def test_producer_duplicates_are_rejected():
     with pytest.raises(ReleaseValidationError, match="producers_duplicate"):
         normalize_required_names('["Producer", " producer "]', "producers")
+
+
+def test_mapping_requires_platform_link_for_existing_profile():
+    with pytest.raises(ReleaseValidationError, match="mapping_required"):
+        validate_release_mapping(
+            requires_new_profile=False,
+            profile_email=None,
+            mapping_spotify=" ",
+            mapping_apple=None,
+        )
+
+
+@pytest.mark.parametrize(
+    ("spotify", "apple"),
+    [(" https://spotify.example/artist ", None), (None, " https://music.example/artist ")],
+)
+def test_mapping_accepts_one_platform_link(spotify, apple):
+    _, normalized_spotify, normalized_apple = validate_release_mapping(
+        requires_new_profile=False,
+        profile_email=None,
+        mapping_spotify=spotify,
+        mapping_apple=apple,
+    )
+    assert normalized_spotify == (spotify.strip() if spotify else None)
+    assert normalized_apple == (apple.strip() if apple else None)
+
+
+def test_new_profile_mapping_requires_email():
+    with pytest.raises(ReleaseValidationError, match="profile_email_required"):
+        validate_release_mapping(
+            requires_new_profile=True,
+            profile_email=None,
+            mapping_spotify=None,
+            mapping_apple=None,
+        )
+
+    email, spotify, apple = validate_release_mapping(
+        requires_new_profile=True,
+        profile_email=" artist@example.com ",
+        mapping_spotify=None,
+        mapping_apple=None,
+    )
+    assert email == "artist@example.com"
+    assert spotify is None
+    assert apple is None

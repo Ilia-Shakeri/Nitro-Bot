@@ -89,6 +89,18 @@ export const releaseStepAction = (
   return step === 'form' ? 'review' : 'submit';
 };
 
+export const validateMappingChoice = (
+  needsNewProfile: boolean,
+  profileEmail: string,
+  spotifyUrl: string,
+  appleUrl: string,
+): string | null => {
+  if (needsNewProfile) {
+    return profileEmail.trim() ? null : 'profile_email_required';
+  }
+  return spotifyUrl.trim() || appleUrl.trim() ? null : 'mapping_required';
+};
+
 export const validateReleaseMetadata = (
   data: ReleaseMetadata,
   unchangedHistoricalDate?: string,

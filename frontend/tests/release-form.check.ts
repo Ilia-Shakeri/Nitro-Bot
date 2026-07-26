@@ -2,6 +2,10 @@ import { isRtlLanguage, TRANSLATIONS } from '../src/i18n';
 import { DEFAULT_PRICING, nitroUsdCents, tomanCents } from '../src/pricingValues';
 import { changeMainGenre, validSubGenre } from '../src/utils/genres';
 import {
+  effectivePaymentMethod,
+  paymentMethodsForLanguage,
+} from '../src/utils/paymentMethods';
+import {
   discountPercent,
   formatReleaseDate,
   releaseDateSentenceKey,
@@ -19,6 +23,7 @@ import {
   removeValue,
   releaseStepAction,
   selectPrimaryArtist,
+  validateMappingChoice,
   validateReleaseMetadata,
 } from '../src/utils/releaseForm';
 
@@ -51,6 +56,22 @@ assert(addArtist(first, ' first ').error === 'artists_duplicate', 'duplicate art
 const legalOne = addUniqueValue([], 'Legal Name').values;
 assert(addUniqueValue(legalOne, ' legal name ').error === 'value_duplicate', 'duplicate legal name must fail');
 same(removeValue(addUniqueValue(legalOne, 'Second').values, 0), ['Second'], 'legal name remove must keep order');
+assert(
+  validateMappingChoice(false, '', '', '') === 'mapping_required',
+  'existing profile mapping must require one platform link',
+);
+assert(
+  validateMappingChoice(false, '', 'https://spotify.example/artist', '') === null,
+  'one Spotify mapping link must pass',
+);
+assert(
+  validateMappingChoice(true, '', '', '') === 'profile_email_required',
+  'new profile mapping must require email',
+);
+assert(
+  validateMappingChoice(true, 'artist@example.com', '', '') === null,
+  'new profile mapping with email must pass',
+);
 
 const required = {
   ...initial,
@@ -86,6 +107,11 @@ assert(nitroUsdCents(3, DEFAULT_PRICING) === 240, 'three Nitro must equal 240 ce
 assert(tomanCents(3, 100_000, DEFAULT_PRICING) === 24_000_000, 'Toman calculation must use integer cents');
 assert(isRtlLanguage('fa') && isRtlLanguage('ar'), 'Persian and Arabic must be RTL');
 assert(!isRtlLanguage('en') && !isRtlLanguage('ru'), 'English and Russian must be LTR');
+same(paymentMethodsForLanguage('fa'), ['card', 'usdt'], 'Persian must show card and USDT');
+for (const language of ['en', 'ar', 'ru']) {
+  same(paymentMethodsForLanguage(language), ['usdt'], `${language} must show USDT only`);
+  assert(effectivePaymentMethod(language, 'card') === 'usdt', `${language} must force USDT`);
+}
 assert(releaseHistoryDirection('fa') === 'rtl', 'Persian release names must be RTL');
 assert(releaseHistoryDirection('ar') === 'rtl', 'Arabic release names must be RTL');
 assert(releaseHistoryDirection('en') === 'ltr', 'English release names must be LTR');

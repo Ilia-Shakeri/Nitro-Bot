@@ -19,6 +19,7 @@ import {
   appendReleaseMetadata,
   emptyReleaseMetadata,
   releaseStepAction,
+  validateMappingChoice,
   validateReleaseMetadata,
 } from '../utils/releaseForm';
 import { useObjectUrl } from '../utils/useObjectUrl';
@@ -74,8 +75,14 @@ export const UploadPage = () => {
       toast(t(validationError ?? 'required_fields_missing'), 'error');
       return false;
     }
-    if (needsNewProfile && !profileEmail.trim()) {
-      toast(t('profile_email_required'), 'error');
+    const mappingError = validateMappingChoice(
+      needsNewProfile,
+      profileEmail,
+      spotifyUrl,
+      appleUrl,
+    );
+    if (mappingError) {
+      toast(t(mappingError), 'error');
       return false;
     }
     if (credits < totalCost) {

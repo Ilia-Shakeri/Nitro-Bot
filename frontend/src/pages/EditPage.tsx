@@ -20,6 +20,7 @@ import {
   appendReleaseMetadata,
   emptyReleaseMetadata,
   releaseStepAction,
+  validateMappingChoice,
   type ReleaseMetadata,
   validateReleaseMetadata,
 } from '../utils/releaseForm';
@@ -127,8 +128,14 @@ export const EditPage = () => {
       toast(t(validationError), 'error');
       return false;
     }
-    if (needsNewProfile && !profileEmail.trim()) {
-      toast(t('profile_email_required'), 'error');
+    const mappingError = validateMappingChoice(
+      needsNewProfile,
+      profileEmail,
+      spotifyUrl,
+      appleUrl,
+    );
+    if (mappingError) {
+      toast(t(mappingError), 'error');
       return false;
     }
     if (credits < totalCost) {

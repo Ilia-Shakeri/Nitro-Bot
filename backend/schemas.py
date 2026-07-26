@@ -167,7 +167,6 @@ class PaymentMethodOut(BaseModel):
 
 class PaymentConfigOut(BaseModel):
     card: PaymentMethodOut | None = None
-    btc: PaymentMethodOut | None = None
     usdt: PaymentMethodOut | None = None
 
 

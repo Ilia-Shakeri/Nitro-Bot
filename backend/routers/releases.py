@@ -18,6 +18,7 @@ from release_validation import (
     normalize_artists,
     normalize_names,
     normalize_required_names,
+    validate_release_mapping,
     validate_release_dates,
 )
 from release_service import refund_is_due, user_for_update_statement
@@ -289,9 +290,6 @@ async def create_release(
         if profile_email
         else source_release.profile_email if source_release else None
     )
-    if final_requires_new_profile and not final_profile_email:
-        raise HTTPException(status_code=400, detail="profile_email_required")
-
     final_mapping_spotify = (
         mapping_spotify
         if mapping_spotify is not None
@@ -302,6 +300,19 @@ async def create_release(
         if mapping_apple is not None
         else source_release.mapping_apple if source_release else None
     )
+    try:
+        (
+            final_profile_email,
+            final_mapping_spotify,
+            final_mapping_apple,
+        ) = validate_release_mapping(
+            requires_new_profile=final_requires_new_profile,
+            profile_email=final_profile_email,
+            mapping_spotify=final_mapping_spotify,
+            mapping_apple=final_mapping_apple,
+        )
+    except ReleaseValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     final_sub_genre = (
         sub_genre
         if sub_genre is not None
