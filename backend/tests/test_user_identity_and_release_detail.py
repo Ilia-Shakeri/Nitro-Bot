@@ -15,9 +15,9 @@ from schemas import UserOut
 from user_identity import sync_telegram_profile
 
 
-def _signed_init_data(user: dict) -> str:
+def _signed_init_data(user: dict, *, auth_date: int | None = None) -> str:
     values = {
-        "auth_date": str(int(time.time())),
+        "auth_date": str(auth_date if auth_date is not None else int(time.time())),
         "query_id": "test-query",
         "user": json.dumps(user, separators=(",", ":")),
     }
@@ -43,6 +43,14 @@ async def test_validated_telegram_identity_contains_profile_fields():
         "last_name": "Azadi",
         "username": "mina_music",
     }
+
+
+def test_telegram_identity_rejects_auth_date_too_far_in_future():
+    init_data = _signed_init_data(
+        {"id": 42, "first_name": "Mina"},
+        auth_date=int(time.time()) + auth._INIT_DATA_FUTURE_SKEW + 60,
+    )
+    assert auth._verify(init_data) is None
 
 
 def test_user_response_exposes_telegram_profile_fields():

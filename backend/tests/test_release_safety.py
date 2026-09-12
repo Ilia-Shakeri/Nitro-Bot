@@ -3,9 +3,10 @@ from pathlib import Path
 
 from sqlalchemy.dialects import postgresql
 
-from models import Release, Transaction
+from models import Release, ReleaseJob, Transaction
+from release_jobs import claimable_job_statement, retry_delay_seconds
 from release_service import refund_is_due, user_for_update_statement
-from routers.internal import claimable_release_statement
+from routers.internal import _STATUS_TRANSITIONS, claimable_release_statement
 
 
 def test_copyright_defaults_off():
@@ -28,9 +29,37 @@ def test_dmb_release_claim_uses_skip_locked_row_lock():
     assert "LIMIT" in compiled
 
 
+def test_release_job_claim_recovers_expired_leases_with_row_lock():
+    statement = claimable_job_statement(datetime(2026, 9, 12))
+    compiled = str(statement.compile(dialect=postgresql.dialect()))
+    assert "release_jobs.lease_expires_at" in compiled
+    assert "FOR UPDATE SKIP LOCKED" in compiled
+    assert "LIMIT" in compiled
+
+
+def test_release_job_has_durable_retry_fields():
+    for field in (
+        "phase",
+        "status",
+        "attempts",
+        "lease_owner",
+        "lease_expires_at",
+        "next_attempt_at",
+        "last_error",
+    ):
+        assert hasattr(ReleaseJob, field)
+    assert retry_delay_seconds(1) == 1
+    assert retry_delay_seconds(20) == 300
+
+
 def test_refund_guard_is_idempotent():
     assert refund_is_due(None)
     assert not refund_is_due(datetime(2026, 7, 26))
+
+
+def test_terminal_release_cannot_be_changed_to_failed():
+    assert "failed" not in _STATUS_TRANSITIONS["completed"]
+    assert "failed" not in _STATUS_TRANSITIONS.get("rollback", set())
 
 
 def test_transaction_has_quote_and_stars_reconciliation_fields():
@@ -101,3 +130,17 @@ def test_explicit_content_migration_is_safe_and_reversible():
     assert '"explicit_content"' in migration
     assert "server_default=sa.false()" in migration
     assert 'op.drop_column("releases", "explicit_content")' in migration
+
+
+def test_durable_release_job_migration_is_additive_and_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "012_durable_release_jobs.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "011"' in migration
+    assert '"release_jobs"' in migration
+    assert '"lease_expires_at"' in migration
+    assert '"failure_reason"' in migration
+    assert 'op.drop_table("release_jobs")' in migration

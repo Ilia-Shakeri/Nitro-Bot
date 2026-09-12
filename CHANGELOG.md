@@ -10,6 +10,29 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.8.0-alpha.2] - 2026-09-12
+
+### Added
+
+- Durable database release jobs with leases, retries, and a dead state.
+- Restart recovery for legacy staging releases.
+- Durable notification phase after media conversion.
+- Additive release-job migration and failure reason storage.
+
+### Fixed
+
+- Terminal processing failure now refunds credits exactly once.
+- Release charge and job creation now commit together.
+- Future-dated signed login payloads are rejected.
+- Staged uploads are removed when database work fails.
+
+### Known gaps
+
+- PostgreSQL crash and concurrency drills still need an isolated test stack.
+- A worker crash after remote notice acceptance can still repeat that notice.
+- Input streaming, strict metadata validation, and orphan retention remain open.
+- DMB final submission and real edit delivery are not proven.
+
 ## [0.8.0-alpha.1] - 2026-09-12
 
 ### Added
@@ -32,5 +55,6 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.2...HEAD
+[0.8.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.1...v0.8.0-alpha.2
 [0.8.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/releases/tag/v0.8.0-alpha.1

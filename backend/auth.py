@@ -15,6 +15,7 @@ _DEV_USER_ID = 123_456_789
 # Reject initData older than this. Telegram's initData is replayable forever once
 # captured, so we bound its lifetime to limit the stolen-token window.
 _INIT_DATA_MAX_AGE = int(os.getenv("INIT_DATA_MAX_AGE_SECONDS", str(24 * 3600)))
+_INIT_DATA_FUTURE_SKEW = max(0, int(os.getenv("INIT_DATA_FUTURE_SKEW_SECONDS", "30")))
 
 
 def _verify(init_data: str) -> dict | None:
@@ -36,7 +37,10 @@ def _verify(init_data: str) -> dict | None:
         auth_date = int(parsed.get("auth_date", "0"))
     except ValueError:
         return None
-    if _INIT_DATA_MAX_AGE > 0 and (time.time() - auth_date) > _INIT_DATA_MAX_AGE:
+    age = time.time() - auth_date
+    if age < -_INIT_DATA_FUTURE_SKEW:
+        return None
+    if _INIT_DATA_MAX_AGE > 0 and age > _INIT_DATA_MAX_AGE:
         return None
     return parsed
 

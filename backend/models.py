@@ -101,9 +101,38 @@ class Release(Base):
     charged_cost = Column(Integer, nullable=False, default=0)
     submission_id = Column(String(64), nullable=True, unique=True, index=True)
     refunded_at = Column(DateTime, nullable=True)
+    failure_reason = Column(String(255), nullable=True)
     
     # State tracking for the Selenium Bot worker
     status = Column(String, default="pending") 
     created_at = Column(DateTime, default=get_naive_utc)
 
     user = relationship("User", backref="releases")
+
+
+class ReleaseJob(Base):
+    __tablename__ = "release_jobs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    release_id = Column(
+        Integer,
+        ForeignKey("releases.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    phase = Column(String(32), nullable=False, default="media")
+    status = Column(String(32), nullable=False, default="queued")
+    source_audio_key = Column(String, nullable=False)
+    source_cover_key = Column(String, nullable=False)
+    convert_audio = Column(Boolean, nullable=False, default=False)
+    convert_cover = Column(Boolean, nullable=False, default=False)
+    attempts = Column(Integer, nullable=False, default=0)
+    lease_owner = Column(String(128), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    next_attempt_at = Column(DateTime, nullable=False, default=get_naive_utc)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=get_naive_utc)
+    updated_at = Column(DateTime, nullable=False, default=get_naive_utc)
+
+    release = relationship("Release", backref=backref("processing_job", uselist=False))

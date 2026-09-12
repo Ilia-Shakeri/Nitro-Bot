@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.8.0-alpha.1`
+Current release: `0.8.0-alpha.2`
 
 Target release: `1.0.0`
 
@@ -13,6 +13,7 @@ Passing unit tests alone does not complete a version.
 | Version | Goal | Exit result |
 | --- | --- | --- |
 | `0.8.0-alpha.1` | Audited baseline | Version contract and delivery plan exist |
+| `0.8.0-alpha.2` | Durable release work | Restart-safe media jobs and exact-once failure refund exist |
 | `0.8.0` | Safe state and money flow | No charged release can be lost or falsely reported |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
@@ -37,6 +38,22 @@ Exit gates:
 - Repository has no unintended changes.
 
 ## `0.8.0` - safe state and money flow
+
+Delivered in `0.8.0-alpha.2`:
+
+- Database-backed media and notice jobs with leases, bounded retry, and dead state.
+- Restart recovery for legacy staging releases.
+- Atomic release charge and job creation.
+- Idempotent terminal failure refund with a recorded ledger row.
+- Future-dated Telegram login rejection.
+
+Still required before `0.8.0`:
+
+- Immutable idempotency keys and release links on every ledger mutation.
+- Database constraints for state and value invariants.
+- Bounded streaming uploads and strict field, URL, genre, and quote validation.
+- PostgreSQL concurrency, restart, crash, and notice replay tests.
+- Safe orphan-object retention job.
 
 ### Durable release jobs
 

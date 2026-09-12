@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import storage
 from bot import bot, configure_menu_button, dp
 from middleware import RateLimitMiddleware
+from release_jobs import run_release_job_worker
 from routers import internal, pricing, releases, transactions, users, support
 
 _MINI_APP_URL = os.getenv("MINI_APP_URL", "").strip()
@@ -40,10 +41,13 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to update Mini App menu button")
     polling_task = asyncio.create_task(_run_polling())
+    release_job_task = asyncio.create_task(run_release_job_worker())
     yield
-    polling_task.cancel()
-    with suppress(asyncio.CancelledError):
-        await polling_task
+    for task in (polling_task, release_job_task):
+        task.cancel()
+    for task in (polling_task, release_job_task):
+        with suppress(asyncio.CancelledError):
+            await task
     await bot.session.close()
 
 

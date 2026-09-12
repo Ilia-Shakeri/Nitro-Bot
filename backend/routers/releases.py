@@ -1,17 +1,16 @@
-import asyncio
 import json
 import logging
 import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from auth import get_tg_id
-from bot import notify_admin_new_release
-from database import AsyncSessionLocal, get_db
-from models import Release, Transaction, User
+from database import get_db
+from models import Release, ReleaseJob, User
 from pricing import has_sufficient_credits, release_cost
 from release_validation import (
     ReleaseValidationError,
@@ -24,130 +23,26 @@ from release_validation import (
     validate_policy_acceptance,
     validate_release_dates,
 )
-from release_service import refund_is_due, user_for_update_statement
+from release_service import user_for_update_statement
 from schemas import ReleaseCreateResponse
 import storage
 
 logger = logging.getLogger("nitro.releases")
 router = APIRouter(prefix="/releases", tags=["releases"])
-_background_tasks: set[asyncio.Task[None]] = set()
 
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-async def _refund_failed_release(release_id: int, tg_id: int) -> bool:
-    async with AsyncSessionLocal() as db:
-        release_result = await db.execute(
-            select(Release).where(Release.id == release_id).with_for_update()
-        )
-        release = release_result.scalars().first()
-        if not release or not refund_is_due(release.refunded_at):
-            await db.rollback()
-            return False
-
-        user_result = await db.execute(
-            user_for_update_statement(tg_id)
-        )
-        user = user_result.scalars().first()
-        release.status = "failed"
-        release.refunded_at = _utc_now()
-        if user and release.charged_cost > 0:
-            user.credits += release.charged_cost
-            db.add(
-                Transaction(
-                    user_id=tg_id,
-                    amount=release.charged_cost,
-                    status="rollback",
-                    payment_method=f"release-{release_id}-refund",
-                )
-            )
-        await db.commit()
-        return True
-
-
-async def _background_convert_and_notify(
-    *,
-    release_id: int,
-    tg_id: int,
-    submitter: str,
-    audio_bytes_raw: bytes | None,
-    cover_bytes_raw: bytes | None,
-    existing_audio_key: str | None,
-    existing_cover_key: str | None,
-) -> None:
-    try:
-        wav_bytes = None
-        cover_bytes = None
-        audio_key_final = existing_audio_key
-        cover_key_final = existing_cover_key
-
-        if audio_bytes_raw:
-            wav_bytes = await storage.convert_audio_to_wav(audio_bytes_raw)
-            audio_key_final = await storage.upload(
-                wav_bytes, f"releases/{tg_id}/{release_id}", "track.wav"
-            )
-        elif existing_audio_key:
-            wav_bytes = await storage.download(existing_audio_key)
-
-        if cover_bytes_raw:
-            cover_bytes, _ = await storage.process_cover(cover_bytes_raw)
-            cover_key_final = await storage.upload(
-                cover_bytes, f"releases/{tg_id}/{release_id}", "cover.png"
-            )
-        elif existing_cover_key:
-            cover_bytes = await storage.download(existing_cover_key)
-
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(Release).where(Release.id == release_id))
-            release = result.scalars().first()
-            if not release:
-                raise RuntimeError("release_missing_during_processing")
-            if audio_key_final:
-                release.track_url = audio_key_final
-            if cover_key_final:
-                release.cover_url = cover_key_final
-            release.status = "manual_staging"
-            await db.commit()
-
-            await notify_admin_new_release(
-                submitter_tg_id=tg_id,
-                release_id=release.id,
-                song_name=release.song_name,
-                artists=release.artists,
-                producers=normalize_names(release.producers, "producers"),
-                legal_names=release.legal_names,
-                genre=release.genre or "",
-                sub_genre=release.sub_genre,
-                release_date=release.release_date.isoformat(),
-                is_rerelease=release.is_rerelease,
-                original_release_date=(
-                    release.original_release_date.isoformat()
-                    if release.original_release_date
-                    else None
-                ),
-                mapping_spotify=release.mapping_spotify,
-                mapping_apple=release.mapping_apple,
-                requires_new_profile=release.requires_new_profile,
-                profile_email=release.profile_email,
-                artist_mappings=release.artist_mappings,
-                is_edit=release.is_edit,
-                copyright_requested=release.copyright_requested,
-                explicit_content=release.explicit_content,
-                cost=release.charged_cost,
-                submitter=submitter,
-                audio_bytes=wav_bytes,
-                audio_filename="track.wav" if wav_bytes else None,
-                cover_bytes=cover_bytes,
-                cover_filename="cover.png" if cover_bytes else None,
-            )
-    except Exception:
-        logger.exception("Background conversion failed for release %s", release_id)
+async def _delete_staged_keys(*keys: str | None) -> None:
+    for key in keys:
+        if not key:
+            continue
         try:
-            await _refund_failed_release(release_id, tg_id)
+            await storage.delete(key)
         except Exception:
-            logger.exception("Failed to refund release %s", release_id)
+            logger.exception("Failed to delete staged release object")
 
 
 @router.post("", response_model=ReleaseCreateResponse)
@@ -353,30 +248,73 @@ async def create_release(
 
     audio_bytes_raw = await storage.read_audio(audio) if audio else None
     cover_bytes_raw = await storage.read_image(cover) if cover else None
-    audio_key = source_release.track_url if source_release and not audio else None
-    cover_key = source_release.cover_url if source_release and not cover else None
-    if not audio_bytes_raw and not audio_key:
+    existing_audio_key = source_release.track_url if source_release and not audio else None
+    existing_cover_key = source_release.cover_url if source_release and not cover else None
+    if not audio_bytes_raw and not existing_audio_key:
         raise HTTPException(status_code=400, detail="audio_required")
-    if not cover_bytes_raw and not cover_key:
+    if not cover_bytes_raw and not existing_cover_key:
         raise HTTPException(status_code=400, detail="cover_required")
 
     total_cost = release_cost(is_edit, copyright_requested)
-    user_result = await db.execute(
-        user_for_update_statement(tg_id)
+    preliminary_user_result = await db.execute(
+        select(User).where(User.telegram_id == tg_id)
     )
+    preliminary_user = preliminary_user_result.scalars().first()
+    if not preliminary_user:
+        raise HTTPException(status_code=404, detail="user_not_found")
+    if not has_sufficient_credits(preliminary_user.credits, total_cost):
+        raise HTTPException(status_code=400, detail="insufficient_credits")
+
+    staged_audio_key = None
+    staged_cover_key = None
+    try:
+        if audio_bytes_raw:
+            audio_ext = os.path.splitext(audio.filename or "")[1].lower() or ".bin"
+            staged_audio_key = await storage.upload(
+                audio_bytes_raw,
+                f"release-staging/{tg_id}/{normalized_submission_id}",
+                f"source-audio{audio_ext}",
+            )
+        if cover_bytes_raw:
+            cover_ext = os.path.splitext(cover.filename or "")[1].lower() or ".bin"
+            staged_cover_key = await storage.upload(
+                cover_bytes_raw,
+                f"release-staging/{tg_id}/{normalized_submission_id}",
+                f"source-cover{cover_ext}",
+            )
+    except Exception:
+        await _delete_staged_keys(staged_audio_key, staged_cover_key)
+        raise
+
+    audio_key = staged_audio_key or existing_audio_key
+    cover_key = staged_cover_key or existing_cover_key
+    try:
+        user_result = await db.execute(user_for_update_statement(tg_id))
+    except Exception:
+        await db.rollback()
+        await _delete_staged_keys(staged_audio_key, staged_cover_key)
+        raise
     user = user_result.scalars().first()
     if not user:
+        await db.rollback()
+        await _delete_staged_keys(staged_audio_key, staged_cover_key)
         raise HTTPException(status_code=404, detail="user_not_found")
 
     if normalized_submission_id:
-        duplicate_result = await db.execute(
-            select(Release).where(Release.submission_id == normalized_submission_id)
-        )
+        try:
+            duplicate_result = await db.execute(
+                select(Release).where(Release.submission_id == normalized_submission_id)
+            )
+        except Exception:
+            await db.rollback()
+            await _delete_staged_keys(staged_audio_key, staged_cover_key)
+            raise
         duplicate = duplicate_result.scalars().first()
         if duplicate:
+            await db.rollback()
+            await _delete_staged_keys(staged_audio_key, staged_cover_key)
             if duplicate.user_id != tg_id:
                 raise HTTPException(status_code=409, detail="submission_id_conflict")
-            await db.rollback()
             return {
                 "status": "ok",
                 "release_id": duplicate.id,
@@ -385,12 +323,14 @@ async def create_release(
             }
 
     if not has_sufficient_credits(user.credits, total_cost):
+        await db.rollback()
+        await _delete_staged_keys(staged_audio_key, staged_cover_key)
         raise HTTPException(status_code=400, detail="insufficient_credits")
 
     release = Release(
         user_id=tg_id,
-        track_url=audio_key or "",
-        cover_url=cover_key or "",
+        track_url=audio_key,
+        cover_url=cover_key,
         song_name=final_song_name,
         artist_name=legacy_artist_name(final_artists),
         artists=final_artists,
@@ -418,23 +358,45 @@ async def create_release(
     )
     user.credits -= total_cost
     db.add(release)
-    await db.commit()
-    await db.refresh(release)
-
-    submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
-    background_task = asyncio.create_task(
-        _background_convert_and_notify(
-            release_id=release.id,
-            tg_id=tg_id,
-            submitter=submitter,
-            audio_bytes_raw=audio_bytes_raw,
-            cover_bytes_raw=cover_bytes_raw,
-            existing_audio_key=audio_key,
-            existing_cover_key=cover_key,
+    try:
+        await db.flush()
+        db.add(
+            ReleaseJob(
+                release_id=release.id,
+                phase="media",
+                status="queued",
+                source_audio_key=audio_key,
+                source_cover_key=cover_key,
+                convert_audio=audio_bytes_raw is not None,
+                convert_cover=cover_bytes_raw is not None,
+            )
         )
-    )
-    _background_tasks.add(background_task)
-    background_task.add_done_callback(_background_tasks.discard)
+        await db.commit()
+        await db.refresh(release)
+    except IntegrityError:
+        await db.rollback()
+        await _delete_staged_keys(staged_audio_key, staged_cover_key)
+        duplicate_result = await db.execute(
+            select(Release).where(Release.submission_id == normalized_submission_id)
+        )
+        duplicate = duplicate_result.scalars().first()
+        if duplicate and duplicate.user_id == tg_id:
+            current_user_result = await db.execute(
+                select(User).where(User.telegram_id == tg_id)
+            )
+            current_user = current_user_result.scalars().first()
+            return {
+                "status": "ok",
+                "release_id": duplicate.id,
+                "credits_left": current_user.credits if current_user else 0,
+                "cost_deducted": duplicate.charged_cost,
+            }
+        raise HTTPException(status_code=409, detail="submission_id_conflict") from None
+    except Exception:
+        await db.rollback()
+        await _delete_staged_keys(staged_audio_key, staged_cover_key)
+        raise
+
     return {
         "status": "ok",
         "release_id": release.id,

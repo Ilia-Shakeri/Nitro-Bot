@@ -7,10 +7,18 @@ from sqlalchemy.future import select
 
 from database import get_db
 from models import Release
+from release_service import fail_release_and_refund
 from schemas import PendingReleaseOut, OkResponse
 
 _SECRET = os.getenv("SELENIUM_SECRET_KEY", "")
 _ALLOWED_STATUSES = {"pending", "processing", "completed", "failed"}
+_STATUS_TRANSITIONS = {
+    "pending": {"processing"},
+    "manual_staging": {"processing"},
+    "processing": {"processing", "completed", "failed"},
+    "completed": {"completed"},
+    "failed": {"failed"},
+}
 _INSECURE_SECRETS = {"", "YOUR_SECURE_GENERATED_SELENIUM_TOKEN", "generate_a_secure_random_string_here"}
 
 router = APIRouter(prefix="/internal", tags=["internal"])
@@ -59,10 +67,29 @@ async def update_release_status(
             status_code=400,
             detail=f"Invalid status. Allowed: {', '.join(sorted(_ALLOWED_STATUSES))}",
         )
-    result = await db.execute(select(Release).where(Release.id == release_id))
+    result = await db.execute(
+        select(Release).where(Release.id == release_id).with_for_update()
+    )
     release = result.scalars().first()
     if not release:
         raise HTTPException(status_code=404, detail="Release not found")
+    if status not in _STATUS_TRANSITIONS.get(release.status, set()):
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="release_status_transition_invalid")
+    if status == "failed":
+        await db.rollback()
+        try:
+            await fail_release_and_refund(
+                db,
+                release_id,
+                "dmb_processing_failed",
+                allowed_statuses={"processing", "failed"},
+            )
+        except ValueError:
+            raise HTTPException(
+                status_code=409, detail="release_status_transition_invalid"
+            ) from None
+        return {"status": "updated"}
     release.status = status
     await db.commit()
     return {"status": "updated"}

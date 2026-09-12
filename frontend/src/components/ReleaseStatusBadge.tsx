@@ -8,6 +8,7 @@ const styles: Record<string, string> = {
   failed: 'border-red-400/30 bg-red-400/10 text-red-400',
   rollback: 'border-blue-400/30 bg-blue-400/10 text-blue-400',
   manual_staging: 'border-gold/35 bg-gold/10 text-gold',
+  notification_pending: 'border-gold/35 bg-gold/10 text-gold',
 };
 
 export const ReleaseStatusBadge = ({ release }: { release: Release }) => {
@@ -19,7 +20,7 @@ export const ReleaseStatusBadge = ({ release }: { release: Release }) => {
       ? AlertCircle
       : status === 'rollback'
         ? RotateCcw
-        : status === 'processing' || status === 'staging'
+        : status === 'processing' || status === 'staging' || status === 'notification_pending'
           ? LoaderCircle
           : Clock3;
   return (

@@ -121,6 +121,12 @@ async def download(key: str) -> bytes:
     return await asyncio.to_thread(_download)
 
 
+async def delete(key: str) -> None:
+    if not key:
+        return
+    await asyncio.to_thread(_client.delete_object, Bucket=BUCKET_NAME, Key=key)
+
+
 async def ensure_bucket() -> None:
     try:
         await asyncio.to_thread(_client.create_bucket, Bucket=BUCKET_NAME)
