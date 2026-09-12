@@ -1,6 +1,11 @@
 # 🎵 Nitro Bot — Premium Music Distribution Mini-App
 
-Nitro Bot is a production-ready Telegram Mini-App and Bot platform designed for high-end music creators. It provides a seamless, mobile-first interface for artists to upload tracks (MP3/WAV), cover art, and metadata for distribution (integrating with DMB Kontor). The platform features a native wallet system ("Nitro Credits"), manual receipt approvals via Telegram, and full bilingual support (Persian/English).
+Nitro Bot is a pre-release Telegram Mini-App and Bot platform for music creators. It provides a mobile-first interface for artists to upload tracks (MP3/WAV), cover art, and metadata for distribution through DMB Kontor. The platform features a native wallet system ("Nitro Credits"), manual receipt approvals through Telegram, and Persian, English, Arabic, and Russian localization.
+
+> Current version: `0.8.0-alpha.1`. This build is not production-ready. See
+> [ROADMAP.md](ROADMAP.md) for the work and evidence required for `1.0.0`, and
+> [RELEASE_POLICY.md](RELEASE_POLICY.md) for version and release rules. Release
+> history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## ✨ Key Features
 
@@ -10,7 +15,7 @@ Nitro Bot is a production-ready Telegram Mini-App and Bot platform designed for 
 * **Automated Admin Approvals:** Users upload transfer receipts, which are securely forwarded to an Admin Telegram Group with inline `Approve/Reject` buttons.
 * **Secure Object Storage:** Integrated MinIO (S3-compatible) storage for assets, ensuring the app remains stateless and scalable.
 * **Localized (i18n):** Full support for English, Persian, Arabic, and Russian across the Mini App and user notifications.
-* **Production Infrastructure:** Fully containerized with Docker Compose, utilizing Nginx and Caddy for automated HTTPS/SSL termination.
+* **Deployment Infrastructure:** Docker Compose services with Nginx and an external Caddy gateway network. Production deployment and recovery gates remain in the roadmap.
 
 ## 🛠 Tech Stack
 

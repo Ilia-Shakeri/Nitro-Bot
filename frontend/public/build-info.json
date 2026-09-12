@@ -1,5 +1,5 @@
 {
-  "release": "2026-07-06-producers-convert-v5",
+  "release": "0.8.0-alpha.1",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
