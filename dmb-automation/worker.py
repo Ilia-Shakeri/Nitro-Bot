@@ -9,10 +9,24 @@ import socket
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import boto3
 import requests
+from PIL import Image, ImageOps
+
+from dmb_contract import (
+    EXPIRATION_DATE,
+    ITUNES_PRICE_CODE,
+    LABEL,
+    LANGUAGE,
+    PRICE_CODE,
+    contributor_contract,
+    copyright_years,
+    dmb_genre_text,
+)
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:8000").rstrip("/")
 SECRET = os.getenv("SELENIUM_SECRET_KEY", "")
@@ -29,11 +43,13 @@ DMB_USERNAME = os.getenv("DMB_USERNAME", "")
 DMB_PASSWORD = os.getenv("DMB_PASSWORD", "")
 DMB_ALLOWED_HOST = os.getenv("DMB_ALLOWED_HOST", "dmb.kontornewmedia.com").lower()
 WORKER_ID = os.getenv("DMB_WORKER_ID", f"{socket.gethostname()}:{os.getpid()}")
+CIRCUIT_FAILURE_LIMIT = max(1, int(os.getenv("DMB_CIRCUIT_FAILURES", "3")))
 
 BASE_DIR = Path(__file__).resolve().parent
 DOWNLOAD_DIR = BASE_DIR / "downloads"
 RESULTS_DIR = BASE_DIR / "results"
 CREATE_SUITE = BASE_DIR / "automation" / "create_album.robot"
+CIRCUIT_STATE_PATH = RESULTS_DIR / "dmb-circuit.json"
 _WORKER_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _DMB_ID_RE = re.compile(r"^(?=[A-Za-z0-9._:-]{1,128}$)(?=.*\d)[A-Za-z0-9._:-]+$")
 _EAN_RE = re.compile(r"^\d{8,14}$")
@@ -179,10 +195,41 @@ def download(key: str, destination: Path) -> Path:
     return destination
 
 
+def prepare_cover_for_dmb(source: Path, destination: Path) -> Path:
+    try:
+        with Image.open(source) as image:
+            output = ImageOps.fit(
+                image.convert("RGB"),
+                (3000, 3000),
+                method=Image.Resampling.LANCZOS,
+            )
+            output.save(destination, format="JPEG", quality=95, optimize=True)
+    except (OSError, ValueError):
+        raise DeliveryError("dmb_cover_invalid") from None
+    with Image.open(destination) as verified:
+        if verified.format != "JPEG" or verified.size != (3000, 3000):
+            raise DeliveryError("dmb_cover_invalid")
+    return destination
+
+
+def validate_track_for_dmb(path: Path) -> Path:
+    try:
+        header = path.read_bytes()[:12]
+    except OSError:
+        raise DeliveryError("dmb_track_invalid") from None
+    if len(header) < 12 or header[:4] != b"RIFF" or header[8:12] != b"WAVE":
+        raise DeliveryError("dmb_track_must_be_wav")
+    return path
+
+
 def build_job_payload(release: dict, cover_path: Path, track_path: Path) -> dict:
     validate_release_contract(release)
+    c_line_year, p_line_year = copyright_years(
+        is_rerelease=release["is_rerelease"],
+        original_release_date=release.get("original_release_date"),
+    )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "release_id": _validated_release_id(release["id"]),
         "mode": "edit" if release["is_edit"] else "create",
         "source_release_id": release.get("source_release_id"),
@@ -196,6 +243,17 @@ def build_job_payload(release: dict, cover_path: Path, track_path: Path) -> dict
         "original_release_date": release.get("original_release_date"),
         "genre": release["genre"],
         "sub_genre": release.get("sub_genre"),
+        "dmb_genre": dmb_genre_text(release["genre"], release.get("sub_genre")),
+        "label": LABEL,
+        "metadata_language": LANGUAGE,
+        "expiration_date": EXPIRATION_DATE,
+        "price_code": PRICE_CODE,
+        "itunes_price_code": ITUNES_PRICE_CODE,
+        "c_line_year": c_line_year,
+        "p_line_year": p_line_year,
+        "contributors": contributor_contract(
+            release["artists"], release["artist_mappings"]
+        ),
         "artist_mappings": release["artist_mappings"],
         "copyright_requested": release["copyright_requested"],
         "explicit_content": release["explicit_content"],
@@ -209,6 +267,44 @@ def write_json_atomic(path: Path, payload: dict) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
     temporary.replace(path)
+
+
+def read_circuit_state() -> dict:
+    if not CIRCUIT_STATE_PATH.exists():
+        return {"open": False, "failures": 0}
+    try:
+        state = json.loads(CIRCUIT_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"open": True, "failures": CIRCUIT_FAILURE_LIMIT, "reason": "state_invalid"}
+    if (
+        not isinstance(state, dict)
+        or not isinstance(state.get("open"), bool)
+        or not isinstance(state.get("failures"), int)
+        or state["failures"] < 0
+    ):
+        return {"open": True, "failures": CIRCUIT_FAILURE_LIMIT, "reason": "state_invalid"}
+    return state
+
+
+def record_delivery_outcome(release_id: int, outcome: str) -> bool:
+    if outcome == "completed":
+        if CIRCUIT_STATE_PATH.exists():
+            CIRCUIT_STATE_PATH.unlink()
+        return False
+    previous = read_circuit_state()
+    failures = int(previous.get("failures", 0)) + 1
+    open_circuit = outcome in {"uncertain", "report_failed"} or failures >= CIRCUIT_FAILURE_LIMIT
+    write_json_atomic(
+        CIRCUIT_STATE_PATH,
+        {
+            "open": open_circuit,
+            "failures": failures,
+            "release_id": release_id,
+            "outcome": outcome,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    return open_circuit
 
 
 def load_result(path: Path, release_id: int) -> dict:
@@ -229,16 +325,22 @@ def load_result(path: Path, release_id: int) -> dict:
         raise DeliveryError("dmb_result_evidence_invalid")
     current_url = str(result.get("current_url", ""))
     screenshot = Path(str(result.get("screenshot_path", ""))).resolve()
-    from urllib.parse import urlparse
-
     parsed_url = urlparse(current_url)
     expected_output = (RESULTS_DIR / str(release_id)).resolve()
+    try:
+        screenshot_header = screenshot.read_bytes()[:8]
+        screenshot_size = screenshot.stat().st_size
+    except OSError:
+        screenshot_header = b""
+        screenshot_size = 0
     if (
         parsed_url.scheme != "https"
         or parsed_url.hostname != DMB_ALLOWED_HOST
         or str(result["dmb_release_id"]) not in current_url
         or not screenshot.is_file()
         or not screenshot.is_relative_to(expected_output)
+        or screenshot_header != b"\x89PNG\r\n\x1a\n"
+        or screenshot_size < 100
     ):
         raise DeliveryError("dmb_result_evidence_invalid")
     result["evidence_path"] = f"results/{release_id}"
@@ -302,7 +404,7 @@ def _safe_job_dir(release_id: int) -> Path:
     return job_dir
 
 
-def process_release(release: dict) -> None:
+def process_release(release: dict) -> str:
     release_id = _validated_release_id(release.get("id") if isinstance(release, dict) else None)
     job_dir = _safe_job_dir(release_id)
     result_file = RESULTS_DIR / str(release_id) / "result.json"
@@ -314,21 +416,27 @@ def process_release(release: dict) -> None:
         if job_dir.exists():
             shutil.rmtree(job_dir)
         job_dir.mkdir(parents=True)
-        cover = download(release["cover_url"], job_dir / "cover.png")
-        track = download(release["track_url"], job_dir / "track.wav")
+        source_cover = download(release["cover_url"], job_dir / "source-cover")
+        cover = prepare_cover_for_dmb(source_cover, job_dir / "cover.jpg")
+        track = validate_track_for_dmb(
+            download(release["track_url"], job_dir / "track.wav")
+        )
         job_file = job_dir / "job.json"
         write_json_atomic(job_file, build_job_payload(release, cover, track))
         result = run_robot(release_id, job_file, result_file, checkpoint_file)
         set_status(release_id, "completed", result=result)
         log.info("release %s completed with verified DMB evidence", release_id)
+        return "completed"
     except Exception as exc:
         reason = f"{type(exc).__name__}:{exc}"[:2000]
         log.exception("release %s delivery failed", release_id)
         try:
             state = "uncertain" if checkpoint_file.exists() else "retry"
             set_status(release_id, state, error=reason)
+            return state
         except Exception:
             log.exception("release %s status report failed", release_id)
+            return "report_failed"
     finally:
         if job_dir.exists():
             shutil.rmtree(job_dir)
@@ -342,9 +450,17 @@ def main() -> None:
         sys.exit(1)
     log.info("DMB worker started; api=%s worker=%s", API_BASE_URL, WORKER_ID)
     while True:
+        circuit_state = read_circuit_state()
+        if circuit_state["open"]:
+            log.error("DMB circuit open; manual review required")
+            time.sleep(max(POLL_INTERVAL, 60))
+            continue
         try:
             for release in get_pending("create"):
-                process_release(release)
+                release_id = _validated_release_id(release.get("id"))
+                outcome = process_release(release)
+                if record_delivery_outcome(release_id, outcome):
+                    log.error("DMB circuit opened after release %s", release_id)
         except Exception:
             log.exception("poll loop failed")
         time.sleep(POLL_INTERVAL)

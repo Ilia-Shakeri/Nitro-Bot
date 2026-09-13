@@ -8,3 +8,4 @@ selenium==4.18.1
 # Bridge worker
 boto3
 requests
+Pillow==12.2.0

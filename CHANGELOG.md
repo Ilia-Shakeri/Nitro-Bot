@@ -10,6 +10,32 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.2] - 2026-09-13
+
+### Added
+
+- Exact DMB create-wizard contract for Label, dates, price codes, contributors, tracks, territories, platforms, review, and final Save.
+- Explicit DMB mapping for every genre and subgenre currently offered by the mini-app.
+- Exact 3000x3000 JPEG cover preparation and WAV signature validation.
+- Persistent circuit breaker for repeated failures and uncertain final submissions.
+- Full worker success, retry, uncertain, circuit, media, and wizard contract tests.
+
+### Fixed
+
+- Re-releases now use the original release year for the C line and the current year for the P line.
+- New contributors keep only the Performer role; known contributors must resolve from DMB search.
+- Track upload now starts through Add Tracks and delivery selects Worldwide plus all platforms.
+- Final review checks user data before Save.
+- Completion evidence now requires a real PNG screenshot, not only an existing file path.
+- Fixed sleeps were removed from the album page workflow.
+
+### Known gaps
+
+- Authenticated wizard selectors and final Save still need a controlled DMB staging submission.
+- No public direct API contract was found; Kontor says direct database interfaces are available upon request.
+- The DMB edit workflow remains disabled.
+- Container build proof is unavailable on this workstation.
+
 ## [0.9.0-alpha.1] - 2026-09-13
 
 ### Added
@@ -102,7 +128,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.2...HEAD
+[0.9.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.3...v0.9.0-alpha.1
 [0.8.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.2...v0.8.0-alpha.3
 [0.8.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.1...v0.8.0-alpha.2

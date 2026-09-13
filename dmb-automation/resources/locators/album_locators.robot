@@ -1,51 +1,39 @@
 *** Variables ***
-# --- المان‌های انتخاب فرمت آلبوم ---
-${MAXI_SINGLE_OPTION}       xpath=//*[normalize-space()='(Maxi-) Single']
-${NEXT_BUTTON}              //button[normalize-space()='Next']
+${MAXI_SINGLE_OPTION}          xpath=//*[normalize-space()='(Maxi-) Single']
+${NEXT_BUTTON}                 xpath=(//button[normalize-space()='Next' and not(@disabled)])[last()]
 
-# --- فیلدهای اصلی فرم ---
-${EAN_INPUT}                //input[@name='eanUpc']
-${TITLE_INPUT}              //input[@name='title']
-${LANGUAGE_SELECT}          //select[@name='language']
-${ENGLISH_OPTION}           //option[@value='en']
-${GENRE_INPUT}              //input[@name='genre']
-# Genre autocomplete rows are matched dynamically by text in the "Select Genre" keyword.
+${EAN_INPUT}                   xpath=//input[@name='eanUpc']
+${GENERATE_EAN_BUTTON}         xpath=//a[@data-tippy-content='Generate EAN']
+${COVER_FILE_INPUT}            xpath=//input[@type='file' and contains(@accept, 'image')]
+${TITLE_INPUT}                 xpath=//input[@name='title']
+${LANGUAGE_SELECT}             xpath=//select[@name='language']
+${GENRE_INPUT}                 xpath=//input[@name='genre']
+${LABEL_INPUT}                 xpath=//input[@name='label' or @name='labelText' or @name='labelName']
+${AJAX_FIRST_OPTION}           xpath=(//table[contains(@class, 'vc-js-ajax-result-list')]//tr[1]/td)[last()]
 
-# --- تاریخ‌ها (بدون Pre-order) ---
-${SALES_START_DATE}         //input[@name='salesStartDate']
-${SALES_END_DATE}           //input[@name='salesEndDate']
+${SALES_START_DATE}            xpath=//input[@name='salesStartDate']
+${SALES_END_DATE}              xpath=//input[@name='salesEndDate']
+${PRICE_CODE_SELECT}           xpath=//select[@name='pricecode']
+${PRICE_CODE_ITUNES_SELECT}    xpath=//select[@name='pricecodeItunes']
 
-# --- کپی‌رایت ---
-${C_LINE_YEAR}              //input[@name='c_line_year']
-${P_LINE_YEAR}              //input[@name='p_line_year']
-${C_LINE_TEXT}              //input[@name='c_line_text']
-${P_LINE_TEXT}              //input[@name='p_line_text']
+${C_LINE_YEAR}                 xpath=//input[@name='c_line_year']
+${P_LINE_YEAR}                 xpath=//input[@name='p_line_year']
+${C_LINE_TEXT}                 xpath=//input[@name='c_line_text']
+${P_LINE_TEXT}                 xpath=//input[@name='p_line_text']
 
-# --- Popup نتایج برای C line و P line ---
-${C_LINE_POPUP_OPTION}      //table[contains(@class, 'vc-js-ajax-result-list')]//tr[2]/td
-${P_LINE_POPUP_OPTION}      //table[contains(@class, 'vc-js-ajax-result-list')]//tr[2]/td
+${CONTRIBUTOR_NAME_INPUT}      xpath=//input[@name='newArtist']
+${CONTRIBUTOR_FIRST_OPTION}    xpath=(//table[contains(@class, 'vc-js-ajax-result-list')]//tr[1]/td)[last()]
+${NON_PERFORMER_ROLES}         xpath=(//ul[contains(@class,'select2-selection__rendered')][.//li[contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer')]])[last()]//li[contains(@class,'select2-selection__choice') and not(contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer'))]//span[contains(@class,'select2-selection__choice__remove')]
+${PERFORMER_ROLE}              xpath=(//ul[contains(@class,'select2-selection__rendered')][.//li[contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer')]])[last()]//li[contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer')]
+${ADD_CONTRIBUTOR_BUTTON}      xpath=//button[contains(@class, 'dmb-js-cce__add-btn')]
 
-# --- آپلود فایل‌ها ---
-${COVER_FILE_INPUT}         //input[@type='file' and contains(@accept, 'image')]
+${ADD_TRACKS_BUTTON}           xpath=//*[self::button or self::a][normalize-space()='Add Tracks']
+${TRACK_FILE_INPUT}            xpath=//input[@type='file' and not(contains(@accept,'image'))]
+${GENERATE_ALL_ISRCS}          xpath=//a[@data-tippy-content='Generate all ISRCs']
+${TRACK_TITLE_INPUT}           xpath=//tbody//tr[contains(@class,'track') and not(contains(@style,'display: none'))]//input[@name='track:title[]']
+${TRACK_ISRC_INPUT}            xpath=//input[@name='track:isrc[]' and normalize-space(@value)!='']
 
-# --- دکمه‌ها ---
-${GENERATE_EAN_BUTTON}      //a[@data-tippy-content='Generate EAN']
-
-
-# --- Price Code ---
-${PRICE_CODE_SELECT}            //select[@name='pricecode']
-${PRICE_CODE_ITUNES_SELECT}     //select[@name='pricecodeItunes']
-${PRICE_CODE_OPTION_MA}         //option[@value='MA']
-${PRICE_CODE_ITUNES_OPTION_14}  //option[@value='14']
-
-# --- Add Contributor ---
-${CONTRIBUTOR_NAME_INPUT}     //input[@name='newArtist']
-${REMOVE_COMPOSER}            //li[@title='Composer']//span[@class='select2-selection__choice__remove']
-${REMOVE_LYRICIST}            //li[@title='Lyricist']//span[@class='select2-selection__choice__remove']
-${ADD_CONTRIBUTOR_BUTTON}     //button[contains(@class, 'dmb-js-cce__add-btn')]
-
-# --- دکمه‌ها ---
-${NEXT_BUTTON}              //button[normalize-space()='Next']
-${SAVE_BUTTON}              //button[contains(text(), 'Save')]
-${TRACK_ISRC_INPUT}         //input[@name='track:isrc[]' and normalize-space(@value)!='']
-${SUBMISSION_SUCCESS}       xpath=//*[contains(@class,'success') and (contains(normalize-space(.),'created') or contains(normalize-space(.),'saved'))]
+${WORLDWIDE_OPTION}            xpath=//label[contains(normalize-space(.), 'Worldwide')]
+${ALL_PLATFORMS_BUTTON}        xpath=(//*[self::button or self::a][normalize-space()='<<'])[1]
+${SAVE_BUTTON}                 xpath=//button[normalize-space()='Save & View Audio Product']
+${SUBMISSION_SUCCESS}          xpath=//*[contains(@class,'success') and (contains(normalize-space(.),'created') or contains(normalize-space(.),'saved'))]

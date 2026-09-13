@@ -11,8 +11,9 @@ class DmbJob:
     ROBOT_LIBRARY_SCOPE = "SUITE"
 
     def load_dmb_job(self, path: str) -> dict:
-        job = json.loads(Path(path).read_text(encoding="utf-8"))
-        if not isinstance(job, dict) or job.get("schema_version") != 1:
+        job_path = Path(path).resolve()
+        job = json.loads(job_path.read_text(encoding="utf-8"))
+        if not isinstance(job, dict) or job.get("schema_version") != 2:
             raise ValueError("dmb_job_schema_invalid")
         if job.get("mode") != "create":
             raise ValueError("dmb_job_mode_invalid")
@@ -20,12 +21,60 @@ class DmbJob:
         if isinstance(producers, str):
             producers = json.loads(producers)
             job["producers"] = producers
-        for field in ("artists", "producers", "legal_names", "artist_mappings"):
+        for field in (
+            "artists",
+            "producers",
+            "legal_names",
+            "artist_mappings",
+            "contributors",
+        ):
             if not isinstance(job.get(field), list):
                 raise ValueError(f"dmb_job_{field}_invalid")
-        for field in ("release_id", "song_name", "release_date", "genre", "cover_path", "track_path"):
+        for field in (
+            "release_id",
+            "song_name",
+            "release_date",
+            "genre",
+            "dmb_genre",
+            "label",
+            "metadata_language",
+            "expiration_date",
+            "price_code",
+            "itunes_price_code",
+            "c_line_year",
+            "p_line_year",
+            "cover_path",
+            "track_path",
+        ):
             if job.get(field) in (None, ""):
                 raise ValueError(f"dmb_job_{field}_invalid")
+        if any(
+            not isinstance(item, dict)
+            or not str(item.get("name", "")).strip()
+            or not isinstance(item.get("has_account"), bool)
+            or item.get("role") != "Performer"
+            for item in job["contributors"]
+        ):
+            raise ValueError("dmb_job_contributors_invalid")
+        if (
+            job["label"] != "Mitrxv"
+            or job["metadata_language"] != "English"
+            or job["expiration_date"] != "2099-12-31"
+            or job["price_code"] != "MA"
+            or job["itunes_price_code"] != "14"
+            or not re.fullmatch(r"\d{4}", str(job["c_line_year"]))
+            or not re.fullmatch(r"\d{4}", str(job["p_line_year"]))
+        ):
+            raise ValueError("dmb_job_fixed_values_invalid")
+        cover_path = Path(job["cover_path"]).resolve()
+        track_path = Path(job["track_path"]).resolve()
+        if (
+            cover_path.parent != job_path.parent
+            or track_path.parent != job_path.parent
+            or cover_path.suffix.lower() not in {".jpg", ".jpeg"}
+            or track_path.suffix.lower() != ".wav"
+        ):
+            raise ValueError("dmb_job_media_path_invalid")
         return job
 
     def extract_dmb_release_id(self, url: str) -> str:

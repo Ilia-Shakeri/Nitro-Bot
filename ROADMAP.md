@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.1`
+Current release: `0.9.0-alpha.2`
 
 Target release: `1.0.0`
 
@@ -17,6 +17,7 @@ Passing unit tests alone does not complete a version.
 | `0.8.0-alpha.3` | Safe release input | Upload, metadata, genre, URL, and state bounds exist |
 | `0.8.0` | Safe state and money flow | No charged release can be lost or falsely reported |
 | `0.9.0-alpha.1` | Safe DMB create contract | Isolated jobs, leases, submit proof, and manual review exist |
+| `0.9.0-alpha.2` | Complete DMB create wizard | Every specified create step and circuit breaker exist |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
@@ -131,6 +132,21 @@ Delivered in `0.9.0-alpha.1`:
 
 This alpha does not close the `0.9.0` exit gates. Real DMB staging evidence is
 still required.
+
+Delivered in `0.9.0-alpha.2`:
+
+- Exact 3000x3000 JPEG cover preparation and WAV input verification.
+- Explicit DMB mapping for every mini-app genre and subgenre.
+- Label, language, dates, price codes, re-release C year, and current P year.
+- Existing-account and new Performer contributor paths.
+- Add Tracks, Worldwide, all-platform, review, and exact final Save steps.
+- State-based waits replace fixed sleeps in the create page workflow.
+- Persistent circuit breaker opens after bounded failures or any uncertain Save.
+- PNG screenshot content is validated before completion evidence is accepted.
+
+This alpha still needs an authenticated DMB staging run. Login selectors were
+checked against the live public login page; authenticated wizard selectors and
+final submission were not exercised.
 
 ### New release workflow
 
