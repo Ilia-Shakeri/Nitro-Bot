@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.2`
+Current release: `0.9.0-alpha.3`
 
 Target release: `1.0.0`
 
@@ -18,6 +18,7 @@ Passing unit tests alone does not complete a version.
 | `0.8.0` | Safe state and money flow | No charged release can be lost or falsely reported |
 | `0.9.0-alpha.1` | Safe DMB create contract | Isolated jobs, leases, submit proof, and manual review exist |
 | `0.9.0-alpha.2` | Complete DMB create wizard | Every specified create step and circuit breaker exist |
+| `0.9.0-alpha.3` | Harden DMB input and build | Exact DMB choices, account state, edit gate, and image CI exist |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

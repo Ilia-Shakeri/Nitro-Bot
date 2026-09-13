@@ -79,6 +79,7 @@ class ReleaseArtistOut(BaseModel):
 class ArtistMappingOut(BaseModel):
     artist_name: str
     requires_new_profile: bool
+    dmb_has_account: bool = False
     profile_email: str | None = None
     spotify_url: str | None = None
     apple_music_url: str | None = None

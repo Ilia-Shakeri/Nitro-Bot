@@ -52,6 +52,7 @@ export interface ReleaseArtist {
 export interface ArtistMapping {
   artist_name: string;
   requires_new_profile: boolean;
+  dmb_has_account: boolean;
   profile_email: string | null;
   spotify_url: string | null;
   apple_music_url: string | null;

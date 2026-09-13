@@ -232,6 +232,7 @@ export const commitPendingMetadata = (data: ReleaseMetadata): PendingCommitResul
 export const blankArtistMapping = (artistName: string): ArtistMapping => ({
   artist_name: artistName,
   requires_new_profile: false,
+  dmb_has_account: false,
   profile_email: null,
   spotify_url: null,
   apple_music_url: null,

@@ -27,10 +27,11 @@ RUN --mount=type=cache,target=/root/.cache/geckodriver,sharing=locked \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY dmb-automation/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install --prefer-binary --upgrade-strategy only-if-needed -r requirements.txt
 
-COPY . .
+COPY dmb-automation/ .
+COPY shared/ /shared/
 
 CMD ["python", "worker.py"]

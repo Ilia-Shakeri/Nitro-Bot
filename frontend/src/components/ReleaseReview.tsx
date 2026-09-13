@@ -174,6 +174,9 @@ export const ReleaseReview = ({
                 <p className="mt-1 text-start text-xs text-textSecondary">
                   {t('New Profile')}: {t(mapping.requires_new_profile ? 'Yes' : 'No')}
                 </p>
+                <p className="text-start text-xs text-textSecondary">
+                  {t('This artist already has a DMB contributor account')}: {t(mapping.dmb_has_account ? 'Yes' : 'No')}
+                </p>
                 {mapping.requires_new_profile ? (
                   <p dir="ltr" className="mt-1 break-all text-left text-xs text-gold">
                     {mapping.profile_email}

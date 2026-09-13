@@ -76,7 +76,7 @@ robot --outputdir results automation/create_album.robot
 1. ورود، Music، Create album، انتخاب `(Maxi-) Single`.
 2. Generate EAN، کاور JPG، Title، English، ژانر تبدیل‌شده به متن DMB.
 3. Label برابر `Mitrxv`، Digital release، Expiration برابر `2099-12-31`.
-4. Price Code برابر `MA` و iTunes برابر `14`.
+4. Price Code برابر `MA` و iTunes برابر `45`.
 5. C line و P line با Label برابر `Mitrxv`.
 6. افزودن Contributorها با قرارداد حساب‌دار یا Performer جدید.
 7. Next، Add Tracks، فایل WAV، Title و Generate ISRC.

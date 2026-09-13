@@ -11,6 +11,7 @@ from models import Release, ReleaseJob, Transaction
 from release_jobs import claimable_job_statement, retry_delay_seconds
 from release_service import refund_is_due, user_for_update_statement
 from routers import internal
+from routers import releases
 from routers.internal import (
     _STATUS_TRANSITIONS,
     _parse_evidence,
@@ -182,10 +183,13 @@ def test_container_builds_include_shared_release_data():
     compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
     backend_dockerfile = (root / "backend" / "Dockerfile").read_text(encoding="utf-8")
     frontend_dockerfile = (root / "frontend" / "Dockerfile").read_text(encoding="utf-8")
+    dmb_dockerfile = (root / "dmb-automation" / "Dockerfile").read_text(encoding="utf-8")
     assert "dockerfile: backend/Dockerfile" in compose
     assert "dockerfile: frontend/Dockerfile" in compose
     assert "COPY shared/ /shared/" in backend_dockerfile
     assert "COPY shared/ /shared/" in frontend_dockerfile
+    assert "dockerfile: dmb-automation/Dockerfile" in compose
+    assert "COPY shared/ /shared/" in dmb_dockerfile
 
 
 def test_dmb_reviewer_secret_is_not_given_to_worker():
@@ -195,6 +199,15 @@ def test_dmb_reviewer_secret_is_not_given_to_worker():
     backend_part, worker_part = compose.split("  dmb-automation:", maxsplit=1)
     assert "DMB_REVIEW_SECRET_KEY" in backend_part
     assert "DMB_REVIEW_SECRET_KEY" not in worker_part
+
+
+@pytest.mark.asyncio
+async def test_edit_orders_are_fail_closed_before_work(monkeypatch):
+    monkeypatch.setattr(releases, "_EDIT_ENABLED", False)
+    with pytest.raises(HTTPException) as exc:
+        await releases.create_release(is_edit=True)
+    assert exc.value.status_code == 503
+    assert exc.value.detail == "dmb_edit_disabled"
 
 
 def test_dmb_review_uses_distinct_fail_closed_secret(monkeypatch):

@@ -61,7 +61,7 @@ class DmbJob:
             or job["metadata_language"] != "English"
             or job["expiration_date"] != "2099-12-31"
             or job["price_code"] != "MA"
-            or job["itunes_price_code"] != "14"
+            or job["itunes_price_code"] != "45"
             or not re.fullmatch(r"\d{4}", str(job["c_line_year"]))
             or not re.fullmatch(r"\d{4}", str(job["p_line_year"]))
         ):

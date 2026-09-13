@@ -10,6 +10,26 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.3] - 2026-09-13
+
+### Added
+
+- Exact DMB genre and subgenre choices in the mini-app, with safe normalization of older saved choices.
+- Explicit per-artist DMB contributor-account state through form, API contract, notice, and worker job.
+- CI checks for backend, frontend, DMB contract, Robot dry-run, and DMB container build.
+
+### Fixed
+
+- iTunes Digital price code now uses the required `45` value.
+- Edit orders fail before validation, file staging, and charging while DMB edit delivery is disabled.
+- Edit controls and route stay hidden while the edit feature flag is disabled.
+- DMB image now receives the shared genre catalog from the root build context.
+
+### Known gaps
+
+- Authenticated wizard selectors and the final Save still need a controlled DMB staging submission.
+- DMB edit delivery remains disabled until its distinct browser flow passes staging.
+
 ## [0.9.0-alpha.2] - 2026-09-13
 
 ### Added
@@ -128,7 +148,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.2...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.3...HEAD
+[0.9.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.2...v0.9.0-alpha.3
 [0.9.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.3...v0.9.0-alpha.1
 [0.8.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.2...v0.8.0-alpha.3

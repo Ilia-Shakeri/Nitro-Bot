@@ -263,8 +263,10 @@ def test_submission_id_accepts_client_token_shape():
 
 
 def test_genre_and_subgenre_pair_is_enforced():
-    assert validate_genre(" Pop ", "Synth Pop") == ("Pop", "Synth Pop")
+    assert validate_genre(" Urban ", "HipHop / Rap") == ("Urban", "HipHop / Rap")
     assert validate_genre("Pop", "") == ("Pop", None)
+    assert validate_genre("Pop", "Synth Pop") == ("Pop", None)
+    assert validate_genre("Rock", "Punk") == ("Rock / Rockpop", "Alternative")
     with pytest.raises(ReleaseValidationError, match="genre_invalid"):
         validate_genre("Made Up", None)
     with pytest.raises(ReleaseValidationError, match="sub_genre_invalid"):
@@ -335,6 +337,31 @@ def test_artist_mapping_accepts_real_platform_link_shapes():
     )
     assert spotify[0]["spotify_url"].endswith("/abc123")
     assert apple[0]["apple_music_url"].endswith("/123456")
+    assert spotify[0]["dmb_has_account"] is False
+
+
+def test_artist_mapping_keeps_explicit_dmb_account_state():
+    mappings = normalize_artist_mappings(
+        [{
+            "artist_name": "One",
+            "requires_new_profile": False,
+            "dmb_has_account": True,
+            "spotify_url": "https://open.spotify.com/artist/one",
+        }],
+        [{"name": "One", "role": "primary"}],
+    )
+    assert mappings[0]["dmb_has_account"] is True
+
+    with pytest.raises(ReleaseValidationError, match="artist_mappings_invalid"):
+        normalize_artist_mappings(
+            [{
+                "artist_name": "One",
+                "requires_new_profile": False,
+                "dmb_has_account": "yes",
+                "spotify_url": "https://open.spotify.com/artist/one",
+            }],
+            [{"name": "One", "role": "primary"}],
+        )
 
 
 def test_artist_mappings_require_one_complete_record_per_artist():

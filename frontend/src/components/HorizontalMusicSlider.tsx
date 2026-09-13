@@ -2,6 +2,7 @@ import { ArrowRight, Edit3 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { DMB_EDIT_ENABLED } from '../featureFlags';
 import { useReleases } from '../context/ReleaseContext';
 import { useToast } from '../context/ToastContext';
 import { errorText } from '../utils/formMessages';
@@ -79,7 +80,7 @@ export const HorizontalMusicSlider = () => {
                   <div className="absolute start-2 top-2">
                     <ReleaseStatusBadge release={release} />
                   </div>
-                  <button
+                  {DMB_EDIT_ENABLED && <button
                     type="button"
                     aria-label={t('Edit')}
                     onPointerEnter={preloadEdit}
@@ -89,7 +90,7 @@ export const HorizontalMusicSlider = () => {
                     className="absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-full bg-gold text-background shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   >
                     <Edit3 aria-hidden="true" className="h-4 w-4" />
-                  </button>
+                  </button>}
                 </div>
                 <h3 dir="ltr" lang="en" className="truncate text-left text-sm font-ui">{release.song_name}</h3>
                 <p dir="ltr" lang="en" className="truncate text-left text-xs font-light-ui text-textSecondary">

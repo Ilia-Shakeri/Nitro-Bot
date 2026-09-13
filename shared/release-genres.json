@@ -1,14 +1,14 @@
 {
-  "HipHop / Rap [Urban]": ["Trap", "Drill", "Boom Bap", "Gangsta Rap", "Conscious", "Cloud Rap"],
-  "Pop": ["Dance Pop", "Synth Pop", "Indie Pop", "Electropop", "K-Pop"],
-  "Rock": ["Alternative", "Indie Rock", "Hard Rock", "Punk", "Post-Rock"],
-  "Electronic / Dance": ["House", "Techno", "Trance", "Dubstep", "Drum & Bass", "EDM"],
-  "R&B / Soul": ["Contemporary R&B", "Neo-Soul", "Funk"],
-  "Classical": ["Orchestral", "Piano", "Opera", "Chamber"],
-  "Jazz": ["Smooth Jazz", "Bebop", "Fusion", "Swing"],
-  "Folk": ["Indie Folk", "Singer-Songwriter", "Americana"],
-  "Country": ["Modern Country", "Bluegrass", "Country Pop"],
-  "Reggae": ["Roots", "Dancehall", "Dub"],
-  "Metal": ["Heavy Metal", "Death Metal", "Black Metal", "Metalcore"],
-  "World": ["Latin", "Afrobeat", "Persian", "Arabic"]
+  "Christmas-Repetoire": ["Christmas-Klassiks", "Christmas-Pop", "Christmas-Songs", "Christmas: Children's", "Christmas: Classical", "Christmas: Jazz", "Christmas: modern", "Christmas: R&B", "Christmas: Religious", "Christmas: Rock"],
+  "Classical": ["Avant-Garde", "Baroque", "Chamber Music", "Classic - Vocal", "Classical Music Instrumental", "Early Music", "High Classical", "Impressionist", "Klassik - Neue / Zeitgenössische Musik", "klassik Crossover / Populärklassik", "Medieval", "Renaissance", "Romantic", "Wedding Music"],
+  "Country and Western": ["Alternative Country", "Americana", "Bluegrass", "Cajun/Zydeco", "Contemporary Bluegrass", "Contemporary Country", "Country Gospel", "Country Rock", "Germany Country", "Honky Tonk", "Honkytonk (Hillbilly / Honkytonk / Bluegrass)", "Mainstream", "Outlaw Country", "Square-/ Line Dance", "TexMex", "Traditional Bluegrass", "Traditional Country", "Urban Cowboy", "Western Swing"],
+  "Dance & Electronic": [],
+  "Dance-music / -orchestra": ["Dance-Party", "Historic", "Latin-American", "Modern & New Dances", "Standard"],
+  "Jazz": ["Mainstream Jazz", "Modern", "Traditional / Swing"],
+  "Children": [],
+  "Pop": [],
+  "Rock / Rockpop": ["Alternative", "Classic Rock & Pop", "German Rock & Pop", "International", "Metal (Hard 'n' Heavy)", "Progressive Rock", "Rock'n'roll", "Singer / Songwriter"],
+  "Word / Other": ["Others"],
+  "Urban": ["Blues", "Disco", "Funk", "HipHop / Rap", "Reggae", "Rhythm and Blues", "Soul", "Spiritual / Gospel", "Swingbeat"],
+  "Worldmusic / Folklore / Folk Music": []
 }

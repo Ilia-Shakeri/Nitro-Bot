@@ -29,6 +29,42 @@ _MAX_JSON_LENGTH = 32_768
 _MAX_URL_LENGTH = 2_048
 _MAX_NOTICE_DYNAMIC_LENGTH = 3_000
 
+_LEGACY_GENRES: dict[tuple[str, str | None], tuple[str, str | None]] = {
+    ("HipHop / Rap [Urban]", None): ("Urban", "HipHop / Rap"),
+    **{("HipHop / Rap [Urban]", sub): ("Urban", "HipHop / Rap") for sub in ("Trap", "Drill", "Boom Bap", "Gangsta Rap", "Conscious", "Cloud Rap")},
+    **{("Pop", sub): ("Pop", None) for sub in ("Dance Pop", "Synth Pop", "Indie Pop", "Electropop", "K-Pop")},
+    ("Rock", None): ("Rock / Rockpop", None),
+    ("Rock", "Alternative"): ("Rock / Rockpop", "Alternative"),
+    ("Rock", "Indie Rock"): ("Rock / Rockpop", "International"),
+    ("Rock", "Hard Rock"): ("Rock / Rockpop", "Metal (Hard 'n' Heavy)"),
+    ("Rock", "Punk"): ("Rock / Rockpop", "Alternative"),
+    ("Rock", "Post-Rock"): ("Rock / Rockpop", "Progressive Rock"),
+    **{("Electronic / Dance", sub): ("Dance & Electronic", None) for sub in (None, "House", "Techno", "Trance", "Dubstep", "Drum & Bass", "EDM")},
+    ("R&B / Soul", None): ("Urban", "Rhythm and Blues"),
+    ("R&B / Soul", "Contemporary R&B"): ("Urban", "Rhythm and Blues"),
+    ("R&B / Soul", "Neo-Soul"): ("Urban", "Soul"),
+    ("R&B / Soul", "Funk"): ("Urban", "Funk"),
+    ("Classical", "Orchestral"): ("Classical", "Classical Music Instrumental"),
+    ("Classical", "Piano"): ("Classical", "Classical Music Instrumental"),
+    ("Classical", "Opera"): ("Classical", "Classic - Vocal"),
+    ("Classical", "Chamber"): ("Classical", "Chamber Music"),
+    ("Jazz", "Smooth Jazz"): ("Jazz", "Modern"),
+    ("Jazz", "Bebop"): ("Jazz", "Modern"),
+    ("Jazz", "Fusion"): ("Jazz", "Modern"),
+    ("Jazz", "Swing"): ("Jazz", "Traditional / Swing"),
+    ("Folk", None): ("Worldmusic / Folklore / Folk Music", None),
+    ("Folk", "Indie Folk"): ("Worldmusic / Folklore / Folk Music", None),
+    ("Folk", "Singer-Songwriter"): ("Rock / Rockpop", "Singer / Songwriter"),
+    ("Folk", "Americana"): ("Country and Western", "Americana"),
+    ("Country", None): ("Country and Western", None),
+    ("Country", "Modern Country"): ("Country and Western", "Mainstream"),
+    ("Country", "Bluegrass"): ("Country and Western", "Bluegrass"),
+    ("Country", "Country Pop"): ("Country and Western", "Mainstream"),
+    **{("Reggae", sub): ("Urban", "Reggae") for sub in (None, "Roots", "Dancehall", "Dub")},
+    **{("Metal", sub): ("Rock / Rockpop", "Metal (Hard 'n' Heavy)") for sub in (None, "Heavy Metal", "Death Metal", "Black Metal", "Metalcore")},
+    **{("World", sub): ("Worldmusic / Folklore / Folk Music", None) for sub in (None, "Latin", "Afrobeat", "Persian", "Arabic")},
+}
+
 
 def normalize_english_text(value: Any, field: str = "text") -> str:
     if not isinstance(value, str):
@@ -58,6 +94,10 @@ def validate_genre(genre: Any, sub_genre: Any) -> tuple[str, str | None]:
     if not isinstance(genre, str):
         raise ReleaseValidationError("genre_invalid")
     normalized_genre = genre.strip()
+    normalized_sub_genre = sub_genre.strip() if isinstance(sub_genre, str) else sub_genre
+    legacy = _LEGACY_GENRES.get((normalized_genre, normalized_sub_genre or None))
+    if legacy:
+        return legacy
     allowed_sub_genres = GENRE_TREE.get(normalized_genre)
     if allowed_sub_genres is None:
         raise ReleaseValidationError("genre_invalid")
@@ -312,6 +352,7 @@ def normalize_artist_mappings(
             {
                 "artist_name": artists[0]["name"],
                 "requires_new_profile": bool(legacy_requires_new_profile),
+                "dmb_has_account": False,
                 "profile_email": legacy_profile_email,
                 "spotify_url": legacy_mapping_spotify,
                 "apple_music_url": legacy_mapping_apple,
@@ -341,6 +382,9 @@ def normalize_artist_mappings(
         requires_new_profile = item.get("requires_new_profile")
         if not isinstance(requires_new_profile, bool):
             raise ReleaseValidationError("artist_mappings_invalid")
+        dmb_has_account = item.get("dmb_has_account", False)
+        if not isinstance(dmb_has_account, bool):
+            raise ReleaseValidationError("artist_mappings_invalid")
         email = _normalize_ascii_email(item.get("profile_email"))
         spotify = _normalize_artist_url(item.get("spotify_url"), "spotify")
         apple = _normalize_artist_url(item.get("apple_music_url"), "apple")
@@ -356,6 +400,7 @@ def normalize_artist_mappings(
         by_name[key] = {
             "artist_name": canonical_name,
             "requires_new_profile": requires_new_profile,
+            "dmb_has_account": dmb_has_account,
             "profile_email": email,
             "spotify_url": spotify,
             "apple_music_url": apple,

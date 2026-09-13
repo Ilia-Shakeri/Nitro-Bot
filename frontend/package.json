@@ -1,13 +1,13 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.9.0-alpha.2",
+  "version": "0.9.0-alpha.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "esbuild tests/release-form.check.ts --bundle --platform=node --format=esm --outfile=.test-dist/release-form-check.mjs && node .test-dist/release-form-check.mjs",
+    "test": "esbuild ./tests/release-form.check.ts --bundle --platform=node --format=esm --outfile=.test-dist/release-form-check.mjs && node .test-dist/release-form-check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

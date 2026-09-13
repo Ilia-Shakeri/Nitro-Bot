@@ -91,6 +91,17 @@ export const ArtistMappingStep = ({
                 label={t("I don't have a profile (Create one for me)")}
               />
 
+              <div className="mt-3">
+                <FormToggle
+                  id={`${prefix}-dmb-account`}
+                  checked={mapping.dmb_has_account}
+                  onChange={() => update(index, {
+                    dmb_has_account: !mapping.dmb_has_account,
+                  })}
+                  label={t('This artist already has a DMB contributor account')}
+                />
+              </div>
+
               {mapping.requires_new_profile ? (
                 <div className="mt-3">
                   <ReleaseField

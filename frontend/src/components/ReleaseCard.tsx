@@ -2,6 +2,7 @@ import { Edit3, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { Release } from '../types/api';
+import { DMB_EDIT_ENABLED } from '../featureFlags';
 import {
   formatReleaseDate,
   parseProducers,
@@ -63,7 +64,7 @@ export const ReleaseCard = ({ release }: { release: Release }) => {
           <p className="mt-1 truncate text-start text-xs text-textSecondary">
             {t(releaseDateSentenceKey(release), { date })}
           </p>
-          <button
+          {DMB_EDIT_ENABLED && <button
             type="button"
             onPointerEnter={preloadEdit}
             onFocus={preloadEdit}
@@ -72,7 +73,7 @@ export const ReleaseCard = ({ release }: { release: Release }) => {
           >
             <Edit3 aria-hidden="true" className="h-3.5 w-3.5" />
             {t('Edit')}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -102,6 +103,7 @@ export const ReleaseCard = ({ release }: { release: Release }) => {
             : [{
               artist_name: primary,
               requires_new_profile: release.requires_new_profile,
+              dmb_has_account: false,
               profile_email: release.profile_email,
               spotify_url: release.mapping_spotify,
               apple_music_url: release.mapping_apple,

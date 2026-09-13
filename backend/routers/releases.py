@@ -32,6 +32,7 @@ import storage
 
 logger = logging.getLogger("nitro.releases")
 router = APIRouter(prefix="/releases", tags=["releases"])
+_EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
 
 
 def _utc_now() -> datetime:
@@ -77,6 +78,8 @@ async def create_release(
     cover: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
+    if is_edit and not _EDIT_ENABLED:
+        raise HTTPException(status_code=503, detail="dmb_edit_disabled")
     try:
         validate_policy_acceptance(policy_accepted)
     except ReleaseValidationError as exc:

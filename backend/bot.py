@@ -20,7 +20,7 @@ from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.2")
+APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.3")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -484,7 +484,10 @@ async def notify_admin_new_release(
                 f"Spotify: {mapping.get('spotify_url') or '-'}; "
                 f"Apple Music: {mapping.get('apple_music_url') or '-'}"
             )
-        mapping_lines.append(f"{index}. {artist} ({role}): {details}")
+        dmb_account = "yes" if mapping.get("dmb_has_account") else "no"
+        mapping_lines.append(
+            f"{index}. {artist} ({role}): {details}; DMB account: {dmb_account}"
+        )
     mappings_text = "\n".join(mapping_lines) or "-"
     caption = (
         f"{manager_prefix}"

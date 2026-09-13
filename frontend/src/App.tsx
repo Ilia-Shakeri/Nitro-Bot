@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Navigate, Routes, Route } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -8,6 +8,7 @@ import { ReleaseProvider } from './context/ReleaseContext';
 import { ToastContainer } from './components/Toast';
 import { LanguageModal } from './components/LanguageModal';
 import { HomePage } from './pages/HomePage';
+import { DMB_EDIT_ENABLED } from './featureFlags';
 
 const UploadPage = lazy(() => import('./pages/UploadPage').then(module => ({ default: module.UploadPage })));
 const EditPage = lazy(() => import('./pages/EditPage').then(module => ({ default: module.EditPage })));
@@ -48,7 +49,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/upload" element={<UploadPage />} />
-                <Route path="/edit/:id" element={<EditPage />} />
+                <Route path="/edit/:id" element={DMB_EDIT_ENABLED ? <EditPage /> : <Navigate to="/releases" replace />} />
                 <Route path="/releases" element={<ReleasesPage />} />
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/policy" element={<PolicyPage />} />

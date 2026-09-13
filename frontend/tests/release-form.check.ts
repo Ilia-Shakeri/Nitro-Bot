@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { isRtlLanguage, TRANSLATIONS } from '../src/i18n';
 import { DEFAULT_PRICING, nitroUsdCents, tomanCents } from '../src/pricingValues';
 import { parseApiResponse } from '../src/utils/apiResponse';
-import { changeMainGenre, validGenre, validSubGenre } from '../src/utils/genres';
+import { changeMainGenre, normalizeGenreSelection, validGenre, validSubGenre } from '../src/utils/genres';
 import { paymentMethodsForLanguage } from '../src/utils/paymentMethods';
 import {
   discountPercent,
@@ -185,11 +185,13 @@ same(paymentMethodsForLanguage('fa'), ['card', 'usdt', 'btc', 'bnb', 'usdt_bnb',
 for (const language of ['en', 'ar', 'ru']) {
   same(paymentMethodsForLanguage(language), ['usdt', 'btc', 'bnb', 'usdt_bnb', 'telegram_stars'], `${language} methods must exclude card`);
 }
-same(changeMainGenre('Rock'), { genre: 'Rock', subGenre: '' }, 'genre change must clear subgenre');
-assert(validSubGenre('Rock', 'Punk'), 'valid subgenre must pass');
-assert(!validSubGenre('Pop', 'Punk'), 'stale subgenre must fail');
+same(changeMainGenre('Urban'), { genre: 'Urban', subGenre: '' }, 'genre change must clear subgenre');
+assert(validSubGenre('Urban', 'HipHop / Rap'), 'valid subgenre must pass');
+assert(!validSubGenre('Pop', 'HipHop / Rap'), 'stale subgenre must fail');
 assert(validGenre('Pop'), 'known genre must pass');
 assert(!validGenre('Made Up'), 'unknown genre must fail');
+same(normalizeGenreSelection('Rock', 'Punk'), { genre: 'Rock / Rockpop', subGenre: 'Alternative' }, 'old genre must migrate in edit form');
+same(normalizeGenreSelection('Urban', 'HipHop / Rap'), { genre: 'Urban', subGenre: 'HipHop / Rap' }, 'canonical genre must stay');
 
 for (const language of ['en', 'fa', 'ar', 'ru'] as const) {
   assert(TRANSLATIONS[language].song_placeholder === 'e.g., My Latest Release', `${language} song prompt must be English`);

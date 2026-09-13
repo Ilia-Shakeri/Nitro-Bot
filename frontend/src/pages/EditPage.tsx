@@ -16,6 +16,7 @@ import { isRtlLanguage } from '../i18n';
 import { usePricing } from '../pricing';
 import type { ArtistMapping, Release } from '../types/api';
 import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
+import { normalizeGenreSelection } from '../utils/genres';
 import {
   appendReleaseMetadata,
   commitPendingMetadata,
@@ -31,7 +32,9 @@ import {
 import { parseProducers, releaseTotal } from '../utils/releasePresentation';
 import { useObjectUrl } from '../utils/useObjectUrl';
 
-const releaseMetadata = (release: Release): ReleaseMetadata => ({
+const releaseMetadata = (release: Release): ReleaseMetadata => {
+  const genre = normalizeGenreSelection(release.genre ?? '', release.sub_genre ?? '');
+  return ({
   songName: release.song_name,
   artists: release.artists?.length
     ? release.artists
@@ -41,14 +44,15 @@ const releaseMetadata = (release: Release): ReleaseMetadata => ({
   releaseDate: release.release_date,
   isRerelease: release.is_rerelease,
   originalReleaseDate: release.original_release_date ?? '',
-  genre: release.genre ?? '',
-  subGenre: release.sub_genre ?? '',
+  genre: genre.genre,
+  subGenre: genre.subGenre,
   copyrightRequested: false,
   explicitContent: release.explicit_content,
   pendingArtist: '',
   pendingProducer: '',
   pendingLegalName: '',
-});
+  });
+};
 
 const recoveredMappings = (release: Release): ArtistMapping[] => {
   if (release.artist_mappings?.length) return release.artist_mappings;
@@ -63,6 +67,7 @@ const recoveredMappings = (release: Release): ArtistMapping[] => {
     return [{
       artist_name: primary,
       requires_new_profile: release.requires_new_profile,
+      dmb_has_account: false,
       profile_email: release.profile_email,
       spotify_url: release.mapping_spotify,
       apple_music_url: release.mapping_apple,

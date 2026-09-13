@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
+from pathlib import Path
 
 
 LABEL = "Mitrxv"
 LANGUAGE = "English"
 EXPIRATION_DATE = "2099-12-31"
 PRICE_CODE = "MA"
-ITUNES_PRICE_CODE = "14"
+ITUNES_PRICE_CODE = "45"
 
-_GENRE_MAP: dict[str, dict[str | None, str]] = {
+_LOCAL_GENRES = Path(__file__).parents[1] / "shared" / "release-genres.json"
+_CONTAINER_GENRES = Path("/shared/release-genres.json")
+_GENRE_PATH = _LOCAL_GENRES if _LOCAL_GENRES.is_file() else _CONTAINER_GENRES
+_GENRE_TREE: dict[str, list[str]] = json.loads(_GENRE_PATH.read_text(encoding="utf-8"))
+
+_LEGACY_GENRE_MAP: dict[str, dict[str | None, str]] = {
     "HipHop / Rap [Urban]": {
         None: "HipHop / Rap [Urban]",
         "Trap": "HipHop / Rap [Urban]",
@@ -102,12 +109,21 @@ _GENRE_MAP: dict[str, dict[str | None, str]] = {
 
 
 def dmb_genre_text(genre: str, sub_genre: str | None) -> str:
-    choices = _GENRE_MAP.get(genre)
-    if choices is None:
+    legacy = _LEGACY_GENRE_MAP.get(genre)
+    if legacy is not None and sub_genre in legacy:
+        return legacy[sub_genre]
+    choices = _GENRE_TREE.get(genre)
+    if choices is not None:
+        if sub_genre is None:
+            return genre
+        if sub_genre not in choices:
+            raise ValueError("dmb_sub_genre_not_mapped")
+        return f"{sub_genre} [{genre}]"
+    if legacy is None:
         raise ValueError("dmb_genre_not_mapped")
-    if sub_genre not in choices:
+    if sub_genre not in legacy:
         raise ValueError("dmb_sub_genre_not_mapped")
-    return choices[sub_genre]
+    return legacy[sub_genre]
 
 
 def copyright_years(
@@ -143,13 +159,13 @@ def contributor_contract(
         mapping = mappings.get(name.casefold())
         if not name or mapping is None:
             raise ValueError("dmb_contributor_mapping_missing")
-        requires_new_profile = mapping.get("requires_new_profile")
-        if not isinstance(requires_new_profile, bool):
+        has_account = mapping.get("dmb_has_account")
+        if not isinstance(has_account, bool):
             raise ValueError("dmb_contributor_mapping_invalid")
         contributors.append(
             {
                 "name": name,
-                "has_account": not requires_new_profile,
+                "has_account": has_account,
                 "role": "Performer",
             }
         )

@@ -50,6 +50,7 @@ def sample_release() -> dict:
             {
                 "artist_name": "Main",
                 "requires_new_profile": False,
+                "dmb_has_account": True,
                 "spotify_url": "https://open.spotify.com/artist/main",
                 "apple_music_url": None,
                 "profile_email": None,
@@ -57,6 +58,7 @@ def sample_release() -> dict:
             {
                 "artist_name": "Guest",
                 "requires_new_profile": True,
+                "dmb_has_account": False,
                 "spotify_url": None,
                 "apple_music_url": None,
                 "profile_email": "guest@example.com",
@@ -90,7 +92,7 @@ def test_job_payload_carries_full_release_contract(tmp_path):
     assert payload["metadata_language"] == "English"
     assert payload["expiration_date"] == "2099-12-31"
     assert payload["price_code"] == "MA"
-    assert payload["itunes_price_code"] == "14"
+    assert payload["itunes_price_code"] == "45"
     assert payload["c_line_year"] == "2020"
     assert payload["p_line_year"] == str(date.today().year)
     assert payload["contributors"] == [
@@ -110,6 +112,22 @@ def test_job_payload_carries_full_release_contract(tmp_path):
         "explicit_content",
     ):
         assert payload[field] == release[field]
+
+
+def test_every_canonical_genre_builds_exact_dmb_text():
+    genre_tree = json.loads((ROOT.parent / "shared" / "release-genres.json").read_text(encoding="utf-8"))
+    for genre, sub_genres in genre_tree.items():
+        assert worker.dmb_genre_text(genre, None) == genre
+        for sub_genre in sub_genres:
+            assert worker.dmb_genre_text(genre, sub_genre) == f"{sub_genre} [{genre}]"
+
+
+def test_contributor_account_is_not_inferred_from_streaming_profile():
+    release = sample_release()
+    release["artist_mappings"][0]["requires_new_profile"] = False
+    release["artist_mappings"][0]["dmb_has_account"] = False
+    payload = worker.build_job_payload(release, Path("cover.jpg"), Path("track.wav"))
+    assert payload["contributors"][0]["has_account"] is False
 
 
 def test_edit_contract_requires_delivered_source():
