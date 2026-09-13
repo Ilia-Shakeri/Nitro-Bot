@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs as _parse_qs
 from urllib.parse import urlparse as _urlparse
@@ -9,6 +9,12 @@ from urllib.parse import urlparse as _urlparse
 
 class DmbJob:
     ROBOT_LIBRARY_SCOPE = "SUITE"
+
+    def format_dmb_date(self, value: str) -> str:
+        try:
+            return date.fromisoformat(value).strftime("%d.%m.%Y")
+        except (TypeError, ValueError):
+            raise ValueError("dmb_job_date_invalid") from None
 
     def load_dmb_job(self, path: str) -> dict:
         job_path = Path(path).resolve()
@@ -61,7 +67,7 @@ class DmbJob:
             or job["metadata_language"] != "English"
             or job["expiration_date"] != "2099-12-31"
             or job["price_code"] != "MA"
-            or job["itunes_price_code"] != "45"
+            or job["itunes_price_code"] != "14"
             or not re.fullmatch(r"\d{4}", str(job["c_line_year"]))
             or not re.fullmatch(r"\d{4}", str(job["p_line_year"]))
         ):
@@ -138,6 +144,10 @@ class DmbJob:
 
 
 _library = DmbJob()
+
+
+def format_dmb_date(value: str) -> str:
+    return _library.format_dmb_date(value)
 
 
 def load_dmb_job(path: str) -> dict:

@@ -10,6 +10,17 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.4] - 2026-09-13
+
+### Fixed
+
+- Live navigation now targets Audio, Create audio product, and the real album-create iframe.
+- DMB dates convert from stored ISO form to the live `DD.MM.YYYY` form without submitting on Enter.
+- Label selection uses the live select field.
+- Genre, label lookup, and known-contributor results require an exact match instead of the first suggestion.
+- Contributors are explicitly applied to tracks.
+- Digital 45 uses the live DMB option value `14`.
+
 ## [0.9.0-alpha.3] - 2026-09-13
 
 ### Added
@@ -20,7 +31,7 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 
 ### Fixed
 
-- iTunes Digital price code now uses the required `45` value.
+- iTunes Digital 45 uses DMB's live select value `14`.
 - Edit orders fail before validation, file staging, and charging while DMB edit delivery is disabled.
 - Edit controls and route stay hidden while the edit feature flag is disabled.
 - DMB image now receives the shared genre catalog from the root build context.
@@ -148,7 +159,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.4...HEAD
+[0.9.0-alpha.4]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.3...v0.9.0-alpha.4
 [0.9.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.2...v0.9.0-alpha.3
 [0.9.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.1...v0.9.0-alpha.2
 [0.9.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.3...v0.9.0-alpha.1

@@ -11,7 +11,7 @@ LABEL = "Mitrxv"
 LANGUAGE = "English"
 EXPIRATION_DATE = "2099-12-31"
 PRICE_CODE = "MA"
-ITUNES_PRICE_CODE = "45"
+ITUNES_PRICE_CODE = "14"
 
 _LOCAL_GENRES = Path(__file__).parents[1] / "shared" / "release-genres.json"
 _CONTAINER_GENRES = Path("/shared/release-genres.json")

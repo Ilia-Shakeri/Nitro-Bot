@@ -1,6 +1,7 @@
 *** Settings ***
 Library    SeleniumLibrary
 Library    OperatingSystem
+Library    String
 Resource   ../locators/album_locators.robot
 Resource   ../locators/login_locators.robot
 
@@ -61,8 +62,9 @@ Select DMB Genre
     [Arguments]    ${dmb_genre}
     Wait Until Element Is Visible    ${GENRE_INPUT}    timeout=20s
     Input Text    ${GENRE_INPUT}    ${dmb_genre}
-    Wait Until Element Is Visible    ${AJAX_FIRST_OPTION}    timeout=20s
-    Click Element    ${AJAX_FIRST_OPTION}
+    ${genre_option}=    Replace String    ${AJAX_EXACT_OPTION}    __VALUE__    ${dmb_genre}
+    Wait Until Element Is Visible    ${genre_option}    timeout=20s
+    Click Element    ${genre_option}
     Wait Until Keyword Succeeds    10s    1s    Genre Should Be Selected    ${dmb_genre}
 
 Genre Should Be Selected
@@ -74,24 +76,31 @@ Fill Ajax Value
     [Arguments]    ${locator}    ${value}
     Wait Until Element Is Visible    ${locator}    timeout=20s
     Input Text    ${locator}    ${value}
-    Wait Until Element Is Visible    ${AJAX_FIRST_OPTION}    timeout=20s
-    Click Element    ${AJAX_FIRST_OPTION}
+    ${exact_option}=    Replace String    ${AJAX_EXACT_OPTION}    __VALUE__    ${value}
+    Wait Until Element Is Visible    ${exact_option}    timeout=20s
+    Click Element    ${exact_option}
 
 Set Label
     [Arguments]    ${label}
-    Fill Ajax Value    ${LABEL_INPUT}    ${label}
+    Select From List By Label    ${LABEL_SELECT}    ${label}
+    ${selected_label}=    Get Selected List Label    ${LABEL_SELECT}
+    Should Be Equal As Strings    ${selected_label}    ${label}
 
 Input Date And Confirm
     [Arguments]    ${locator}    ${date_value}
     Wait Until Element Is Visible    ${locator}    timeout=20s
     Press Keys    ${locator}    CTRL+A
     Input Text    ${locator}    ${date_value}
-    Press Keys    ${locator}    ENTER
+    Press Keys    ${locator}    TAB
+    ${actual_date}=    Get Value    ${locator}
+    Should Be Equal As Strings    ${actual_date}    ${date_value}
 
 Set Release Dates
     [Arguments]    ${start_date}    ${end_date}
-    Input Date And Confirm    ${SALES_START_DATE}    ${start_date}
-    Input Date And Confirm    ${SALES_END_DATE}    ${end_date}
+    ${dmb_start_date}=    Format Dmb Date    ${start_date}
+    ${dmb_end_date}=    Format Dmb Date    ${end_date}
+    Input Date And Confirm    ${SALES_START_DATE}    ${dmb_start_date}
+    Input Date And Confirm    ${SALES_END_DATE}    ${dmb_end_date}
 
 Set Price Codes
     [Arguments]    ${price_code}    ${itunes_price_code}
@@ -114,8 +123,9 @@ Add DMB Contributor
     Wait Until Element Is Visible    ${CONTRIBUTOR_NAME_INPUT}    timeout=20s
     Input Text    ${CONTRIBUTOR_NAME_INPUT}    ${name}
     IF    ${has_account}
-        Wait Until Element Is Visible    ${CONTRIBUTOR_FIRST_OPTION}    timeout=20s
-        Click Element    ${CONTRIBUTOR_FIRST_OPTION}
+        ${contributor_option}=    Replace String    ${AJAX_EXACT_OPTION}    __VALUE__    ${name}
+        Wait Until Element Is Visible    ${contributor_option}    timeout=20s
+        Click Element    ${contributor_option}
     ELSE
         Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC
         Keep Only Performer Role
@@ -130,6 +140,10 @@ Keep Only Performer Role
         Click Element    ${button}
     END
     Wait Until Element Is Visible    ${PERFORMER_ROLE}    timeout=10s
+
+Apply Contributors To Tracks
+    Select Checkbox    ${APPLY_CONTRIBUTORS_TO_TRACKS}
+    Checkbox Should Be Selected    ${APPLY_CONTRIBUTORS_TO_TRACKS}
 
 Open Add Tracks
     Wait Until Element Is Visible    ${ADD_TRACKS_BUTTON}    timeout=60s

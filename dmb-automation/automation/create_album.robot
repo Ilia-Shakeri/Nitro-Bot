@@ -50,6 +50,7 @@ And User Fills Album Form
     FOR    ${contributor}    IN    @{JOB}[contributors]
         Add DMB Contributor    ${contributor}[name]    ${contributor}[has_account]
     END
+    Apply Contributors To Tracks
     Click Ready Next
     Wait Until Element Is Visible    ${ADD_TRACKS_BUTTON}    timeout=120s
 

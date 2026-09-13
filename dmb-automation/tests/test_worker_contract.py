@@ -92,7 +92,7 @@ def test_job_payload_carries_full_release_contract(tmp_path):
     assert payload["metadata_language"] == "English"
     assert payload["expiration_date"] == "2099-12-31"
     assert payload["price_code"] == "MA"
-    assert payload["itunes_price_code"] == "45"
+    assert payload["itunes_price_code"] == "14"
     assert payload["c_line_year"] == "2020"
     assert payload["p_line_year"] == str(date.today().year)
     assert payload["contributors"] == [
@@ -195,6 +195,13 @@ def test_job_library_writes_atomic_verified_result(tmp_path):
     assert result["submitted"] is True
     assert result["isrcs"] == ["USABC2600001"]
     assert not result_path.with_suffix(".json.tmp").exists()
+
+
+def test_job_library_formats_iso_dates_for_live_dmb_form():
+    library = dmb_job_module.DmbJob()
+    assert library.format_dmb_date("2026-12-01") == "01.12.2026"
+    with pytest.raises(ValueError, match="dmb_job_date_invalid"):
+        library.format_dmb_date("01.12.2026")
 
 
 def test_job_loader_rejects_media_outside_job_directory(tmp_path):
@@ -322,10 +329,25 @@ def test_robot_flow_contains_attachment_steps():
         "Select Worldwide And Next",
         "Select All Platforms And Next",
         "Verify Review Data",
+        "Apply Contributors To Tracks",
     ):
         assert step in suite or step in page
     assert "Save & View Audio Product" in locators
     assert "    Sleep" not in page
+
+
+def test_live_verified_navigation_and_field_locators_are_pinned():
+    login_locators = (
+        ROOT / "resources" / "locators" / "login_locators.robot"
+    ).read_text(encoding="utf-8")
+    album_page = (ROOT / "resources" / "pages" / "album_page.robot").read_text(
+        encoding="utf-8"
+    )
+    assert "normalize-space()='Audio'" in login_locators
+    assert "normalize-space()='Create audio product'" in login_locators
+    assert "//iframe[contains(@src, 'album.create')]" in login_locators
+    assert "Select From List By Label    ${LABEL_SELECT}" in album_page
+    assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 3
 
 
 def test_circuit_opens_after_bounded_failures_and_clears_on_success(
