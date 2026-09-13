@@ -8,6 +8,8 @@ from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from release_genres import GENRE_TREE
+
 
 class ReleaseValidationError(ValueError):
     pass
@@ -20,9 +22,15 @@ _ASCII_EMAIL_RE = re.compile(
     r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$"
 )
+_SUBMISSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
+_MAX_TEXT_LENGTH = 200
+_MAX_NAMES = 20
+_MAX_JSON_LENGTH = 32_768
+_MAX_URL_LENGTH = 2_048
+_MAX_NOTICE_DYNAMIC_LENGTH = 3_000
 
 
-def normalize_english_text(value: Any) -> str:
+def normalize_english_text(value: Any, field: str = "text") -> str:
     if not isinstance(value, str):
         raise ReleaseValidationError("english_only_input")
     normalized = " ".join(value.strip().split())
@@ -32,7 +40,63 @@ def normalize_english_text(value: Any) -> str:
         or not _ENGLISH_ALNUM_RE.search(normalized)
     ):
         raise ReleaseValidationError("english_only_input")
+    if len(normalized) > _MAX_TEXT_LENGTH:
+        raise ReleaseValidationError(f"{field}_too_long")
     return normalized
+
+
+def normalize_submission_id(value: Any) -> str:
+    if not isinstance(value, str):
+        raise ReleaseValidationError("submission_id_invalid")
+    normalized = value.strip()
+    if not _SUBMISSION_ID_RE.fullmatch(normalized):
+        raise ReleaseValidationError("submission_id_invalid")
+    return normalized
+
+
+def validate_genre(genre: Any, sub_genre: Any) -> tuple[str, str | None]:
+    if not isinstance(genre, str):
+        raise ReleaseValidationError("genre_invalid")
+    normalized_genre = genre.strip()
+    allowed_sub_genres = GENRE_TREE.get(normalized_genre)
+    if allowed_sub_genres is None:
+        raise ReleaseValidationError("genre_invalid")
+    if sub_genre in (None, ""):
+        return normalized_genre, None
+    if not isinstance(sub_genre, str):
+        raise ReleaseValidationError("sub_genre_invalid")
+    normalized_sub_genre = sub_genre.strip()
+    if normalized_sub_genre not in allowed_sub_genres:
+        raise ReleaseValidationError("sub_genre_invalid")
+    return normalized_genre, normalized_sub_genre
+
+
+def validate_notice_payload_size(
+    *,
+    song_name: str,
+    artists: list[dict[str, str]],
+    producers: list[str],
+    legal_names: list[str],
+    genre: str,
+    sub_genre: str | None,
+    artist_mappings: list[dict[str, Any]],
+) -> None:
+    values: list[str] = [song_name, genre, sub_genre or ""]
+    values.extend(artist["name"] for artist in artists)
+    values.extend(producers)
+    values.extend(legal_names)
+    for mapping in artist_mappings:
+        values.extend(
+            str(mapping.get(field) or "")
+            for field in (
+                "artist_name",
+                "profile_email",
+                "spotify_url",
+                "apple_music_url",
+            )
+        )
+    if sum(map(len, values)) > _MAX_NOTICE_DYNAMIC_LENGTH:
+        raise ReleaseValidationError("release_metadata_too_large")
 
 
 def validate_policy_acceptance(value: bool | None) -> None:
@@ -91,6 +155,8 @@ def _load_json_array(raw: str | list[Any] | None, field: str) -> list[Any]:
     if isinstance(raw, list):
         parsed = raw
     else:
+        if isinstance(raw, str) and len(raw) > _MAX_JSON_LENGTH:
+            raise ReleaseValidationError(f"{field}_too_large")
         try:
             parsed = json.loads(raw or "[]")
         except (TypeError, json.JSONDecodeError):
@@ -102,12 +168,14 @@ def _load_json_array(raw: str | list[Any] | None, field: str) -> list[Any]:
 
 def normalize_names(raw: str | list[Any] | None, field: str) -> list[str]:
     parsed = _load_json_array(raw, field)
+    if len(parsed) > _MAX_NAMES:
+        raise ReleaseValidationError(f"{field}_max")
     names: list[str] = []
     seen: set[str] = set()
     for item in parsed:
         if not isinstance(item, str) or not item.strip():
             raise ReleaseValidationError(f"{field}_empty")
-        name = normalize_english_text(item)
+        name = normalize_english_text(item, field)
         key = name.casefold()
         if key in seen:
             raise ReleaseValidationError(f"{field}_duplicate")
@@ -139,7 +207,7 @@ def normalize_artists(raw: str | list[Any] | None) -> list[dict[str, str]]:
         role_value = item.get("role")
         if not isinstance(name_value, str) or not name_value.strip():
             raise ReleaseValidationError("artists_empty")
-        name = normalize_english_text(name_value)
+        name = normalize_english_text(name_value, "artists")
         key = name.casefold()
         if key in seen:
             raise ReleaseValidationError("artists_duplicate")
@@ -164,19 +232,51 @@ def legacy_artist_name(artists: list[dict[str, str]]) -> str:
     return ", ".join(primary) + (f" feat. {', '.join(featured)}" if featured else "")
 
 
-def _normalize_ascii_url(value: Any) -> str | None:
+def _normalize_artist_url(value: Any, platform: str) -> str | None:
     if value in (None, ""):
         return None
     if not isinstance(value, str):
         raise ReleaseValidationError("artist_mapping_url_invalid")
     normalized = value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > _MAX_URL_LENGTH:
+        raise ReleaseValidationError("artist_mapping_url_invalid")
     try:
         normalized.encode("ascii")
     except UnicodeEncodeError:
         raise ReleaseValidationError("artist_mapping_url_invalid") from None
     parsed = urlparse(normalized)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+    try:
+        port = parsed.port
+    except ValueError:
+        raise ReleaseValidationError("artist_mapping_url_invalid") from None
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or port not in (None, 443)
+        or parsed.fragment
+    ):
         raise ReleaseValidationError("artist_mapping_url_invalid")
+    host = (parsed.hostname or "").lower()
+    path_parts = [part for part in parsed.path.split("/") if part]
+    if platform == "spotify":
+        valid_path = len(path_parts) == 2 and path_parts[0] == "artist" and bool(path_parts[1])
+        if host != "open.spotify.com" or not valid_path:
+            raise ReleaseValidationError("artist_mapping_url_invalid")
+    elif platform == "apple":
+        artist_index = 0 if path_parts[:1] == ["artist"] else 1
+        valid_path = (
+            len(path_parts) >= artist_index + 3
+            and path_parts[artist_index] == "artist"
+            and path_parts[-1].isdigit()
+        )
+        if host != "music.apple.com" or not valid_path:
+            raise ReleaseValidationError("artist_mapping_url_invalid")
+    else:
+        raise RuntimeError("artist_mapping_platform_invalid")
     return normalized
 
 
@@ -186,6 +286,8 @@ def _normalize_ascii_email(value: Any) -> str | None:
     if not isinstance(value, str):
         raise ReleaseValidationError("artist_mapping_email_invalid")
     normalized = value.strip()
+    if not normalized:
+        return None
     try:
         normalized.encode("ascii")
     except UnicodeEncodeError:
@@ -240,8 +342,8 @@ def normalize_artist_mappings(
         if not isinstance(requires_new_profile, bool):
             raise ReleaseValidationError("artist_mappings_invalid")
         email = _normalize_ascii_email(item.get("profile_email"))
-        spotify = _normalize_ascii_url(item.get("spotify_url"))
-        apple = _normalize_ascii_url(item.get("apple_music_url"))
+        spotify = _normalize_artist_url(item.get("spotify_url"), "spotify")
+        apple = _normalize_artist_url(item.get("apple_music_url"), "apple")
         if requires_new_profile:
             if not email:
                 raise ReleaseValidationError("artist_mapping_email_required")
@@ -274,12 +376,16 @@ def validate_release_mapping(
     mapping_spotify: str | None,
     mapping_apple: str | None,
 ) -> tuple[str | None, str | None, str | None]:
-    email = (profile_email or "").strip() or None
-    spotify = (mapping_spotify or "").strip() or None
-    apple = (mapping_apple or "").strip() or None
+    email = _normalize_ascii_email(profile_email)
+    spotify = _normalize_artist_url(mapping_spotify, "spotify")
+    apple = _normalize_artist_url(mapping_apple, "apple")
     if requires_new_profile:
         if not email:
             raise ReleaseValidationError("profile_email_required")
+        spotify = None
+        apple = None
     elif not spotify and not apple:
         raise ReleaseValidationError("mapping_required")
+    else:
+        email = None
     return email, spotify, apple

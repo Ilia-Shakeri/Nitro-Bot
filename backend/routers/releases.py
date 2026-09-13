@@ -20,6 +20,9 @@ from release_validation import (
     normalize_english_text,
     normalize_names,
     normalize_required_names,
+    normalize_submission_id,
+    validate_genre,
+    validate_notice_payload_size,
     validate_policy_acceptance,
     validate_release_dates,
 )
@@ -79,9 +82,10 @@ async def create_release(
     except ReleaseValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
-    normalized_submission_id = (submission_id or "").strip() or None
-    if not normalized_submission_id or len(normalized_submission_id) > 64:
-        raise HTTPException(status_code=400, detail="submission_id_invalid")
+    try:
+        normalized_submission_id = normalize_submission_id(submission_id)
+    except ReleaseValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
     if normalized_submission_id:
         duplicate_result = await db.execute(
@@ -126,12 +130,18 @@ async def create_release(
         raise HTTPException(status_code=400, detail="required_fields_missing")
 
     raw_song_name = song_name or (source_release.song_name if source_release else "")
-    final_genre = (genre or (source_release.genre if source_release else "") or "").strip()
-    if not raw_song_name or not final_genre:
+    raw_genre = genre or (source_release.genre if source_release else "") or ""
+    raw_sub_genre = (
+        sub_genre
+        if sub_genre is not None
+        else source_release.sub_genre if source_release else None
+    )
+    if not raw_song_name or not raw_genre:
         raise HTTPException(status_code=400, detail="required_fields_missing")
 
     try:
-        final_song_name = normalize_english_text(raw_song_name)
+        final_song_name = normalize_english_text(raw_song_name, "song_name")
+        final_genre, final_sub_genre = validate_genre(raw_genre, raw_sub_genre)
         if artists is not None:
             final_artists = normalize_artists(artists)
         elif artist_name and artist_name.strip():
@@ -240,12 +250,18 @@ async def create_release(
     final_profile_email = legacy_mapping["profile_email"]
     final_mapping_spotify = legacy_mapping["spotify_url"]
     final_mapping_apple = legacy_mapping["apple_music_url"]
-    final_sub_genre = (
-        sub_genre
-        if sub_genre is not None
-        else source_release.sub_genre if source_release else None
-    )
-
+    try:
+        validate_notice_payload_size(
+            song_name=final_song_name,
+            artists=final_artists,
+            producers=final_producer_names,
+            legal_names=final_legal_names,
+            genre=final_genre,
+            sub_genre=final_sub_genre,
+            artist_mappings=final_artist_mappings,
+        )
+    except ReleaseValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     audio_bytes_raw = await storage.read_audio(audio) if audio else None
     cover_bytes_raw = await storage.read_image(cover) if cover else None
     existing_audio_key = source_release.track_url if source_release and not audio else None

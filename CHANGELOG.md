@@ -10,6 +10,27 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.8.0-alpha.3] - 2026-09-13
+
+### Added
+
+- Hard chunked read limits for audio and cover uploads.
+- Shared genre and subgenre catalog enforced in both clients and server.
+- Database constraints for credit, release cost, job attempts, and state values.
+- Strict Spotify and Apple Music artist URL validation.
+
+### Fixed
+
+- Unsafe submission identifiers can no longer enter object-storage paths.
+- Oversized metadata lists and values are rejected before persistence.
+- Frontend validation now matches server genre, URL, email, and length rules.
+
+### Known gaps
+
+- Migration `013` still needs a PostgreSQL staging run against production-like data.
+- Object upload is memory-bounded but conversion still needs the accepted file in memory.
+- Orphan-object retention and payment quote upload ordering remain open.
+
 ## [0.8.0-alpha.2] - 2026-09-12
 
 ### Added
@@ -55,6 +76,7 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.2...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.3...HEAD
+[0.8.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.2...v0.8.0-alpha.3
 [0.8.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.1...v0.8.0-alpha.2
 [0.8.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/releases/tag/v0.8.0-alpha.1

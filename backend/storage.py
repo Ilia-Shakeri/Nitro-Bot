@@ -55,6 +55,7 @@ _IMAGE_SIGS: list[tuple[bytes, bytes | None]] = [
 
 _AUDIO_EXTENSIONS = {".mp3", ".wav"}
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+_READ_CHUNK_BYTES = 1024 * 1024
 
 
 def _sig_match(header: bytes, sigs: list[tuple[bytes, bytes | None]]) -> bool:
@@ -67,15 +68,24 @@ def _sig_match(header: bytes, sigs: list[tuple[bytes, bytes | None]]) -> bool:
     return False
 
 
+async def _read_limited(file: UploadFile, max_bytes: int, error: str) -> bytes:
+    content = bytearray()
+    while True:
+        chunk = await file.read(min(_READ_CHUNK_BYTES, max_bytes + 1 - len(content)))
+        if not chunk:
+            return bytes(content)
+        content.extend(chunk)
+        if len(content) > max_bytes:
+            raise HTTPException(status_code=400, detail=error)
+
+
 async def read_audio(file: UploadFile, max_mb: int = 50) -> bytes:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in _AUDIO_EXTENSIONS:
         raise HTTPException(status_code=400, detail="audio_format_invalid")
-    content = await file.read()
+    content = await _read_limited(file, max_mb * 1024 * 1024, "audio_too_large")
     if not _sig_match(content[:12], _AUDIO_SIGS):
         raise HTTPException(status_code=400, detail="audio_type_invalid")
-    if len(content) > max_mb * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="audio_too_large")
     return content
 
 
@@ -83,11 +93,9 @@ async def read_image(file: UploadFile, max_mb: int = 10) -> bytes:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in _IMAGE_EXTENSIONS:
         raise HTTPException(status_code=400, detail="image_format_invalid")
-    content = await file.read()
+    content = await _read_limited(file, max_mb * 1024 * 1024, "image_too_large")
     if not _sig_match(content[:12], _IMAGE_SIGS):
         raise HTTPException(status_code=400, detail="image_type_invalid")
-    if len(content) > max_mb * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="image_too_large")
     return content
 
 

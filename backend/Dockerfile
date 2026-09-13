@@ -11,11 +11,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install --prefer-binary --upgrade-strategy only-if-needed -r requirements.txt
 
-COPY . .
+COPY backend/ .
+COPY shared/ /shared/
 
 EXPOSE 8000
 CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]

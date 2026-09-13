@@ -144,3 +144,28 @@ def test_durable_release_job_migration_is_additive_and_reversible():
     assert '"lease_expires_at"' in migration
     assert '"failure_reason"' in migration
     assert 'op.drop_table("release_jobs")' in migration
+
+
+def test_release_constraint_migration_is_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "013_release_input_constraints.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "012"' in migration
+    assert "ck_users_credits_nonnegative" in migration
+    assert "ck_releases_status_allowed" in migration
+    assert "ck_release_jobs_status_allowed" in migration
+    assert "op.drop_constraint" in migration
+
+
+def test_container_builds_include_shared_release_data():
+    root = Path(__file__).parents[2]
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    backend_dockerfile = (root / "backend" / "Dockerfile").read_text(encoding="utf-8")
+    frontend_dockerfile = (root / "frontend" / "Dockerfile").read_text(encoding="utf-8")
+    assert "dockerfile: backend/Dockerfile" in compose
+    assert "dockerfile: frontend/Dockerfile" in compose
+    assert "COPY shared/ /shared/" in backend_dockerfile
+    assert "COPY shared/ /shared/" in frontend_dockerfile

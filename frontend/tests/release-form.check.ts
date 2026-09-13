@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { isRtlLanguage, TRANSLATIONS } from '../src/i18n';
 import { DEFAULT_PRICING, nitroUsdCents, tomanCents } from '../src/pricingValues';
 import { parseApiResponse } from '../src/utils/apiResponse';
-import { changeMainGenre, validSubGenre } from '../src/utils/genres';
+import { changeMainGenre, validGenre, validSubGenre } from '../src/utils/genres';
 import { paymentMethodsForLanguage } from '../src/utils/paymentMethods';
 import {
   discountPercent,
@@ -106,6 +106,7 @@ assert(addUniqueValue([], 'نام').error === 'english_only_input', 'RTL script 
 assert(normalizeEnglishReleaseText(' Song   Name ').value === 'Song Name', 'whitespace must normalize');
 assert(normalizeEnglishReleaseText('Песня').error === 'english_only_input', 'Cyrillic must fail');
 assert(normalizeEnglishReleaseText('🎵').error === 'english_only_input', 'emoji must fail');
+assert(normalizeEnglishReleaseText('A'.repeat(201)).error === 'text_too_long', 'long text must fail');
 
 const pending = commitPendingMetadata({
   ...initial,
@@ -128,6 +129,7 @@ const required = {
   genre: 'Pop',
   releaseDate: '2000-01-01',
 };
+assert(validateReleaseMetadata({ ...required, songName: 'A'.repeat(201) }) === 'song_name_too_long', 'long song must target song field');
 assert(validateReleaseMetadata(required) === 'release_date_past', 'past date must fail');
 assert(validateReleaseMetadata({ ...required, producers: [] }) === 'producers_required', 'producer must be required');
 assert(validateReleaseMetadata({
@@ -148,6 +150,11 @@ const completedMappings = mappings.map(mapping => ({
   spotify_url: `https://open.spotify.com/artist/${mapping.artist_name}`,
 }));
 assert(validateArtistMappings(artists, completedMappings) === null, 'complete mappings must pass');
+const wrongHostMappings = completedMappings.map(mapping => ({
+  ...mapping,
+  spotify_url: `https://spotify.example/artist/${mapping.artist_name}`,
+}));
+assert(validateArtistMappings(artists, wrongHostMappings) !== null, 'wrong platform host must fail');
 assert(validateArtistMappings(artists, completedMappings.slice(0, 3)) !== null, 'missing mapping must fail');
 same(
   reconcileArtistMappings(
@@ -181,6 +188,8 @@ for (const language of ['en', 'ar', 'ru']) {
 same(changeMainGenre('Rock'), { genre: 'Rock', subGenre: '' }, 'genre change must clear subgenre');
 assert(validSubGenre('Rock', 'Punk'), 'valid subgenre must pass');
 assert(!validSubGenre('Pop', 'Punk'), 'stale subgenre must fail');
+assert(validGenre('Pop'), 'known genre must pass');
+assert(!validGenre('Made Up'), 'unknown genre must fail');
 
 for (const language of ['en', 'fa', 'ar', 'ru'] as const) {
   assert(TRANSLATIONS[language].song_placeholder === 'e.g., My Latest Release', `${language} song prompt must be English`);

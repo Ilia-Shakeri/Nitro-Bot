@@ -10,6 +10,9 @@ from release_validation import (
     normalize_english_text,
     normalize_names,
     normalize_required_names,
+    normalize_submission_id,
+    validate_genre,
+    validate_notice_payload_size,
     validate_release_mapping,
     validate_release_dates,
     validate_policy_acceptance,
@@ -201,7 +204,10 @@ def test_mapping_requires_platform_link_for_existing_profile():
 
 @pytest.mark.parametrize(
     ("spotify", "apple"),
-    [(" https://spotify.example/artist ", None), (None, " https://music.example/artist ")],
+    [
+        (" https://open.spotify.com/artist/abc123 ", None),
+        (None, " https://music.apple.com/us/artist/name/123456 "),
+    ],
 )
 def test_mapping_accepts_one_platform_link(spotify, apple):
     _, normalized_spotify, normalized_apple = validate_release_mapping(
@@ -240,6 +246,97 @@ def test_non_english_release_text_is_rejected(value):
         normalize_english_text(value)
 
 
+def test_release_text_length_is_bounded():
+    assert normalize_english_text("A" * 200, "song_name") == "A" * 200
+    with pytest.raises(ReleaseValidationError, match="song_name_too_long"):
+        normalize_english_text("A" * 201, "song_name")
+
+
+@pytest.mark.parametrize("value", ["", "../bad", "bad/id", " bad id ", "x" * 65])
+def test_submission_id_rejects_unsafe_values(value):
+    with pytest.raises(ReleaseValidationError, match="submission_id_invalid"):
+        normalize_submission_id(value)
+
+
+def test_submission_id_accepts_client_token_shape():
+    assert normalize_submission_id("release_1234-AB.cd:1") == "release_1234-AB.cd:1"
+
+
+def test_genre_and_subgenre_pair_is_enforced():
+    assert validate_genre(" Pop ", "Synth Pop") == ("Pop", "Synth Pop")
+    assert validate_genre("Pop", "") == ("Pop", None)
+    with pytest.raises(ReleaseValidationError, match="genre_invalid"):
+        validate_genre("Made Up", None)
+    with pytest.raises(ReleaseValidationError, match="sub_genre_invalid"):
+        validate_genre("Pop", "Techno")
+
+
+def test_name_list_count_and_payload_size_are_bounded():
+    with pytest.raises(ReleaseValidationError, match="producers_max"):
+        normalize_names([f"Name {index}" for index in range(21)], "producers")
+    with pytest.raises(ReleaseValidationError, match="producers_too_large"):
+        normalize_names("[" + " " * 32_768 + "]", "producers")
+
+
+def test_notice_dynamic_payload_is_bounded():
+    with pytest.raises(ReleaseValidationError, match="release_metadata_too_large"):
+        validate_notice_payload_size(
+            song_name="Song",
+            artists=[{"name": "Artist", "role": "primary"}],
+            producers=["P" * 200] * 15,
+            legal_names=["Legal"],
+            genre="Pop",
+            sub_genre=None,
+            artist_mappings=[],
+        )
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"spotify_url": "https://spotify.example/artist/abc"},
+        {"spotify_url": "https://open.spotify.com/album/abc"},
+        {"spotify_url": "https://open.spotify.com:444/artist/abc"},
+        {"apple_music_url": "https://apple.example/us/artist/name/123"},
+        {"apple_music_url": "https://music.apple.com/us/album/name/123"},
+        {"apple_music_url": "https://music.apple.com/us/artist/name/not-a-number"},
+    ],
+)
+def test_artist_mapping_rejects_wrong_platform_links(mapping):
+    payload = {
+        "artist_name": "One",
+        "requires_new_profile": False,
+        **mapping,
+    }
+    with pytest.raises(ReleaseValidationError, match="artist_mapping_url_invalid"):
+        normalize_artist_mappings(
+            [payload],
+            [{"name": "One", "role": "primary"}],
+        )
+
+
+def test_artist_mapping_accepts_real_platform_link_shapes():
+    artists = [{"name": "One", "role": "primary"}]
+    spotify = normalize_artist_mappings(
+        [{
+            "artist_name": "One",
+            "requires_new_profile": False,
+            "spotify_url": "https://open.spotify.com/artist/abc123",
+        }],
+        artists,
+    )
+    apple = normalize_artist_mappings(
+        [{
+            "artist_name": "One",
+            "requires_new_profile": False,
+            "apple_music_url": "https://music.apple.com/us/artist/one/123456",
+        }],
+        artists,
+    )
+    assert spotify[0]["spotify_url"].endswith("/abc123")
+    assert apple[0]["apple_music_url"].endswith("/123456")
+
+
 def test_artist_mappings_require_one_complete_record_per_artist():
     artists = normalize_artists([
         {"name": "One", "role": "primary"},
@@ -268,15 +365,15 @@ def test_artist_mappings_require_one_complete_record_per_artist():
     [
         (
             [
-                {"artist_name": "One", "requires_new_profile": False, "spotify_url": "https://x.example/a"},
-                {"artist_name": "one", "requires_new_profile": False, "spotify_url": "https://x.example/b"},
+                {"artist_name": "One", "requires_new_profile": False, "spotify_url": "https://open.spotify.com/artist/a"},
+                {"artist_name": "one", "requires_new_profile": False, "spotify_url": "https://open.spotify.com/artist/b"},
             ],
             "artist_mapping_duplicate",
         ),
         (
             [
-                {"artist_name": "One", "requires_new_profile": False, "spotify_url": "https://x.example/a"},
-                {"artist_name": "Unknown", "requires_new_profile": False, "spotify_url": "https://x.example/b"},
+                {"artist_name": "One", "requires_new_profile": False, "spotify_url": "https://open.spotify.com/artist/a"},
+                {"artist_name": "Unknown", "requires_new_profile": False, "spotify_url": "https://open.spotify.com/artist/b"},
             ],
             "artist_mapping_unknown_artist",
         ),

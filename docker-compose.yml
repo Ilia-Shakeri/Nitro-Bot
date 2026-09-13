@@ -81,7 +81,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: nitro-bot-backend
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -102,7 +103,7 @@ services:
       - MINI_APP_URL=${MINI_APP_URL}
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Tehran}
-      - APP_VERSION=${APP_VERSION:-0.8.0-alpha.2}
+      - APP_VERSION=${APP_VERSION:-0.8.0-alpha.3}
       - USDT_RATE_URL=${USDT_RATE_URL:-}
       - USDT_TOMAN_FALLBACK=${USDT_TOMAN_FALLBACK:-0}
       - PAYMENT_CARD_NUMBER=${PAYMENT_CARD_NUMBER:-}
@@ -132,7 +133,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-}
         VITE_BOT_USERNAME: ${VITE_BOT_USERNAME:-}

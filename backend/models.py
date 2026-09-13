@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Date, DateTime, ForeignKey, JSON, Text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import backref, declarative_base, relationship
 from datetime import datetime, timezone
@@ -12,13 +12,14 @@ def get_naive_utc():
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("credits >= 0", name="ck_users_credits_nonnegative"),)
 
     telegram_id = Column(BigInteger, primary_key=True, index=True)
     username = Column(String, nullable=True)
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     language_preference = Column(String, default="fa")
-    credits = Column(Integer, default=0)
+    credits = Column(Integer, nullable=False, default=0)
     referred_by = Column(BigInteger, nullable=True)
     referral_points = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=get_naive_utc)
@@ -29,7 +30,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))
     amount = Column(Integer, nullable=False)
-    status = Column(String, default="pending") 
+    status = Column(String, nullable=False, default="pending")
     payment_method = Column(String, default="card") 
     receipt_url = Column(String, nullable=True)
     usd_amount_cents = Column(Integer, nullable=False, default=0)
@@ -70,6 +71,13 @@ class SupportMessage(Base):
 
 class Release(Base):
     __tablename__ = "releases"
+    __table_args__ = (
+        CheckConstraint("charged_cost >= 0", name="ck_releases_charged_cost_nonnegative"),
+        CheckConstraint(
+            "status IN ('pending', 'staging', 'notification_pending', 'manual_staging', 'processing', 'completed', 'failed')",
+            name="ck_releases_status_allowed",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))
@@ -112,6 +120,14 @@ class Release(Base):
 
 class ReleaseJob(Base):
     __tablename__ = "release_jobs"
+    __table_args__ = (
+        CheckConstraint("attempts >= 0", name="ck_release_jobs_attempts_nonnegative"),
+        CheckConstraint("phase IN ('media', 'notify')", name="ck_release_jobs_phase_allowed"),
+        CheckConstraint(
+            "status IN ('queued', 'processing', 'retry', 'completed', 'dead')",
+            name="ck_release_jobs_status_allowed",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     release_id = Column(

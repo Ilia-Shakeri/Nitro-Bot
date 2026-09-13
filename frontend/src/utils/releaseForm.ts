@@ -1,5 +1,5 @@
 import type { ArtistMapping, ReleaseArtist } from '../types/api';
-import { validSubGenre } from './genres';
+import { validGenre, validSubGenre } from './genres';
 
 export interface ReleaseMetadata {
   songName: string;
@@ -38,6 +38,8 @@ export const emptyReleaseMetadata = (): ReleaseMetadata => ({
 export type ReleaseStep = 'details' | 'mapping' | 'review';
 export const MAX_ARTISTS = 6;
 export const MAX_PRIMARY_ARTISTS = 3;
+export const MAX_RELEASE_TEXT_LENGTH = 200;
+export const MAX_RELEASE_NAMES = 20;
 const ENGLISH_RELEASE_TEXT = /^[A-Za-z0-9 .,'&()[\]\-_/+!?:#]+$/;
 const ENGLISH_ALNUM = /[A-Za-z0-9]/;
 
@@ -45,6 +47,9 @@ export const normalizeEnglishReleaseText = (raw: string) => {
   const value = raw.trim().replace(/\s+/g, ' ');
   if (!value || !ENGLISH_RELEASE_TEXT.test(value) || !ENGLISH_ALNUM.test(value)) {
     return { value, error: 'english_only_input' };
+  }
+  if (value.length > MAX_RELEASE_TEXT_LENGTH) {
+    return { value, error: 'text_too_long' };
   }
   return { value, error: null };
 };
@@ -132,15 +137,23 @@ export const validateReleaseMetadata = (
   unchangedHistoricalDate?: string,
 ): string | null => {
   if (!data.songName.trim() || !data.genre || !data.releaseDate) return 'required_fields_missing';
-  if (normalizeEnglishReleaseText(data.songName).error) return 'english_only_input';
+  if (!validGenre(data.genre)) return 'genre_invalid';
+  const songError = normalizeEnglishReleaseText(data.songName).error;
+  if (songError === 'text_too_long') return 'song_name_too_long';
+  if (songError) return 'english_only_input';
   if (data.artists.length === 0) return 'artists_required';
   if (data.artists.length > MAX_ARTISTS) return 'artists_max';
   if (data.producers.length === 0) return 'producers_required';
   if (data.legalNames.length === 0) return 'legal_names_required';
+  if (data.producers.length > MAX_RELEASE_NAMES) return 'producers_max';
+  if (data.legalNames.length > MAX_RELEASE_NAMES) return 'legal_names_max';
   if (data.producers.some(name => !name.trim())) return 'producers_empty';
   if (new Set(data.artists.map(artist => artist.name.trim().toLocaleLowerCase())).size !== data.artists.length) {
     return 'artists_duplicate';
   }
+  if (data.artists.some(artist => normalizeEnglishReleaseText(artist.name).error === 'text_too_long')) return 'artists_too_long';
+  if (data.producers.some(name => normalizeEnglishReleaseText(name).error === 'text_too_long')) return 'producers_too_long';
+  if (data.legalNames.some(name => normalizeEnglishReleaseText(name).error === 'text_too_long')) return 'legal_names_too_long';
   if (data.artists.some(artist => normalizeEnglishReleaseText(artist.name).error)) return 'english_only_input';
   if (data.producers.some(name => normalizeEnglishReleaseText(name).error)) return 'english_only_input';
   if (data.legalNames.some(name => normalizeEnglishReleaseText(name).error)) return 'english_only_input';
@@ -173,6 +186,7 @@ export const metadataErrorField = (
   data: ReleaseMetadata,
   error: string,
 ): 'song' | 'artists' | 'producers' | 'legal_names' | null => {
+  if (error.startsWith('song_')) return 'song';
   if (error.startsWith('artists_')) return 'artists';
   if (error.startsWith('producers_')) return 'producers';
   if (error.startsWith('legal_names_')) return 'legal_names';
@@ -239,11 +253,27 @@ export const reconcileArtistMappings = (
 const ASCII_EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 const isAscii = (value: string) =>
   Array.from(value).every(character => character.charCodeAt(0) <= 127);
-const isValidHttpsUrl = (value: string) => {
+const isValidArtistUrl = (value: string, platform: 'spotify' | 'apple') => {
   if (!isAscii(value)) return false;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+    if (
+      value.length > 2048
+      || url.protocol !== 'https:'
+      || url.username
+      || url.password
+      || url.port
+      || url.hash
+    ) return false;
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (platform === 'spotify') {
+      return url.hostname === 'open.spotify.com' && parts.length === 2 && parts[0] === 'artist';
+    }
+    const artistIndex = parts[0] === 'artist' ? 0 : 1;
+    return url.hostname === 'music.apple.com'
+      && parts.length >= artistIndex + 3
+      && parts[artistIndex] === 'artist'
+      && /^\d+$/.test(parts.at(-1) ?? '');
   } catch {
     return false;
   }
@@ -264,7 +294,7 @@ export const validateArtistMappings = (
   for (const mapping of reconciled) {
     if (mapping.requires_new_profile) {
       const email = mapping.profile_email?.trim() ?? '';
-      if (!ASCII_EMAIL.test(email) || !isAscii(email)) {
+      if (email.length > 254 || !ASCII_EMAIL.test(email) || !isAscii(email)) {
         return {
           key: 'artist_mapping_email_required_for_artist',
           artist: mapping.artist_name,
@@ -279,7 +309,10 @@ export const validateArtistMappings = (
           artist: mapping.artist_name,
         };
       }
-      if ((spotify && !isValidHttpsUrl(spotify)) || (apple && !isValidHttpsUrl(apple))) {
+      if (
+        (spotify && !isValidArtistUrl(spotify, 'spotify'))
+        || (apple && !isValidArtistUrl(apple, 'apple'))
+      ) {
         return {
           key: 'artist_mapping_url_invalid_for_artist',
           artist: mapping.artist_name,

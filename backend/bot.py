@@ -20,7 +20,7 @@ from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.8.0-alpha.2")
+APP_VERSION = os.getenv("APP_VERSION", "0.8.0-alpha.3")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -507,7 +507,6 @@ async def notify_admin_new_release(
         f"Explicit content: {'yes' if explicit_content else 'no'}\n"
         f"Cost: {cost} Nitro"
     )
-
     # Handle cases where no media was uploaded
     if not audio_bytes and not cover_bytes:
         await _send_message(
@@ -517,6 +516,15 @@ async def notify_admin_new_release(
         )
         return
 
+    media_caption = caption
+    if len(caption) > 1024:
+        await _send_message(
+            chat_id=ADMIN_GROUP_ID,
+            message_thread_id=ORDER_TOPIC_ID,
+            text=caption,
+        )
+        media_caption = f"Media for release ID: {release_id}"
+
     try:
         # Send a single audio message and attach the cover as a thumbnail
         if audio_bytes and audio_filename:
@@ -525,7 +533,7 @@ async def notify_admin_new_release(
                 message_thread_id=ORDER_TOPIC_ID,
                 audio=BufferedInputFile(audio_bytes, filename=audio_filename),
                 thumbnail=BufferedInputFile(cover_bytes, filename=cover_filename) if cover_bytes else None,
-                caption=caption,
+                caption=media_caption,
             )
             if cover_bytes and cover_filename:
                 try:
@@ -551,7 +559,7 @@ async def notify_admin_new_release(
                 chat_id=ADMIN_GROUP_ID,
                 message_thread_id=ORDER_TOPIC_ID,
                 photo=BufferedInputFile(cover_bytes, filename=cover_filename),
-                caption=caption,
+                caption=media_caption,
             )
             return
 
@@ -565,7 +573,7 @@ async def notify_admin_new_release(
                     chat_id=ADMIN_GROUP_ID,
                     message_thread_id=ORDER_TOPIC_ID,
                     document=BufferedInputFile(fallback_data, filename=fallback_name),
-                    caption=caption + "\nMedia upload failed - files unavailable",
+                    caption=media_caption + "\nMedia upload failed - files unavailable",
                 )
             except Exception:
                 logger.error("Fallback release %s document send failed", release_id, exc_info=True)
