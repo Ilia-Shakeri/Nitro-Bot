@@ -348,6 +348,10 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "//iframe[contains(@src, 'album.create')]" in login_locators
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 3
+    assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page
+    assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC" not in album_page
+    assert "Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}" in album_page
+    assert "Click Element    ${ADD_TRACKS_BUTTON}" not in album_page
 
 
 def test_circuit_opens_after_bounded_failures_and_clears_on_success(

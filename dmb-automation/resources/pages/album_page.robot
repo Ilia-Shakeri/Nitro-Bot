@@ -127,7 +127,7 @@ Add DMB Contributor
         Wait Until Element Is Visible    ${contributor_option}    timeout=20s
         Click Element    ${contributor_option}
     ELSE
-        Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC
+        Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB
         Keep Only Performer Role
     END
     Wait Until Element Is Enabled    ${ADD_CONTRIBUTOR_BUTTON}    timeout=20s
@@ -135,19 +135,18 @@ Add DMB Contributor
     Wait Until Keyword Succeeds    20s    1s    Page Should Contain    ${name}
 
 Keep Only Performer Role
-    @{remove_buttons}=    Get WebElements    ${NON_PERFORMER_ROLES}
-    FOR    ${button}    IN    @{remove_buttons}
-        Click Element    ${button}
-    END
-    Wait Until Element Is Visible    ${PERFORMER_ROLE}    timeout=10s
+    Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}
+    Select From List By Label    ${CONTRIBUTOR_ROLES_SELECT}    Performer
+    @{selected_roles}=    Get Selected List Labels    ${CONTRIBUTOR_ROLES_SELECT}
+    ${role_count}=    Get Length    ${selected_roles}
+    Should Be Equal As Integers    ${role_count}    1
+    Should Be Equal As Strings    ${selected_roles}[0]    Performer
 
 Apply Contributors To Tracks
     Select Checkbox    ${APPLY_CONTRIBUTORS_TO_TRACKS}
     Checkbox Should Be Selected    ${APPLY_CONTRIBUTORS_TO_TRACKS}
 
 Open Add Tracks
-    Wait Until Element Is Visible    ${ADD_TRACKS_BUTTON}    timeout=60s
-    Click Element    ${ADD_TRACKS_BUTTON}
     Wait Until Page Contains Element    ${TRACK_FILE_INPUT}    timeout=30s
 
 Upload Track

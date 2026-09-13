@@ -23,8 +23,7 @@ ${C_LINE_TEXT}                 xpath=${CREATE_FORM_XPATH}//input[@name='c_line_t
 ${P_LINE_TEXT}                 xpath=${CREATE_FORM_XPATH}//input[@name='p_line_text']
 
 ${CONTRIBUTOR_NAME_INPUT}      xpath=${CREATE_FORM_XPATH}//input[@name='newArtist']
-${NON_PERFORMER_ROLES}         xpath=(//ul[contains(@class,'select2-selection__rendered')][.//li[contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer')]])[last()]//li[contains(@class,'select2-selection__choice') and not(contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer'))]//span[contains(@class,'select2-selection__choice__remove')]
-${PERFORMER_ROLE}              xpath=(//ul[contains(@class,'select2-selection__rendered')][.//li[contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer')]])[last()]//li[contains(translate(@title,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'performer')]
+${CONTRIBUTOR_ROLES_SELECT}    xpath=(${CREATE_FORM_XPATH}//select[@name='cce_roles[][]'])[last()]
 ${ADD_CONTRIBUTOR_BUTTON}      xpath=${CREATE_FORM_XPATH}//button[contains(@class, 'dmb-js-cce__add-btn')]
 ${APPLY_CONTRIBUTORS_TO_TRACKS}    xpath=${CREATE_FORM_XPATH}//input[@name='contributors2tracks']
 
