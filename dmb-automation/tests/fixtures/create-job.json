@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "release_id": 42,
+  "mode": "create",
+  "source_release_id": null,
+  "source_dmb_release_id": null,
+  "song_name": "Sample Song",
+  "artists": [{"name": "Sample Artist", "role": "primary"}],
+  "producers": ["Sample Producer"],
+  "legal_names": ["Sample Legal Name"],
+  "release_date": "2026-12-01",
+  "is_rerelease": false,
+  "original_release_date": null,
+  "genre": "Pop",
+  "sub_genre": "Synth Pop",
+  "artist_mappings": [{"artist_name": "Sample Artist", "requires_new_profile": false, "spotify_url": "https://open.spotify.com/artist/sample", "apple_music_url": null, "profile_email": null}],
+  "copyright_requested": false,
+  "explicit_content": false,
+  "cover_path": "C:/tmp/sample-cover.png",
+  "track_path": "C:/tmp/sample-track.wav"
+}

@@ -117,6 +117,8 @@ async def create_release(
         source_release = source_result.scalars().first()
         if not source_release:
             raise HTTPException(status_code=404, detail="source_release_not_found")
+        if not source_release.dmb_release_id:
+            raise HTTPException(status_code=409, detail="source_release_not_delivered")
 
     final_explicit_content = (
         explicit_content
@@ -370,6 +372,8 @@ async def create_release(
         explicit_content=final_explicit_content,
         charged_cost=total_cost,
         submission_id=normalized_submission_id,
+        source_release_id=source_release.id if source_release else None,
+        source_dmb_release_id=source_release.dmb_release_id if source_release else None,
         status="staging",
     )
     user.credits -= total_cost

@@ -1,12 +1,22 @@
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from fastapi import HTTPException
 from sqlalchemy.dialects import postgresql
 
 from models import Release, ReleaseJob, Transaction
 from release_jobs import claimable_job_statement, retry_delay_seconds
 from release_service import refund_is_due, user_for_update_statement
-from routers.internal import _STATUS_TRANSITIONS, claimable_release_statement
+from routers import internal
+from routers.internal import (
+    _STATUS_TRANSITIONS,
+    _parse_evidence,
+    claimable_release_statement,
+    resolve_release_verification,
+)
 
 
 def test_copyright_defaults_off():
@@ -24,9 +34,16 @@ def test_credit_deduction_uses_postgres_row_lock():
 
 
 def test_dmb_release_claim_uses_skip_locked_row_lock():
-    compiled = str(claimable_release_statement().compile(dialect=postgresql.dialect()))
+    compiled = str(
+        claimable_release_statement("create", datetime(2026, 9, 13)).compile(
+            dialect=postgresql.dialect()
+        )
+    )
     assert "FOR UPDATE SKIP LOCKED" in compiled
     assert "LIMIT" in compiled
+    assert "dmb_lease_expires_at" in compiled
+    assert "dmb_lease_expires_at IS NULL" in compiled
+    assert "dmb_attempts" in compiled
 
 
 def test_release_job_claim_recovers_expired_leases_with_row_lock():
@@ -169,3 +186,138 @@ def test_container_builds_include_shared_release_data():
     assert "dockerfile: frontend/Dockerfile" in compose
     assert "COPY shared/ /shared/" in backend_dockerfile
     assert "COPY shared/ /shared/" in frontend_dockerfile
+
+
+def test_dmb_reviewer_secret_is_not_given_to_worker():
+    compose = (Path(__file__).parents[2] / "docker-compose.yml").read_text(
+        encoding="utf-8"
+    )
+    backend_part, worker_part = compose.split("  dmb-automation:", maxsplit=1)
+    assert "DMB_REVIEW_SECRET_KEY" in backend_part
+    assert "DMB_REVIEW_SECRET_KEY" not in worker_part
+
+
+def test_dmb_review_uses_distinct_fail_closed_secret(monkeypatch):
+    monkeypatch.setattr(internal, "_SECRET", "worker-secret")
+    monkeypatch.setattr(internal, "_REVIEW_SECRET", "review-secret")
+    internal._require_review_secret("Bearer review-secret")
+    with pytest.raises(HTTPException, match="Forbidden"):
+        internal._require_review_secret("Bearer worker-secret")
+    monkeypatch.setattr(internal, "_REVIEW_SECRET", "")
+    with pytest.raises(HTTPException, match="review secret not configured"):
+        internal._require_review_secret("Bearer review-secret")
+    monkeypatch.setattr(internal, "_REVIEW_SECRET", "worker-secret")
+    with pytest.raises(HTTPException, match="review secret must differ"):
+        internal._require_review_secret("Bearer worker-secret")
+
+
+def test_dmb_completion_evidence_is_strict_and_relative():
+    assert _parse_evidence(
+        "album-123",
+        "1234567890123",
+        '["USABC2600001"]',
+        "results/42",
+    ) == ("album-123", "1234567890123", ["USABC2600001"], "results/42")
+    with pytest.raises(HTTPException, match="dmb_evidence_invalid"):
+        _parse_evidence("album-123", "bad", "[]", "../outside")
+
+
+def test_release_has_dmb_lease_and_evidence_fields():
+    for field in (
+        "source_release_id",
+        "source_dmb_release_id",
+        "dmb_release_id",
+        "dmb_ean_upc",
+        "dmb_isrcs",
+        "dmb_submission_started_at",
+        "dmb_submitted_at",
+        "dmb_evidence_path",
+        "dmb_last_error",
+        "dmb_attempts",
+        "dmb_lease_owner",
+        "dmb_lease_expires_at",
+        "dmb_reviewed_by",
+        "dmb_reviewed_at",
+    ):
+        assert hasattr(Release, field)
+
+
+def test_dmb_delivery_migration_is_additive_and_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "014_dmb_delivery_evidence.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "013"' in migration
+    assert "dmb_lease_expires_at" in migration
+    assert "dmb_release_id" in migration
+    assert "dmb_evidence_path" in migration
+    assert "dmb_reviewed_by" in migration
+    assert "source_release_id" in migration
+    assert "op.drop_column" in migration
+
+
+@pytest.mark.asyncio
+async def test_manual_verification_completion_is_audited():
+    release = SimpleNamespace(
+        status="dmb_verification_required",
+        dmb_attempts=1,
+        dmb_lease_owner=None,
+        dmb_lease_expires_at=None,
+    )
+    result = MagicMock()
+    result.scalars.return_value.first.return_value = release
+    db = AsyncMock()
+    db.execute.return_value = result
+
+    response = await resolve_release_verification(
+        42,
+        action="completed",
+        dmb_release_id="album-42",
+        ean_upc="1234567890123",
+        isrcs_json='["USABC2600001"]',
+        evidence_path="results/42",
+        reason=None,
+        reviewer_id_header="ops:reviewer-1",
+        db=db,
+    )
+
+    assert response == {"status": "completed"}
+    assert release.status == "completed"
+    assert release.dmb_release_id == "album-42"
+    assert release.dmb_reviewed_by == "ops:reviewer-1"
+    assert release.dmb_reviewed_at is not None
+    db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_manual_verification_retry_keeps_attempt_limit():
+    release = SimpleNamespace(
+        status="dmb_verification_required",
+        dmb_attempts=1,
+        dmb_lease_owner=None,
+        dmb_lease_expires_at=None,
+    )
+    result = MagicMock()
+    result.scalars.return_value.first.return_value = release
+    db = AsyncMock()
+    db.execute.return_value = result
+
+    response = await resolve_release_verification(
+        42,
+        action="retry",
+        dmb_release_id=None,
+        ean_upc=None,
+        isrcs_json=None,
+        evidence_path=None,
+        reason="no remote record",
+        reviewer_id_header="ops:reviewer-1",
+        db=db,
+    )
+
+    assert response == {"status": "retry"}
+    assert release.status == "manual_staging"
+    assert release.dmb_attempts == 1
+    assert release.dmb_last_error == "manual_retry:no remote record"
+    db.commit.assert_awaited_once()

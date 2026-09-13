@@ -143,6 +143,10 @@ class PendingReleaseOut(BaseModel):
     copyright_requested: bool
     explicit_content: bool
     charged_cost: int
+    source_release_id: int | None = None
+    source_dmb_release_id: str | None = None
+    dmb_attempts: int = 0
+    dmb_lease_expires_at: datetime | None = None
     status: str
     created_at: datetime
 

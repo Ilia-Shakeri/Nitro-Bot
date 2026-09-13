@@ -28,7 +28,13 @@ Select Album Format And Next
 Generate EAN Code
     Wait Until Element Is Visible    ${GENERATE_EAN_BUTTON}    timeout=20s
     Click Element    ${GENERATE_EAN_BUTTON}
-    Sleep    1s
+    Wait Until Keyword Succeeds    20s    1s    EAN Should Be Generated
+    ${ean}=    Get Value    ${EAN_INPUT}
+    RETURN    ${ean}
+
+EAN Should Be Generated
+    ${ean}=    Get Value    ${EAN_INPUT}
+    Should Match Regexp    ${ean}    ^[0-9]{8,14}$
 
 Upload Cover Image
     [Arguments]    ${cover_path}
@@ -209,7 +215,7 @@ Fill Track Info And Generate ISRC
     # ۱. کلیک روی Generate all ISRCs (از header)
     Wait Until Element Is Visible    //a[@data-tippy-content='Generate all ISRCs']    timeout=10s
     Click Element    //a[@data-tippy-content='Generate all ISRCs']
-    Sleep    2s
+    Wait Until Keyword Succeeds    20s    1s    ISRC Should Be Generated
     
     # ۲. پر کردن Title با JavaScript (پیدا کردن ردیف visible)
     Execute Javascript
@@ -227,7 +233,13 @@ Fill Track Info And Generate ISRC
     ...    }
     Sleep    2s
     
+    ${isrc}=    Get Value    ${TRACK_ISRC_INPUT}
     Log    ✅ Track info filled successfully
+    RETURN    ${isrc}
+
+ISRC Should Be Generated
+    ${isrc}=    Get Value    ${TRACK_ISRC_INPUT}
+    Should Match Regexp    ${isrc}    ^[A-Za-z0-9-]{8,20}$
 
 Click Next And Wait For Upload
     # کلیک روی Next
@@ -263,3 +275,24 @@ Select Worldwide And Next
     Sleep    3s
     
     Log    ✅ Worldwide selected and navigated to next step
+
+Submission Should Be Confirmed
+    [Arguments]    ${before_url}
+    ${success}=    Run Keyword And Return Status    Page Should Contain Element    ${SUBMISSION_SUCCESS}
+    ${current_url}=    Get Location
+    ${confirmed}=    Evaluate    $success or $current_url != $before_url
+    Should Be True    ${confirmed}    DMB did not confirm album submission
+
+Submit Album And Verify Success
+    [Arguments]    ${release_id}
+    Should Be Equal    %{DMB_SUBMIT_ENABLED}    true
+    Wait Until Element Is Enabled    ${SAVE_BUTTON}    timeout=30s
+    Scroll Element Into View    ${SAVE_BUTTON}
+    ${before_url}=    Get Location
+    Write Submit Checkpoint    %{DMB_SUBMIT_CHECKPOINT}    ${release_id}
+    Click Element    ${SAVE_BUTTON}
+    Wait Until Keyword Succeeds    60s    2s    Submission Should Be Confirmed    ${before_url}
+
+Capture Failure Evidence And Close Browser
+    Run Keyword And Ignore Error    Capture Page Screenshot    ${OUTPUT DIR}${/}final-state.png
+    Run Keyword And Ignore Error    Close Browser Session

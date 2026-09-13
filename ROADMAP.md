@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.8.0-alpha.3`
+Current release: `0.9.0-alpha.1`
 
 Target release: `1.0.0`
 
@@ -16,6 +16,7 @@ Passing unit tests alone does not complete a version.
 | `0.8.0-alpha.2` | Durable release work | Restart-safe media jobs and exact-once failure refund exist |
 | `0.8.0-alpha.3` | Safe release input | Upload, metadata, genre, URL, and state bounds exist |
 | `0.8.0` | Safe state and money flow | No charged release can be lost or falsely reported |
+| `0.9.0-alpha.1` | Safe DMB create contract | Isolated jobs, leases, submit proof, and manual review exist |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
@@ -117,6 +118,19 @@ Rollback:
 - Roll back writers before removing any new schema.
 
 ## `0.9.0` - correct DMB delivery
+
+Delivered in `0.9.0-alpha.1`:
+
+- Per-release JSON jobs replace the shared SQLite handoff in the live worker.
+- Atomic claim, lease, heartbeat, attempt limit, and expired-lease recovery.
+- Final Save checkpoint and fail-closed `dmb_verification_required` state.
+- Completed state requires DMB release ID, EAN/UPC, ISRC, URL, and screenshot evidence.
+- Audited manual resolution can complete, retry, or fail an uncertain delivery.
+- Create and edit feature flags default off; edit delivery remains blocked.
+- Contract tests and Robot dry-run cover the local handoff and evidence path.
+
+This alpha does not close the `0.9.0` exit gates. Real DMB staging evidence is
+still required.
 
 ### New release workflow
 

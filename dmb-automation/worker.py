@@ -1,21 +1,11 @@
-"""
-DMB automation worker (mini-app ↔ DMB bridge).
+"""Lease-based bridge from the internal release API to DMB browser delivery."""
 
-Polls the mini-app's internal API for pending releases, downloads the audio + cover
-from MinIO, writes them into the local SQLite `album_metadata` table that the Robot
-Framework suite reads, runs the DMB album-creation automation, and reports the result
-back to the mini-app.
-
-Transport:  internal HTTP API (bearer token) — see backend/routers/internal.py
-Files:      pulled directly from MinIO/S3 via boto3 using the stored object keys
-Runtime:    designed to run in the Docker image (Firefox + geckodriver + Xvfb)
-"""
-
-import logging
 import json
+import logging
 import os
+import re
 import shutil
-import sqlite3
+import socket
 import subprocess
 import sys
 import time
@@ -24,28 +14,32 @@ from pathlib import Path
 import boto3
 import requests
 
-# ── Configuration (from environment) ────────────────────────────────────────────
-API_BASE_URL   = os.getenv("API_BASE_URL", "http://backend:8000").rstrip("/")
-SECRET         = os.getenv("SELENIUM_SECRET_KEY", "")
-S3_ENDPOINT    = os.getenv("S3_ENDPOINT", "http://minio:9000")
-S3_ACCESS_KEY  = os.getenv("S3_ACCESS_KEY", "")
-S3_SECRET_KEY  = os.getenv("S3_SECRET_KEY", "")
-S3_BUCKET      = os.getenv("S3_BUCKET", "nitro-bot")
-POLL_INTERVAL  = int(os.getenv("POLL_INTERVAL", "30"))
-DRY_RUN        = os.getenv("DRY_RUN", "false").lower() == "true"
-DMB_USERNAME   = os.getenv("DMB_USERNAME", "")
-DMB_PASSWORD   = os.getenv("DMB_PASSWORD", "")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:8000").rstrip("/")
+SECRET = os.getenv("SELENIUM_SECRET_KEY", "")
+S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "")
+S3_BUCKET = os.getenv("S3_BUCKET", "nitro-bot")
+POLL_INTERVAL = max(2, int(os.getenv("POLL_INTERVAL", "30")))
+HEARTBEAT_INTERVAL = max(10, int(os.getenv("DMB_HEARTBEAT_SECONDS", "60")))
+DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
+CREATE_ENABLED = os.getenv("DMB_CREATE_ENABLED", "false").lower() == "true"
+EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
+DMB_USERNAME = os.getenv("DMB_USERNAME", "")
+DMB_PASSWORD = os.getenv("DMB_PASSWORD", "")
+DMB_ALLOWED_HOST = os.getenv("DMB_ALLOWED_HOST", "dmb.kontornewmedia.com").lower()
+WORKER_ID = os.getenv("DMB_WORKER_ID", f"{socket.gethostname()}:{os.getpid()}")
 
-BASE_DIR     = Path(__file__).resolve().parent
-DB_PATH      = BASE_DIR / "resources" / "database" / "dmb_database.db"
+BASE_DIR = Path(__file__).resolve().parent
 DOWNLOAD_DIR = BASE_DIR / "downloads"
-RESULTS_DIR  = BASE_DIR / "results"
-ROBOT_SUITE  = "automation/create_album.robot"
+RESULTS_DIR = BASE_DIR / "results"
+CREATE_SUITE = BASE_DIR / "automation" / "create_album.robot"
+_WORKER_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+_DMB_ID_RE = re.compile(r"^(?=[A-Za-z0-9._:-]{1,128}$)(?=.*\d)[A-Za-z0-9._:-]+$")
+_EAN_RE = re.compile(r"^\d{8,14}$")
+_ISRC_RE = re.compile(r"^[A-Z0-9-]{8,20}$")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-7s  %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s")
 log = logging.getLogger("dmb-automation")
 
 _s3 = boto3.client(
@@ -55,165 +49,304 @@ _s3 = boto3.client(
     aws_secret_access_key=S3_SECRET_KEY,
     region_name="us-east-1",
 )
-
 _http = requests.Session()
-_http.headers.update({"Authorization": f"Bearer {SECRET}"})
+_http.headers.update(
+    {
+        "Authorization": f"Bearer {SECRET}",
+        "X-DMB-Worker-ID": WORKER_ID,
+    }
+)
 
 
-# ── API helpers ──────────────────────────────────────────────────────────────────
-def get_pending() -> list[dict]:
-    resp = _http.get(f"{API_BASE_URL}/internal/releases/pending", timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+class DeliveryError(RuntimeError):
+    pass
 
 
-def set_status(release_id: int, status: str) -> None:
-    resp = _http.post(
-        f"{API_BASE_URL}/internal/releases/{release_id}/status",
-        data={"status": status},
+def validate_config() -> None:
+    if not SECRET:
+        raise DeliveryError("SELENIUM_SECRET_KEY_missing")
+    if not _WORKER_ID_RE.fullmatch(WORKER_ID):
+        raise DeliveryError("DMB_WORKER_ID_invalid")
+    if not S3_ACCESS_KEY or not S3_SECRET_KEY:
+        raise DeliveryError("S3_credentials_missing")
+    if not DMB_USERNAME or not DMB_PASSWORD:
+        raise DeliveryError("DMB_credentials_missing")
+    if DRY_RUN:
+        raise DeliveryError("DRY_RUN_cannot_claim_live_jobs")
+    if EDIT_ENABLED:
+        raise DeliveryError("DMB_edit_path_not_ready")
+    if not CREATE_ENABLED:
+        raise DeliveryError("DMB_create_disabled")
+
+
+def get_pending(mode: str = "create") -> list[dict]:
+    response = _http.get(
+        f"{API_BASE_URL}/internal/releases/pending",
+        params={"mode": mode},
         timeout=30,
     )
-    resp.raise_for_status()
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, list) or len(payload) > 1:
+        raise DeliveryError("pending_response_invalid")
+    return payload
 
 
-# ── File + DB helpers ──────────────────────────────────────────────────────────────
-def download(key: str, dest_dir: Path, label: str) -> Path:
-    """Download an S3/MinIO object to a local file, preserving its extension."""
-    ext = os.path.splitext(key)[1]
-    local = dest_dir / f"{label}{ext}"
-    _s3.download_file(S3_BUCKET, key, str(local))
-    log.info("downloaded %s -> %s", key, local)
-    return local
-
-
-def format_release_date(value: str) -> str:
-    """Keep the canonical Gregorian date accepted by the DMB form."""
-    return value
-
-
-def write_sqlite(rel: dict, cover_path: Path, music_path: Path) -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS album_metadata (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                title            TEXT NOT NULL,
-                artist_name      TEXT NOT NULL,
-                artists_json     TEXT NOT NULL DEFAULT '[]',
-                legal_name       TEXT NOT NULL,
-                cover_image_path TEXT NOT NULL,
-                music_file_path  TEXT NOT NULL,
-                release_date     TEXT NOT NULL,
-                genre            TEXT
-            )
-            """
-        )
-        columns = {
-            row[1] for row in cur.execute("PRAGMA table_info(album_metadata)").fetchall()
-        }
-        if "artists_json" not in columns:
-            cur.execute(
-                "ALTER TABLE album_metadata ADD COLUMN artists_json TEXT NOT NULL DEFAULT '[]'"
-            )
-        cur.execute("DELETE FROM album_metadata")
-        cur.execute(
-            """
-            INSERT INTO album_metadata
-                (title, artist_name, artists_json, legal_name, cover_image_path, music_file_path, release_date, genre)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                rel["song_name"],
-                rel["artist_name"],
-                json.dumps(
-                    rel.get("artists")
-                    or [{"name": rel["artist_name"], "role": "primary"}],
-                    ensure_ascii=True,
-                ),
-                rel["legal_name"],
-                str(cover_path),
-                str(music_path),
-                format_release_date(rel["release_date"]),
-                rel.get("genre") or "",
-            ),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-    log.info("wrote album_metadata row for release %s", rel["id"])
-
-
-def run_robot(release_id: int) -> bool:
-    """Run the Robot suite under a virtual display. Returns True on success (exit 0)."""
-    outdir = RESULTS_DIR / str(release_id)
-    env = {**os.environ, "DMB_USERNAME": DMB_USERNAME, "DMB_PASSWORD": DMB_PASSWORD}
-    cmd = ["xvfb-run", "-a", "robot", "--outputdir", str(outdir), ROBOT_SUITE]
-    log.info("running: %s", " ".join(cmd))
-    proc = subprocess.run(cmd, cwd=str(BASE_DIR), env=env)
-    return proc.returncode == 0
-
-
-# ── Per-release processing ─────────────────────────────────────────────────────────
-def process(rel: dict) -> None:
-    rid = rel["id"]
-    log.info("processing release %s: %r by %r", rid, rel.get("song_name"), rel.get("artist_name"))
-    set_status(rid, "processing")
-
-    job_dir = DOWNLOAD_DIR / str(rid)
-    if job_dir.exists():
-        shutil.rmtree(job_dir)
-    job_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        cover = download(rel["cover_url"], job_dir, "cover")
-        music = download(rel["track_url"], job_dir, "track")
-        write_sqlite(rel, cover, music)
-
-        if DRY_RUN:
-            log.info("DRY_RUN=1 - wrote SQLite + files, skipping Robot run for release %s", rid)
-            set_status(rid, "completed")
-            return
-
-        ok = run_robot(rid)
-        set_status(rid, "completed" if ok else "failed")
-        log.info("release %s -> %s", rid, "completed" if ok else "failed")
-    except Exception:
-        log.exception("release %s failed", rid)
-        try:
-            set_status(rid, "failed")
-        except Exception:
-            log.exception("could not report failed status for release %s", rid)
-
-
-# ── Main loop ──────────────────────────────────────────────────────────────────────
-def main() -> None:
-    if not SECRET:
-        log.error("SELENIUM_SECRET_KEY is not set; refusing to start.")
-        sys.exit(1)
-    if not S3_ACCESS_KEY or not S3_SECRET_KEY:
-        log.error("S3 storage credentials are not set; refusing to start.")
-        sys.exit(1)
-    if not DRY_RUN and (not DMB_USERNAME or not DMB_PASSWORD):
-        log.error("DMB_USERNAME / DMB_PASSWORD not set; refusing to start (set DRY_RUN=true to test without them).")
-        sys.exit(1)
-
-    log.info(
-        "DMB automation worker started. api=%s bucket=%s poll=%ss dry_run=%s",
-        API_BASE_URL, S3_BUCKET, POLL_INTERVAL, DRY_RUN,
+def heartbeat(release_id: int) -> None:
+    response = _http.post(
+        f"{API_BASE_URL}/internal/releases/{release_id}/heartbeat",
+        timeout=30,
     )
+    response.raise_for_status()
+
+
+def set_status(
+    release_id: int,
+    status: str,
+    *,
+    result: dict | None = None,
+    error: str | None = None,
+) -> None:
+    data = {"status": status}
+    if result is not None:
+        data.update(
+            {
+                "dmb_release_id": result["dmb_release_id"],
+                "ean_upc": result["ean_upc"],
+                "isrcs_json": json.dumps(result["isrcs"]),
+                "evidence_path": result["evidence_path"],
+            }
+        )
+    if error:
+        data["error"] = error[:2000]
+    if status == "uncertain":
+        data["evidence_path"] = f"results/{release_id}"
+    response = _http.post(
+        f"{API_BASE_URL}/internal/releases/{release_id}/status",
+        data=data,
+        timeout=30,
+    )
+    response.raise_for_status()
+
+
+def _validated_release_id(value: object) -> int:
+    if isinstance(value, bool):
+        raise DeliveryError("release_id_invalid")
+    try:
+        release_id = int(value)
+    except (TypeError, ValueError):
+        raise DeliveryError("release_id_invalid") from None
+    if release_id <= 0:
+        raise DeliveryError("release_id_invalid")
+    return release_id
+
+
+def validate_release_contract(release: dict) -> None:
+    required = {
+        "id",
+        "user_id",
+        "song_name",
+        "artists",
+        "producers",
+        "legal_names",
+        "release_date",
+        "is_rerelease",
+        "genre",
+        "track_url",
+        "cover_url",
+        "artist_mappings",
+        "is_edit",
+        "copyright_requested",
+        "explicit_content",
+    }
+    if not isinstance(release, dict) or required.difference(release):
+        raise DeliveryError("release_contract_incomplete")
+    _validated_release_id(release["id"])
+    if release["is_edit"]:
+        if not release.get("source_release_id") or not release.get("source_dmb_release_id"):
+            raise DeliveryError("edit_source_evidence_missing")
+    for field in ("song_name", "release_date", "genre", "track_url", "cover_url"):
+        if not isinstance(release[field], str) or not release[field].strip():
+            raise DeliveryError(f"release_{field}_invalid")
+    for field in ("artists", "legal_names", "artist_mappings"):
+        if not isinstance(release[field], list) or not release[field]:
+            raise DeliveryError(f"release_{field}_invalid")
+
+
+def download(key: str, destination: Path) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _s3.download_file(S3_BUCKET, key, str(destination))
+    return destination
+
+
+def build_job_payload(release: dict, cover_path: Path, track_path: Path) -> dict:
+    validate_release_contract(release)
+    return {
+        "schema_version": 1,
+        "release_id": _validated_release_id(release["id"]),
+        "mode": "edit" if release["is_edit"] else "create",
+        "source_release_id": release.get("source_release_id"),
+        "source_dmb_release_id": release.get("source_dmb_release_id"),
+        "song_name": release["song_name"],
+        "artists": release["artists"],
+        "producers": release.get("producers") or "[]",
+        "legal_names": release["legal_names"],
+        "release_date": release["release_date"],
+        "is_rerelease": release["is_rerelease"],
+        "original_release_date": release.get("original_release_date"),
+        "genre": release["genre"],
+        "sub_genre": release.get("sub_genre"),
+        "artist_mappings": release["artist_mappings"],
+        "copyright_requested": release["copyright_requested"],
+        "explicit_content": release["explicit_content"],
+        "cover_path": str(cover_path.resolve()),
+        "track_path": str(track_path.resolve()),
+    }
+
+
+def write_json_atomic(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
+    temporary.replace(path)
+
+
+def load_result(path: Path, release_id: int) -> dict:
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        raise DeliveryError("dmb_result_missing_or_invalid") from None
+    if (
+        not isinstance(result, dict)
+        or result.get("submitted") is not True
+        or result.get("release_id") != release_id
+        or not _DMB_ID_RE.fullmatch(str(result.get("dmb_release_id", "")))
+        or not _EAN_RE.fullmatch(str(result.get("ean_upc", "")))
+        or not isinstance(result.get("isrcs"), list)
+        or not result["isrcs"]
+        or any(not isinstance(code, str) or not _ISRC_RE.fullmatch(code) for code in result["isrcs"])
+    ):
+        raise DeliveryError("dmb_result_evidence_invalid")
+    current_url = str(result.get("current_url", ""))
+    screenshot = Path(str(result.get("screenshot_path", ""))).resolve()
+    from urllib.parse import urlparse
+
+    parsed_url = urlparse(current_url)
+    expected_output = (RESULTS_DIR / str(release_id)).resolve()
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.hostname != DMB_ALLOWED_HOST
+        or str(result["dmb_release_id"]) not in current_url
+        or not screenshot.is_file()
+        or not screenshot.is_relative_to(expected_output)
+    ):
+        raise DeliveryError("dmb_result_evidence_invalid")
+    result["evidence_path"] = f"results/{release_id}"
+    return result
+
+
+def run_robot(
+    release_id: int,
+    job_file: Path,
+    result_file: Path,
+    checkpoint_file: Path,
+) -> dict:
+    if result_file.exists():
+        result_file.unlink()
+    if checkpoint_file.exists():
+        checkpoint_file.unlink()
+    output_dir = RESULTS_DIR / str(release_id)
+    env = {
+        **os.environ,
+        "DMB_USERNAME": DMB_USERNAME,
+        "DMB_PASSWORD": DMB_PASSWORD,
+        "DMB_JOB_FILE": str(job_file),
+        "DMB_RESULT_FILE": str(result_file),
+        "DMB_SUBMIT_CHECKPOINT": str(checkpoint_file),
+        "DMB_SUBMIT_ENABLED": "true",
+    }
+    command = [
+        "xvfb-run",
+        "-a",
+        "robot",
+        "--outputdir",
+        str(output_dir),
+        str(CREATE_SUITE),
+    ]
+    process = subprocess.Popen(command, cwd=str(BASE_DIR), env=env)
+    next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
+    while process.poll() is None:
+        time.sleep(1)
+        if time.monotonic() < next_heartbeat:
+            continue
+        try:
+            heartbeat(release_id)
+        except Exception:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            raise DeliveryError("dmb_lease_heartbeat_failed") from None
+        next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
+    if process.returncode != 0:
+        raise DeliveryError(f"robot_exit_{process.returncode}")
+    return load_result(result_file, release_id)
+
+
+def _safe_job_dir(release_id: int) -> Path:
+    root = DOWNLOAD_DIR.resolve()
+    job_dir = (root / str(release_id)).resolve()
+    if job_dir.parent != root:
+        raise DeliveryError("job_directory_invalid")
+    return job_dir
+
+
+def process_release(release: dict) -> None:
+    release_id = _validated_release_id(release.get("id") if isinstance(release, dict) else None)
+    job_dir = _safe_job_dir(release_id)
+    result_file = RESULTS_DIR / str(release_id) / "result.json"
+    checkpoint_file = RESULTS_DIR / str(release_id) / "submit-started.json"
+    try:
+        validate_release_contract(release)
+        if release["is_edit"]:
+            raise DeliveryError("DMB_edit_path_not_ready")
+        if job_dir.exists():
+            shutil.rmtree(job_dir)
+        job_dir.mkdir(parents=True)
+        cover = download(release["cover_url"], job_dir / "cover.png")
+        track = download(release["track_url"], job_dir / "track.wav")
+        job_file = job_dir / "job.json"
+        write_json_atomic(job_file, build_job_payload(release, cover, track))
+        result = run_robot(release_id, job_file, result_file, checkpoint_file)
+        set_status(release_id, "completed", result=result)
+        log.info("release %s completed with verified DMB evidence", release_id)
+    except Exception as exc:
+        reason = f"{type(exc).__name__}:{exc}"[:2000]
+        log.exception("release %s delivery failed", release_id)
+        try:
+            state = "uncertain" if checkpoint_file.exists() else "retry"
+            set_status(release_id, state, error=reason)
+        except Exception:
+            log.exception("release %s status report failed", release_id)
+    finally:
+        if job_dir.exists():
+            shutil.rmtree(job_dir)
+
+
+def main() -> None:
+    try:
+        validate_config()
+    except DeliveryError as exc:
+        log.error("worker configuration invalid: %s", exc)
+        sys.exit(1)
+    log.info("DMB worker started; api=%s worker=%s", API_BASE_URL, WORKER_ID)
     while True:
         try:
-            pending = get_pending()
-            if pending:
-                pending.sort(key=lambda r: r.get("created_at") or "")  # oldest first
-                log.info("found %d pending release(s)", len(pending))
-                for rel in pending:
-                    process(rel)
+            for release in get_pending("create"):
+                process_release(release)
         except Exception:
-            log.exception("poll loop error")
+            log.exception("poll loop failed")
         time.sleep(POLL_INTERVAL)
 
 

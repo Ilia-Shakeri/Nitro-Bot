@@ -9,6 +9,7 @@ const styles: Record<string, string> = {
   rollback: 'border-blue-400/30 bg-blue-400/10 text-blue-400',
   manual_staging: 'border-gold/35 bg-gold/10 text-gold',
   notification_pending: 'border-gold/35 bg-gold/10 text-gold',
+  dmb_verification_required: 'border-amber-400/35 bg-amber-400/10 text-amber-300',
 };
 
 export const ReleaseStatusBadge = ({ release }: { release: Release }) => {

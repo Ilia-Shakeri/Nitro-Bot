@@ -47,3 +47,5 @@ ${ADD_CONTRIBUTOR_BUTTON}     //button[contains(@class, 'dmb-js-cce__add-btn')]
 # --- دکمه‌ها ---
 ${NEXT_BUTTON}              //button[normalize-space()='Next']
 ${SAVE_BUTTON}              //button[contains(text(), 'Save')]
+${TRACK_ISRC_INPUT}         //input[@name='track:isrc[]' and normalize-space(@value)!='']
+${SUBMISSION_SUCCESS}       xpath=//*[contains(@class,'success') and (contains(normalize-space(.),'created') or contains(normalize-space(.),'saved'))]

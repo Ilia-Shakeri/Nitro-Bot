@@ -10,6 +10,32 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.1] - 2026-09-13
+
+### Added
+
+- Isolated DMB job files carrying the full release contract.
+- Atomic DMB claims with worker leases, heartbeats, bounded attempts, and crash recovery.
+- Stored DMB release ID, EAN/UPC, ISRC list, submission times, and evidence path.
+- Manual review state and audited complete, retry, or fail resolution.
+- Contract tests and a Robot dry-run fixture.
+
+### Fixed
+
+- The browser flow now clicks final Save before a release can complete.
+- A completed callback now requires validated codes and local screenshot evidence from the allowed DMB host.
+- Failures after Save begins stop in manual verification instead of risking a duplicate album.
+- Edit orders cannot be charged until their source release has a stored DMB ID.
+- The live worker no longer shares one mutable SQLite metadata row.
+
+### Known gaps
+
+- DMB selectors and success evidence still need real staging validation with authorized credentials.
+- Producer roles, artist roles, profile mappings, re-release details, subgenre, and explicit metadata are carried but not all are entered in the browser form yet.
+- Edit delivery remains disabled until a distinct edit flow passes staging without duplicate creation.
+- Migration `014` still needs a PostgreSQL staging run against production-like data.
+- Earlier `0.8.0` money, notice, payment quote, concurrency, and orphan-retention gates remain open.
+
 ## [0.8.0-alpha.3] - 2026-09-13
 
 ### Added
@@ -76,7 +102,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.1...HEAD
+[0.9.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.3...v0.9.0-alpha.1
 [0.8.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.2...v0.8.0-alpha.3
 [0.8.0-alpha.2]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.8.0-alpha.1...v0.8.0-alpha.2
 [0.8.0-alpha.1]: https://github.com/Ilia-Shakeri/Nitro-Bot/releases/tag/v0.8.0-alpha.1

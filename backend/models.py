@@ -73,8 +73,9 @@ class Release(Base):
     __tablename__ = "releases"
     __table_args__ = (
         CheckConstraint("charged_cost >= 0", name="ck_releases_charged_cost_nonnegative"),
+        CheckConstraint("dmb_attempts >= 0", name="ck_releases_dmb_attempts_nonnegative"),
         CheckConstraint(
-            "status IN ('pending', 'staging', 'notification_pending', 'manual_staging', 'processing', 'completed', 'failed')",
+            "status IN ('pending', 'staging', 'notification_pending', 'manual_staging', 'processing', 'dmb_verification_required', 'completed', 'failed')",
             name="ck_releases_status_allowed",
         ),
     )
@@ -110,12 +111,29 @@ class Release(Base):
     submission_id = Column(String(64), nullable=True, unique=True, index=True)
     refunded_at = Column(DateTime, nullable=True)
     failure_reason = Column(String(255), nullable=True)
+    source_release_id = Column(Integer, ForeignKey("releases.id"), nullable=True)
+    source_dmb_release_id = Column(String(128), nullable=True)
+    dmb_release_id = Column(String(128), nullable=True)
+    dmb_ean_upc = Column(String(32), nullable=True)
+    dmb_isrcs = Column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list
+    )
+    dmb_submission_started_at = Column(DateTime, nullable=True)
+    dmb_submitted_at = Column(DateTime, nullable=True)
+    dmb_evidence_path = Column(String(512), nullable=True)
+    dmb_last_error = Column(Text, nullable=True)
+    dmb_attempts = Column(Integer, nullable=False, default=0)
+    dmb_lease_owner = Column(String(128), nullable=True)
+    dmb_lease_expires_at = Column(DateTime, nullable=True)
+    dmb_reviewed_by = Column(String(128), nullable=True)
+    dmb_reviewed_at = Column(DateTime, nullable=True)
     
     # State tracking for the Selenium Bot worker
     status = Column(String, default="pending") 
     created_at = Column(DateTime, default=get_naive_utc)
 
-    user = relationship("User", backref="releases")
+    user = relationship("User", backref="releases", foreign_keys=[user_id])
+    source_release = relationship("Release", remote_side=[id], foreign_keys=[source_release_id])
 
 
 class ReleaseJob(Base):
