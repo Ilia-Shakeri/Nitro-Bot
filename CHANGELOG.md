@@ -10,6 +10,24 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.8] - 2026-09-20
+
+### Added
+
+- Distinct DMB edit suite for exact source album and single-track metadata.
+- Separate edit submit gate for track Save, album Save, and Publish.
+- Source EAN/ISRC binding and immutable field-level edit audit diff.
+
+### Fixed
+
+- Edit polling now runs only when its worker gate is explicitly enabled.
+- Missing source evidence and unsupported audio replacement fail before delivery.
+- Unchanged covers are no longer uploaded again.
+
+### Not run
+
+- Final DMB Save and Publish were not used.
+
 ## [0.9.0-alpha.7] - 2026-09-20
 
 ### Added
@@ -200,7 +218,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.7...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.8...HEAD
+[0.9.0-alpha.8]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.7...v0.9.0-alpha.8
 [0.9.0-alpha.7]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.6...v0.9.0-alpha.7
 [0.9.0-alpha.6]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.5...v0.9.0-alpha.6
 [0.9.0-alpha.5]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.4...v0.9.0-alpha.5

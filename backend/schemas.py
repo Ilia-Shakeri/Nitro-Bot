@@ -109,6 +109,7 @@ class ReleaseOut(BaseModel):
     status: str
     cover_url: str
     is_edit: bool
+    edit_diff: dict = Field(default_factory=dict)
     copyright_requested: bool
     explicit_content: bool
     charged_cost: int
@@ -146,6 +147,9 @@ class PendingReleaseOut(BaseModel):
     charged_cost: int
     source_release_id: int | None = None
     source_dmb_release_id: str | None = None
+    source_dmb_ean_upc: str | None = None
+    source_dmb_isrcs: list[str] = Field(default_factory=list)
+    source_cover_url: str | None = None
     dmb_attempts: int = 0
     dmb_lease_expires_at: datetime | None = None
     status: str

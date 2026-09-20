@@ -21,8 +21,29 @@ class DmbJob:
         job = json.loads(job_path.read_text(encoding="utf-8"))
         if not isinstance(job, dict) or job.get("schema_version") != 2:
             raise ValueError("dmb_job_schema_invalid")
-        if job.get("mode") != "create":
+        if job.get("mode") not in {"create", "edit"}:
             raise ValueError("dmb_job_mode_invalid")
+        if job["mode"] == "edit":
+            if not re.fullmatch(
+                r"(?=[A-Za-z0-9._:-]{1,128}$)(?=.*\d)[A-Za-z0-9._:-]+",
+                str(job.get("source_dmb_release_id", "")),
+            ):
+                raise ValueError("dmb_job_edit_source_invalid")
+            if not re.fullmatch(r"\d{8,14}", str(job.get("source_dmb_ean_upc", ""))):
+                raise ValueError("dmb_job_edit_ean_invalid")
+            source_isrcs = job.get("source_dmb_isrcs")
+            if (
+                not isinstance(source_isrcs, list)
+                or not source_isrcs
+                or any(
+                    not isinstance(code, str)
+                    or not re.fullmatch(r"[A-Z0-9-]{8,20}", code)
+                    for code in source_isrcs
+                )
+            ):
+                raise ValueError("dmb_job_edit_isrcs_invalid")
+            if not isinstance(job.get("replace_cover"), bool):
+                raise ValueError("dmb_job_edit_cover_mode_invalid")
         producers = job.get("producers")
         if isinstance(producers, str):
             producers = json.loads(producers)

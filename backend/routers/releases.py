@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
@@ -38,6 +38,19 @@ _EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def build_edit_diff(source: dict, requested: dict) -> dict:
+    def json_value(value):
+        if isinstance(value, (date, datetime)):
+            return value.isoformat()
+        return value
+
+    return {
+        field: {"from": json_value(source[field]), "to": json_value(value)}
+        for field, value in requested.items()
+        if json_value(source.get(field)) != json_value(value)
+    }
 
 
 async def _delete_staged_keys(*keys: str | None) -> None:
@@ -81,6 +94,8 @@ async def create_release(
 ):
     if is_edit and not _EDIT_ENABLED:
         raise HTTPException(status_code=503, detail="dmb_edit_disabled")
+    if is_edit and audio is not None:
+        raise HTTPException(status_code=400, detail="dmb_edit_audio_not_supported")
     try:
         validate_policy_acceptance(policy_accepted)
     except ReleaseValidationError as exc:
@@ -123,6 +138,8 @@ async def create_release(
             raise HTTPException(status_code=404, detail="source_release_not_found")
         if not source_release.dmb_release_id:
             raise HTTPException(status_code=409, detail="source_release_not_delivered")
+        if not source_release.dmb_ean_upc or len(source_release.dmb_isrcs or []) != 1:
+            raise HTTPException(status_code=409, detail="source_release_evidence_incomplete")
 
     final_explicit_content = (
         explicit_content
@@ -349,6 +366,43 @@ async def create_release(
         await _delete_staged_keys(staged_audio_key, staged_cover_key)
         raise HTTPException(status_code=400, detail="insufficient_credits")
 
+    edit_diff = {}
+    if source_release:
+        try:
+            source_producers = json.loads(source_release.producers or "[]")
+        except json.JSONDecodeError:
+            source_producers = []
+        edit_diff = build_edit_diff(
+            {
+                "song_name": source_release.song_name,
+                "artists": source_release.artists,
+                "producers": source_producers,
+                "legal_names": source_release.legal_names,
+                "release_date": source_release.release_date,
+                "is_rerelease": source_release.is_rerelease,
+                "original_release_date": source_release.original_release_date,
+                "genre": source_release.genre,
+                "sub_genre": source_release.sub_genre,
+                "artist_mappings": source_release.artist_mappings,
+                "explicit_content": source_release.explicit_content,
+                "cover_replaced": False,
+            },
+            {
+                "song_name": final_song_name,
+                "artists": final_artists,
+                "producers": final_producer_names,
+                "legal_names": final_legal_names,
+                "release_date": final_release_date,
+                "is_rerelease": final_is_rerelease,
+                "original_release_date": final_original_release_date,
+                "genre": final_genre,
+                "sub_genre": final_sub_genre,
+                "artist_mappings": final_artist_mappings,
+                "explicit_content": final_explicit_content,
+                "cover_replaced": cover_bytes_raw is not None,
+            },
+        )
+
     release = Release(
         user_id=tg_id,
         track_url=audio_key,
@@ -378,6 +432,7 @@ async def create_release(
         submission_id=normalized_submission_id,
         source_release_id=source_release.id if source_release else None,
         source_dmb_release_id=source_release.dmb_release_id if source_release else None,
+        edit_diff=edit_diff,
         status="staging",
     )
     user.credits -= total_cost

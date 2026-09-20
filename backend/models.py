@@ -115,6 +115,9 @@ class Release(Base):
     failure_reason = Column(String(255), nullable=True)
     source_release_id = Column(Integer, ForeignKey("releases.id"), nullable=True)
     source_dmb_release_id = Column(String(128), nullable=True)
+    edit_diff = Column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
+    )
     dmb_release_id = Column(String(128), nullable=True)
     dmb_ean_upc = Column(String(32), nullable=True)
     dmb_isrcs = Column(

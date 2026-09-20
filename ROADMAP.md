@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.7`
+Current release: `0.9.0-alpha.8`
 
 Target release: `1.0.0`
 
@@ -23,6 +23,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.5` | Harden live DMB input | Contributor blur, role select, and direct track upload avoid destructive UI actions |
 | `0.9.0-alpha.6` | Protect money and staff actions | Immutable ledger, staff allowlist, audit log, claim idempotency, and durable notices exist |
 | `0.9.0-alpha.7` | Bind DMB submission evidence | Pre-submit EAN, ISRC, title, and fingerprint survive crashes and block mismatched completion |
+| `0.9.0-alpha.8` | Build safe DMB edit delivery | Exact source, single-track metadata, staged Save, Publish, and edit audit exist |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
@@ -152,6 +153,19 @@ Delivered in `0.9.0-alpha.2`:
 This alpha still needs an authenticated DMB staging run. Login selectors were
 checked against the live public login page; authenticated wizard selectors and
 final submission were not exercised.
+
+Delivered in `0.9.0-alpha.8`:
+
+- A distinct edit suite targets the stored DMB release ID and never opens create.
+- Source EAN and one source ISRC bind the job, checkpoint, result, and completion.
+- Track title, genre, explicit flag, P-line, and contributors use the live bulk editor.
+- Album title, genre, dates, prices, copyright lines, contributors, and changed cover are staged.
+- Save and Publish have a separate fail-closed gate and default off.
+- Unsupported audio replacement is rejected before charge.
+- Every accepted edit stores a field-level source-to-request audit diff.
+
+Authenticated fields and navigation were inspected without Save or Publish.
+The final edit mutation still needs an approved staging release before `0.9.0`.
 
 ### New release workflow
 

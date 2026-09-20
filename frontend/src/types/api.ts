@@ -81,6 +81,7 @@ export interface Release {
   status: string;
   cover_url: string;
   is_edit: boolean;
+  edit_diff: Record<string, { from: unknown; to: unknown }>;
   copyright_requested: boolean;
   explicit_content: boolean;
   charged_cost: number;

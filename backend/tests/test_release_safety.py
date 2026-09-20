@@ -12,6 +12,7 @@ from release_jobs import claimable_job_statement, retry_delay_seconds
 from release_service import refund_is_due, user_for_update_statement
 from routers import internal
 from routers import releases
+from routers.releases import build_edit_diff
 from routers.internal import (
     _STATUS_TRANSITIONS,
     _parse_evidence,
@@ -28,6 +29,20 @@ def test_copyright_defaults_off():
 
 def test_explicit_content_defaults_off():
     assert Release.explicit_content.default.arg is False
+
+
+def test_edit_diff_keeps_only_changed_values():
+    diff = build_edit_diff(
+        {"song_name": "Old", "genre": "Pop", "release_date": datetime(2026, 1, 1)},
+        {"song_name": "New", "genre": "Pop", "release_date": datetime(2026, 1, 2)},
+    )
+    assert diff == {
+        "song_name": {"from": "Old", "to": "New"},
+        "release_date": {
+            "from": "2026-01-01T00:00:00",
+            "to": "2026-01-02T00:00:00",
+        },
+    }
 
 
 def test_credit_deduction_uses_postgres_row_lock():
@@ -212,6 +227,15 @@ async def test_edit_orders_are_fail_closed_before_work(monkeypatch):
     assert exc.value.detail == "dmb_edit_disabled"
 
 
+@pytest.mark.asyncio
+async def test_edit_audio_replacement_is_rejected_before_charge(monkeypatch):
+    monkeypatch.setattr(releases, "_EDIT_ENABLED", True)
+    with pytest.raises(HTTPException) as exc:
+        await releases.create_release(is_edit=True, audio=MagicMock())
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "dmb_edit_audio_not_supported"
+
+
 def test_dmb_review_uses_distinct_fail_closed_secret(monkeypatch):
     monkeypatch.setattr(internal, "_SECRET", "worker-secret")
     monkeypatch.setattr(internal, "_REVIEW_SECRET", "review-secret")
@@ -265,6 +289,7 @@ def test_release_has_dmb_lease_and_evidence_fields():
     for field in (
         "source_release_id",
         "source_dmb_release_id",
+        "edit_diff",
         "dmb_release_id",
         "dmb_ean_upc",
         "dmb_isrcs",
@@ -280,6 +305,19 @@ def test_release_has_dmb_lease_and_evidence_fields():
         "dmb_reviewed_at",
     ):
         assert hasattr(Release, field)
+
+
+def test_edit_diff_migration_is_additive_and_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "017_release_edit_diff.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "016"' in migration
+    assert '"edit_diff"' in migration
+    assert "server_default" in migration
+    assert 'op.drop_column("releases", "edit_diff")' in migration
 
 
 def test_dmb_delivery_migration_is_additive_and_reversible():

@@ -78,6 +78,21 @@ def sample_release() -> dict:
     }
 
 
+def sample_edit_release() -> dict:
+    release = sample_release()
+    release.update(
+        {
+            "is_edit": True,
+            "source_release_id": 7,
+            "source_dmb_release_id": "2222756",
+            "source_dmb_ean_upc": "4069977537588",
+            "source_dmb_isrcs": ["USABC2600001"],
+            "source_cover_url": "releases/100/7/cover.png",
+        }
+    )
+    return release
+
+
 def test_job_payload_carries_full_release_contract(tmp_path):
     release = sample_release()
     payload = worker.build_job_payload(
@@ -135,6 +150,39 @@ def test_edit_contract_requires_delivered_source():
     release["is_edit"] = True
     with pytest.raises(worker.DeliveryError, match="edit_source_evidence_missing"):
         worker.validate_release_contract(release)
+
+
+def test_edit_job_keeps_exact_source_evidence(tmp_path):
+    job_dir = tmp_path / "42"
+    job_dir.mkdir()
+    payload = worker.build_job_payload(
+        sample_edit_release(),
+        job_dir / "cover.jpg",
+        job_dir / "track.wav",
+    )
+    job_file = job_dir / "job.json"
+    job_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    job = dmb_job_module.DmbJob().load_dmb_job(str(job_file))
+
+    assert job["mode"] == "edit"
+    assert job["source_dmb_release_id"] == "2222756"
+    assert job["source_dmb_ean_upc"] == "4069977537588"
+    assert job["source_dmb_isrcs"] == ["USABC2600001"]
+
+
+def test_edit_worker_needs_distinct_submit_gate(monkeypatch):
+    monkeypatch.setattr(worker, "SECRET", "worker-secret")
+    monkeypatch.setattr(worker, "S3_ACCESS_KEY", "access")
+    monkeypatch.setattr(worker, "S3_SECRET_KEY", "secret")
+    monkeypatch.setattr(worker, "DMB_USERNAME", "user")
+    monkeypatch.setattr(worker, "DMB_PASSWORD", "pass")
+    monkeypatch.setattr(worker, "DRY_RUN", False)
+    monkeypatch.setattr(worker, "CREATE_ENABLED", False)
+    monkeypatch.setattr(worker, "EDIT_ENABLED", True)
+    monkeypatch.setattr(worker, "EDIT_SUBMIT_ENABLED", False)
+    with pytest.raises(worker.DeliveryError, match="DMB_edit_submit_disabled"):
+        worker.validate_config()
 
 
 def test_claimed_bad_contract_is_reported_for_retry(monkeypatch):
@@ -396,6 +444,23 @@ def test_robot_flow_contains_attachment_steps():
     ):
         assert step in suite or step in page
     assert "Save & View Audio Product" in locators
+    assert "    Sleep" not in page
+
+
+def test_edit_flow_targets_source_and_has_two_submit_gates():
+    suite = (ROOT / "automation" / "edit_album.robot").read_text(encoding="utf-8")
+    page = (ROOT / "resources" / "pages" / "edit_album_page.robot").read_text(
+        encoding="utf-8"
+    )
+    locators = (
+        ROOT / "resources" / "locators" / "edit_album_locators.robot"
+    ).read_text(encoding="utf-8")
+    assert "${JOB}[source_dmb_release_id]" in suite
+    assert "Write Submit Checkpoint" in suite
+    assert "DMB_EDIT_SUBMIT_ENABLED" in page
+    assert '"action":"save"' in locators
+    assert '"action":"publish"' in locators
+    assert "album.create" not in suite
     assert "    Sleep" not in page
 
 

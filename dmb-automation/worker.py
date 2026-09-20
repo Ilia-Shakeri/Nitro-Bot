@@ -40,6 +40,7 @@ HEARTBEAT_INTERVAL = max(10, int(os.getenv("DMB_HEARTBEAT_SECONDS", "60")))
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 CREATE_ENABLED = os.getenv("DMB_CREATE_ENABLED", "false").lower() == "true"
 EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
+EDIT_SUBMIT_ENABLED = os.getenv("DMB_EDIT_SUBMIT_ENABLED", "false").lower() == "true"
 DMB_USERNAME = os.getenv("DMB_USERNAME", "")
 DMB_PASSWORD = os.getenv("DMB_PASSWORD", "")
 DMB_ALLOWED_HOST = os.getenv("DMB_ALLOWED_HOST", "dmb.kontornewmedia.com").lower()
@@ -50,6 +51,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DOWNLOAD_DIR = BASE_DIR / "downloads"
 RESULTS_DIR = BASE_DIR / "results"
 CREATE_SUITE = BASE_DIR / "automation" / "create_album.robot"
+EDIT_SUITE = BASE_DIR / "automation" / "edit_album.robot"
 CIRCUIT_STATE_PATH = RESULTS_DIR / "dmb-circuit.json"
 _WORKER_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _DMB_ID_RE = re.compile(r"^(?=[A-Za-z0-9._:-]{1,128}$)(?=.*\d)[A-Za-z0-9._:-]+$")
@@ -90,10 +92,10 @@ def validate_config() -> None:
         raise DeliveryError("DMB_credentials_missing")
     if DRY_RUN:
         raise DeliveryError("DRY_RUN_cannot_claim_live_jobs")
-    if EDIT_ENABLED:
-        raise DeliveryError("DMB_edit_path_not_ready")
-    if not CREATE_ENABLED:
-        raise DeliveryError("DMB_create_disabled")
+    if not CREATE_ENABLED and not EDIT_ENABLED:
+        raise DeliveryError("DMB_delivery_disabled")
+    if EDIT_ENABLED and not EDIT_SUBMIT_ENABLED:
+        raise DeliveryError("DMB_edit_submit_disabled")
 
 
 def get_pending(mode: str = "create") -> list[dict]:
@@ -192,6 +194,25 @@ def validate_release_contract(release: dict) -> None:
     if release["is_edit"]:
         if not release.get("source_release_id") or not release.get("source_dmb_release_id"):
             raise DeliveryError("edit_source_evidence_missing")
+        if not _EAN_RE.fullmatch(str(release.get("source_dmb_ean_upc", ""))):
+            raise DeliveryError("edit_source_ean_missing")
+        source_isrcs = release.get("source_dmb_isrcs")
+        if (
+            not isinstance(source_isrcs, list)
+            or not source_isrcs
+            or any(
+                not isinstance(code, str) or not _ISRC_RE.fullmatch(code)
+                for code in source_isrcs
+            )
+        ):
+            raise DeliveryError("edit_source_isrcs_missing")
+        if len(source_isrcs) != 1:
+            raise DeliveryError("edit_source_must_be_single_track")
+        if (
+            not isinstance(release.get("source_cover_url"), str)
+            or not release["source_cover_url"].strip()
+        ):
+            raise DeliveryError("edit_source_cover_missing")
     for field in ("song_name", "release_date", "genre", "track_url", "cover_url"):
         if not isinstance(release[field], str) or not release[field].strip():
             raise DeliveryError(f"release_{field}_invalid")
@@ -245,6 +266,12 @@ def build_job_payload(release: dict, cover_path: Path, track_path: Path) -> dict
         "mode": "edit" if release["is_edit"] else "create",
         "source_release_id": release.get("source_release_id"),
         "source_dmb_release_id": release.get("source_dmb_release_id"),
+        "source_dmb_ean_upc": release.get("source_dmb_ean_upc"),
+        "source_dmb_isrcs": release.get("source_dmb_isrcs") or [],
+        "replace_cover": bool(
+            release["is_edit"]
+            and release.get("source_cover_url") != release.get("cover_url")
+        ),
         "song_name": release["song_name"],
         "artists": release["artists"],
         "producers": release.get("producers") or "[]",
@@ -431,6 +458,12 @@ def run_robot(
     if checkpoint_file.exists():
         checkpoint_file.unlink()
     output_dir = RESULTS_DIR / str(release_id)
+    try:
+        mode = json.loads(job_file.read_text(encoding="utf-8"))["mode"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        raise DeliveryError("dmb_job_mode_invalid") from None
+    if mode not in {"create", "edit"}:
+        raise DeliveryError("dmb_job_mode_invalid")
     env = {
         **os.environ,
         "DMB_USERNAME": DMB_USERNAME,
@@ -439,14 +472,16 @@ def run_robot(
         "DMB_RESULT_FILE": str(result_file),
         "DMB_SUBMIT_CHECKPOINT": str(checkpoint_file),
         "DMB_SUBMIT_ENABLED": "true",
+        "DMB_EDIT_SUBMIT_ENABLED": "true" if mode == "edit" else "false",
     }
+    suite = EDIT_SUITE if mode == "edit" else CREATE_SUITE
     command = [
         "xvfb-run",
         "-a",
         "robot",
         "--outputdir",
         str(output_dir),
-        str(CREATE_SUITE),
+        str(suite),
     ]
     process = subprocess.Popen(command, cwd=str(BASE_DIR), env=env)
     next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
@@ -486,8 +521,6 @@ def process_release(release: dict) -> str:
     checkpoint_file = RESULTS_DIR / str(release_id) / "submit-started.json"
     try:
         validate_release_contract(release)
-        if release["is_edit"]:
-            raise DeliveryError("DMB_edit_path_not_ready")
         if job_dir.exists():
             shutil.rmtree(job_dir)
         job_dir.mkdir(parents=True)
@@ -547,11 +580,17 @@ def main() -> None:
             time.sleep(max(POLL_INTERVAL, 60))
             continue
         try:
-            for release in get_pending("create"):
-                release_id = _validated_release_id(release.get("id"))
-                outcome = process_release(release)
-                if record_delivery_outcome(release_id, outcome):
-                    log.error("DMB circuit opened after release %s", release_id)
+            modes = []
+            if CREATE_ENABLED:
+                modes.append("create")
+            if EDIT_ENABLED:
+                modes.append("edit")
+            for mode in modes:
+                for release in get_pending(mode):
+                    release_id = _validated_release_id(release.get("id"))
+                    outcome = process_release(release)
+                    if record_delivery_outcome(release_id, outcome):
+                        log.error("DMB circuit opened after release %s", release_id)
         except Exception:
             log.exception("poll loop failed")
         time.sleep(POLL_INTERVAL)

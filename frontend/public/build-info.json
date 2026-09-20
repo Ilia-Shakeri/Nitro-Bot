@@ -1,11 +1,12 @@
 {
-  "release": "0.9.0-alpha.7",
+  "release": "0.9.0-alpha.8",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
     "support-ticket-history",
     "nitro-ledger",
     "release-edit-entry",
+    "dmb-edit-delivery",
     "telegram-menu-cache-buster",
     "ios-style-toggles",
     "usd-nitro-pricing",

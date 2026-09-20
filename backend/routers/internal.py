@@ -10,6 +10,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Form, Header, HTTPException, Query
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database import get_db
 from models import Release
@@ -107,6 +108,7 @@ def claimable_release_statement(
         )
         .order_by(Release.created_at.asc())
         .limit(1)
+        .options(selectinload(Release.source_release))
         .with_for_update(skip_locked=True)
     )
 
@@ -245,13 +247,25 @@ async def get_pending_releases(
     if release is None:
         await db.rollback()
         return []
+    source_updates = {}
+    if mode == "edit":
+        source = release.source_release
+        if source is None:
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="edit_source_evidence_missing")
+        source_updates = {
+            "source_dmb_ean_upc": source.dmb_ean_upc,
+            "source_dmb_isrcs": list(source.dmb_isrcs or []),
+            "source_cover_url": source.cover_url,
+        }
     release.status = "processing"
     release.dmb_attempts += 1
     release.dmb_lease_owner = worker_id
     release.dmb_lease_expires_at = now + timedelta(seconds=_LEASE_SECONDS)
     release.dmb_last_error = None
+    payload = PendingReleaseOut.model_validate(release).model_copy(update=source_updates)
     await db.commit()
-    return [release]
+    return [payload]
 
 
 @router.post("/releases/{release_id}/heartbeat", response_model=OkResponse)

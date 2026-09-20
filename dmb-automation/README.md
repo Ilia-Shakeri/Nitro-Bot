@@ -23,7 +23,9 @@ MinIO دانلود می‌کند، برای هر سفارش فایل جدا می
 - ✅ کلیک Save، بررسی پاسخ DMB و ذخیره شناسه‌ها و اسکرین‌شات
 - ✅ lease و heartbeat برای برگشت امن کار پس از مرگ worker
 - ✅ circuit breaker پایدار؛ سه خطای پیاپی یا یک نتیجه نامعلوم، claim تازه را می‌بندد
-- ⛔ مسیر edit تا ساخت و تست جدا، بسته است
+- ✅ مسیر جدا برای edit تک‌ترک با Source ID، EAN، ISRC و audit diff
+- ✅ قفل جدا برای Save و Publish حالت edit؛ پیش‌فرض خاموش
+- ⛔ تعویض فایل صوتی در edit تا شناخت مسیر رسمی DMB رد می‌شود
 
 ## 📂 ساختار
 
@@ -33,7 +35,8 @@ dmb-automation/
 ├── dmb_contract.py        # تبدیل داده مینی‌اپ به مقدارهای دقیق DMB
 ├── libraries/dmb_job.py   # خواندن قرارداد کار و نوشتن نتیجه اتمی
 ├── automation/
-│   └── create_album.robot # سناریوی اصلی ایجاد آلبوم
+│   ├── create_album.robot # سناریوی اصلی ایجاد آلبوم
+│   └── edit_album.robot   # سناریوی جدا برای ویرایش ریلیز موجود
 ├── resources/             # page objects, locators, queries, variables (ساختار استاندارد Robot)
 ├── assets/                # sample_cover.jpg / sample_track.wav (نمونه برای تست دستی)
 ├── Dockerfile             # Firefox + geckodriver + Xvfb + پایتون
@@ -55,6 +58,8 @@ PostgreSQL و MinIO منبع اصلی داده‌اند. DMB worker دیتابی
 
 شروع زنده فقط وقتی مجاز است که `DMB_CREATE_ENABLED=true` باشد. مقدار پیش‌فرض false است.
 `DRY_RUN` هیچ کار زنده را claim نمی‌کند و completed دروغ نمی‌سازد.
+برای edit هر دو مقدار `DMB_EDIT_ENABLED=true` و `DMB_EDIT_SUBMIT_ENABLED=true`
+لازم است. هر دو پیش‌فرض خاموش‌اند.
 
 **اجرای دستی سناریو (برای توسعه):**
 
@@ -84,6 +89,20 @@ robot --outputdir results automation/create_album.robot
 9. بررسی Title، EAN، ISRC، تاریخ، ژانر، Label و Contributorها.
 10. نوشتن checkpoint، سپس `Save & View Audio Product`.
 11. ذخیره DMB ID، EAN، ISRC، URL و اسکرین‌شات PNG معتبر.
+
+## ترتیب edit
+
+1. رد سفارش بدون Source DMB ID، EAN، یا دقیقاً یک ISRC.
+2. باز کردن Bulk Edit Metadata برای همان Source ID، نه Create album.
+3. تغییر Title، Genre، Explicit، P-line و Contributor ترک و انتخاب همان یک ترک.
+4. نوشتن checkpoint پیش از اولین Save و سپس Save داده ترک.
+5. باز کردن مستقیم `/page/album/<source-id>` و تطبیق EAN.
+6. تغییر داده آلبوم، Contributorها و فقط در صورت تغییر، کاور.
+7. Save و سپس Publish با قفل جداگانه edit.
+8. اثبات ثابت‌ماندن DMB ID و ذخیره screenshot و کدها.
+
+تعویض فایل صوتی edit فعلاً پیش از کسر اعتبار رد می‌شود. این مسیر بدون شناخت و
+تست کنترل رسمی Upload audio files فعال نمی‌شود.
 
 ## circuit breaker
 

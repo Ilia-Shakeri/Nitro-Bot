@@ -1,4 +1,4 @@
-import { ArrowRight, Image as ImageIcon, Music } from 'lucide-react';
+import { ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -15,7 +15,7 @@ import { useUser } from '../context/UserContext';
 import { isRtlLanguage } from '../i18n';
 import { usePricing } from '../pricing';
 import type { ArtistMapping, Release } from '../types/api';
-import { allowedCoverMessage, allowedMusicMessage, errorText } from '../utils/formMessages';
+import { allowedCoverMessage, errorText } from '../utils/formMessages';
 import { normalizeGenreSelection } from '../utils/genres';
 import {
   appendReleaseMetadata,
@@ -96,7 +96,6 @@ export const EditPage = () => {
   const [metadata, setMetadata] = useState(emptyReleaseMetadata);
   const [artistMappings, setArtistMappings] = useState<ArtistMapping[]>([]);
   const [source, setSource] = useState<Release | null>(null);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [prefillLoading, setPrefillLoading] = useState(Number.isInteger(Number(id)));
@@ -143,16 +142,6 @@ export const EditPage = () => {
     setPolicyAccepted(false);
     setPolicyError('');
     setFieldErrors({});
-  };
-
-  const handleAudioFile = (file?: File) => {
-    if (!file) return;
-    if (!/\.(mp3|wav)$/i.test(file.name)) {
-      toast(allowedMusicMessage(t), 'error');
-      return;
-    }
-    setAudioFile(file);
-    setPolicyAccepted(false);
   };
 
   const handleCoverFile = (file?: File) => {
@@ -222,7 +211,6 @@ export const EditPage = () => {
     setLoading(true);
     try {
       const form = new FormData();
-      if (audioFile) form.append('audio', audioFile);
       if (coverFile) form.append('cover', coverFile);
       appendReleaseMetadata(form, metadata);
       form.append('artist_mappings', JSON.stringify(artistMappings));
@@ -251,7 +239,7 @@ export const EditPage = () => {
           artistMappings={artistMappings}
           pricing={pricing}
           balance={credits}
-          audioFile={audioFile}
+          audioFile={null}
           coverFile={coverFile}
           coverPreview={replacementCoverPreview ?? source.cover_url}
           source={source}
@@ -299,21 +287,8 @@ export const EditPage = () => {
             </p>
 
             <div className="mb-6">
-              <label htmlFor="edit-audio" className="mb-2 block text-start font-ui text-gold">
-                1. {t('Audio File')}
-              </label>
-              <input id="edit-audio" type="file" accept=".mp3,.wav,audio/mpeg,audio/wav" onChange={event => handleAudioFile(event.target.files?.[0])} className="sr-only" />
-              <label htmlFor="edit-audio" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 focus-within:ring-2 focus-within:ring-gold">
-                <Music aria-hidden="true" className="me-4 h-6 w-6 flex-shrink-0 text-gold" />
-                <span dir="ltr" className="truncate text-left">
-                  {audioFile?.name ?? t('Keep current audio or choose file')}
-                </span>
-              </label>
-            </div>
-
-            <div className="mb-6">
               <label htmlFor="edit-cover" className="mb-2 block text-start font-ui text-gold">
-                2. {t('Cover Art')}
+                1. {t('Cover Art')}
               </label>
               <input id="edit-cover" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={event => handleCoverFile(event.target.files?.[0])} className="sr-only" />
               <label htmlFor="edit-cover" className="flex min-h-20 cursor-pointer items-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4 focus-within:ring-2 focus-within:ring-gold">
