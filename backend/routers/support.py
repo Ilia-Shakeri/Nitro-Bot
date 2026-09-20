@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from auth import get_tg_id
 from database import get_db
 from models import User, SupportMessage, SupportTicket, get_naive_utc
-from bot import notify_admin_new_ticket
+from notification_jobs import enqueue_notification
 from schemas import OkResponse, SupportTicketOut
 from fastapi import HTTPException
 
@@ -44,9 +44,8 @@ async def create_ticket(
 ):
     result = await db.execute(select(User).where(User.telegram_id == tg_id))
     user = result.scalars().first()
-    username = f"@{user.username}" if user and user.username else f"ID:{tg_id}"
-    name = user.first_name or "Unknown" if user else "Unknown"
-
+    if not user:
+        raise HTTPException(status_code=404, detail="user_not_found")
     subject_text = body.subject.strip()[:_MAX_SUBJECT_LEN]
     message_text = body.message.strip()
     if not subject_text:
@@ -68,7 +67,11 @@ async def create_ticket(
     db.add(ticket)
     await db.flush()
     db.add(SupportMessage(ticket_id=ticket.id, sender="user", message=message_text))
+    enqueue_notification(
+        db,
+        kind="support_ticket",
+        aggregate_id=ticket.id,
+        idempotency_key=f"support-ticket:{ticket.id}:created",
+    )
     await db.commit()
-
-    await notify_admin_new_ticket(ticket.id, tg_id, name, username, subject_text, message_text)
     return {"status": "ok"}

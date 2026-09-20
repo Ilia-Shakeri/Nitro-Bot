@@ -11,6 +11,7 @@ from sqlalchemy.future import select
 from auth import get_tg_id
 from database import get_db
 from models import Release, ReleaseJob, User
+from ledger import add_ledger_entry
 from pricing import has_sufficient_credits, release_cost
 from release_validation import (
     ReleaseValidationError,
@@ -383,6 +384,15 @@ async def create_release(
     db.add(release)
     try:
         await db.flush()
+        add_ledger_entry(
+            db,
+            user_id=tg_id,
+            amount=-total_cost,
+            kind="release_charge",
+            idempotency_key=f"release:{release.id}:charge",
+            release_id=release.id,
+            details={"song_name": release.song_name, "artist_name": release.artist_name},
+        )
         db.add(
             ReleaseJob(
                 release_id=release.id,

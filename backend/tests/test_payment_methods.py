@@ -13,7 +13,7 @@ def test_all_supported_topup_methods_and_legacy_alias_are_accepted():
     } <= ALLOWED_PAYMENT_METHODS
 
 
-def test_receipt_is_required_only_for_card():
-    assert receipt_is_required("card")
-    for method in ("usdt", "tether", "btc", "bnb", "usdt_bnb", "telegram_stars"):
-        assert not receipt_is_required(method)
+def test_receipt_is_required_for_manual_payment_claims():
+    for method in ("card", "usdt", "tether", "btc", "bnb", "usdt_bnb"):
+        assert receipt_is_required(method)
+    assert not receipt_is_required("telegram_stars")

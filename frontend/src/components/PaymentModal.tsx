@@ -35,6 +35,7 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [amount, setAmount] = useState(pricing.minimum_topup_nitro);
   const [method, setMethod] = useState<TopupPaymentMethod>(isPersian ? 'card' : 'usdt');
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [submissionId, setSubmissionId] = useState(() => crypto.randomUUID());
   const [loading, setLoading] = useState(false);
   const [rate, setRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(isPersian);
@@ -120,15 +121,18 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   const submitManual = async () => {
-    if (!validAmount || !paymentConfig || (method === 'card' && !receipt)) return;
+    if (!validAmount || !paymentConfig || method === 'telegram_stars' || !receipt) return;
     setLoading(true);
     try {
       await submitReceipt(
-        method === 'card' ? receipt : null,
+        receipt,
         amount,
         method,
+        submissionId,
         quote?.transaction_id,
       );
+      setSubmissionId(crypto.randomUUID());
+      setReceipt(null);
       toast(t('Receipt submitted successfully. Awaiting admin approval.'), 'success');
       onClose();
     } catch (error: unknown) {
@@ -166,7 +170,8 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const submitDisabled = loading
     || !validAmount
     || !selectedConfig
-    || (method === 'card' && (!receipt || payableTomanCents === null))
+    || (method !== 'telegram_stars' && !receipt)
+    || (method === 'card' && payableTomanCents === null)
     || (isManualCrypto(method) && (!quote || quoteLoading));
 
   return (
@@ -290,11 +295,6 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <p className="rounded-xl border border-card3 bg-card2/50 p-3 text-start text-xs leading-relaxed text-textSecondary">
                 {t('Send the exact amount, then upload the transaction receipt below.')}
               </p>
-              <input type="file" id="receiptUpload" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={event => setReceipt(event.target.files?.[0] ?? null)} className="sr-only" />
-              <label htmlFor="receiptUpload" className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4">
-                <Upload className="mb-2 h-8 w-8 text-gold" />
-                <span dir="ltr" className="max-w-full truncate text-left text-sm font-semibold">{receipt?.name ?? t('Upload Receipt Screenshot')}</span>
-              </label>
             </>
           )}
 
@@ -313,6 +313,16 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               <p className="rounded-xl border border-card3 bg-card2/50 p-3 text-start text-xs leading-relaxed text-textSecondary">
                 {t('crypto_processing_notice')}
               </p>
+            </>
+          )}
+
+          {method !== 'telegram_stars' && (
+            <>
+              <input type="file" id="receiptUpload" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={event => setReceipt(event.target.files?.[0] ?? null)} className="sr-only" />
+              <label htmlFor="receiptUpload" className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-card3 bg-card2/50 p-4">
+                <Upload className="mb-2 h-8 w-8 text-gold" />
+                <span dir="ltr" className="max-w-full truncate text-left text-sm font-semibold">{receipt?.name ?? t('Upload Receipt Screenshot')}</span>
+              </label>
             </>
           )}
 

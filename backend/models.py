@@ -44,6 +44,8 @@ class Transaction(Base):
     stars_amount = Column(Integer, nullable=True)
     invoice_payload = Column(String(255), nullable=True, unique=True)
     provider_charge_id = Column(String(255), nullable=True, unique=True)
+    submission_id = Column(String(64), nullable=True, unique=True, index=True)
+    receipt_sha256 = Column(String(64), nullable=True, unique=True, index=True)
     created_at = Column(DateTime, default=get_naive_utc)
 
 class SupportTicket(Base):
@@ -170,3 +172,67 @@ class ReleaseJob(Base):
     updated_at = Column(DateTime, nullable=False, default=get_naive_utc)
 
     release = relationship("Release", backref=backref("processing_job", uselist=False))
+
+
+class BalanceLedgerEntry(Base):
+    __tablename__ = "balance_ledger_entries"
+    __table_args__ = (
+        CheckConstraint("amount != 0", name="ck_balance_ledger_amount_nonzero"),
+        CheckConstraint(
+            "kind IN ('topup', 'release_charge', 'release_refund', 'referral_reward')",
+            name="ck_balance_ledger_kind_allowed",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False, index=True)
+    amount = Column(Integer, nullable=False)
+    kind = Column(String(32), nullable=False)
+    idempotency_key = Column(String(160), nullable=False, unique=True)
+    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
+    release_id = Column(Integer, ForeignKey("releases.id"), nullable=True)
+    details = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=get_naive_utc)
+
+
+class StaffAuditLog(Base):
+    __tablename__ = "staff_audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    actor_id = Column(BigInteger, nullable=False, index=True)
+    action = Column(String(64), nullable=False)
+    target_type = Column(String(32), nullable=False)
+    target_id = Column(String(128), nullable=False)
+    old_state = Column(String(64), nullable=True)
+    new_state = Column(String(64), nullable=True)
+    details = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=get_naive_utc)
+
+
+class NotificationOutbox(Base):
+    __tablename__ = "notification_outbox"
+    __table_args__ = (
+        CheckConstraint("attempts >= 0", name="ck_notification_outbox_attempts_nonnegative"),
+        CheckConstraint(
+            "status IN ('queued', 'processing', 'retry', 'sent', 'dead')",
+            name="ck_notification_outbox_status_allowed",
+        ),
+        CheckConstraint(
+            "kind IN ('payment_receipt', 'support_ticket', 'user_payment_result', 'user_ticket_reply')",
+            name="ck_notification_outbox_kind_allowed",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kind = Column(String(32), nullable=False)
+    aggregate_id = Column(String(128), nullable=False)
+    idempotency_key = Column(String(160), nullable=False, unique=True)
+    payload = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    status = Column(String(32), nullable=False, default="queued")
+    attempts = Column(Integer, nullable=False, default=0)
+    next_attempt_at = Column(DateTime, nullable=False, default=get_naive_utc)
+    lease_owner = Column(String(128), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=get_naive_utc)
+    updated_at = Column(DateTime, nullable=False, default=get_naive_utc)

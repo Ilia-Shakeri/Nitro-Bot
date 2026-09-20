@@ -1,5 +1,7 @@
+import hashlib
 import logging
 import os
+import re
 import secrets
 import time
 from datetime import datetime, timezone
@@ -8,12 +10,14 @@ import httpx
 from aiogram.types import LabeledPrice
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from auth import get_tg_id
 from database import get_db
-from models import User, Transaction, Release
+from models import BalanceLedgerEntry, User, Transaction
+from notification_jobs import enqueue_notification
 from payment_config import load_payment_settings
 from payment_methods import (
     ALLOWED_PAYMENT_METHODS,
@@ -31,7 +35,7 @@ from schemas import (
     UsdtRateOut,
 )
 import storage
-from bot import bot, notify_admin_new_receipt
+from bot import bot
 
 logger = logging.getLogger("nitro.transactions")
 
@@ -58,6 +62,15 @@ try:
 except ValueError:
     _RATE_FALLBACK = 0
 _rate_cache: dict[str, float] = {"rate": 0.0, "ts": 0.0}
+
+
+async def _delete_receipt_key(key: str | None) -> None:
+    if not key:
+        return
+    try:
+        await storage.delete(key)
+    except Exception:
+        logger.exception("Failed to delete unused receipt object")
 
 
 def _read_first_price(levels: list) -> int:
@@ -270,51 +283,40 @@ async def create_stars_invoice(
 
 @router.get("/ledger", response_model=list[LedgerOut])
 async def get_ledger(tg_id: int = Depends(get_tg_id), db: AsyncSession = Depends(get_db)):
-    tx_result = await db.execute(
-        select(Transaction).where(
-            Transaction.user_id == tg_id,
-            Transaction.status != "quoted",
-        )
+    result = await db.execute(
+        select(BalanceLedgerEntry)
+        .where(BalanceLedgerEntry.user_id == tg_id)
+        .order_by(BalanceLedgerEntry.created_at.desc())
     )
-    release_result = await db.execute(select(Release).where(Release.user_id == tg_id))
-
-    entries = [
-        {
-            "id": f"tx-{tx.id}",
-            "amount": tx.amount,
-            "direction": "credit",
-            "title": f"Nitro top-up ({tx.payment_method})",
-            "title_key": (
-                "ledger_refund"
-                if tx.status == "rollback"
-                else f"ledger_topup_{tx.payment_method}"
-                if tx.payment_method in _FRIENDLY_LEDGER_METHODS
-                else "ledger_topup"
-            ),
-            "title_params": {"method": tx.payment_method},
-            "status": tx.status,
-            "created_at": tx.created_at,
-        }
-        for tx in tx_result.scalars().all()
-    ]
-    for release in release_result.scalars().all():
-        cost = release.charged_cost
-        entries.append(
-            {
-                "id": f"release-{release.id}",
-                "amount": cost,
-                "direction": "debit",
-                "title": f"{release.song_name} - {release.artist_name}",
-                "title_key": "ledger_release",
-                "title_params": {
-                    "song": release.song_name,
-                    "artist": release.artist_name,
-                },
-                "status": release.status,
-                "created_at": release.created_at,
-            }
-        )
-    return sorted(entries, key=lambda item: item["created_at"], reverse=True)
+    entries = []
+    for entry in result.scalars().all():
+        method = str((entry.details or {}).get("payment_method", ""))
+        if entry.kind == "release_charge":
+            title_key = "ledger_release"
+            title = f"{(entry.details or {}).get('song_name', 'Release')} - {(entry.details or {}).get('artist_name', '')}"
+        elif entry.kind == "release_refund":
+            title_key = "ledger_refund"
+            title = "Release refund"
+        elif entry.kind == "referral_reward":
+            title_key = "ledger_referral_reward"
+            title = "Referral reward"
+        else:
+            title_key = f"ledger_topup_{method}" if method in _FRIENDLY_LEDGER_METHODS else "ledger_topup"
+            title = f"Nitro top-up ({method})" if method else "Nitro top-up"
+        entries.append({
+            "id": f"ledger-{entry.id}",
+            "amount": abs(entry.amount),
+            "direction": "credit" if entry.amount > 0 else "debit",
+            "title": title,
+            "title_key": title_key,
+            "title_params": {
+                str(key): value if isinstance(value, (str, int)) else ""
+                for key, value in (entry.details or {}).items()
+            },
+            "status": "completed",
+            "created_at": entry.created_at,
+        })
+    return entries
 
 
 @router.post("/receipt", response_model=ReceiptSubmitResponse)
@@ -322,12 +324,16 @@ async def submit_receipt(
     tg_id: int = Depends(get_tg_id),
     amount: int = Form(...),
     payment_method: str = Form(...),
+    submission_id: str = Form(...),
     quote_transaction_id: int | None = Form(None),
     receipt: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
     if amount < PRICING.minimum_topup_nitro:
         raise HTTPException(status_code=400, detail="minimum_topup")
+    normalized_submission_id = submission_id.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", normalized_submission_id):
+        raise HTTPException(status_code=400, detail="submission_id_invalid")
     normalized_payment_method = normalize_payment_method(payment_method)
     if normalized_payment_method not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(
@@ -348,14 +354,21 @@ async def submit_receipt(
     if not _method_is_configured(normalized_payment_method):
         raise HTTPException(status_code=503, detail="payment_method_unavailable")
 
-    if receipt_is_required(normalized_payment_method) and receipt is None:
-        raise HTTPException(status_code=400, detail="receipt_required_for_card")
+    existing_result = await db.execute(
+        select(Transaction).where(Transaction.submission_id == normalized_submission_id)
+    )
+    existing = existing_result.scalars().first()
+    if existing:
+        if (
+            existing.user_id != tg_id
+            or existing.amount != amount
+            or existing.payment_method != normalized_payment_method
+        ):
+            raise HTTPException(status_code=409, detail="submission_id_conflict")
+        return {"status": "ok", "transaction_id": existing.id}
 
-    receipt_bytes = None
-    receipt_key = None
-    if receipt is not None:
-        receipt_bytes = await storage.read_image(receipt, max_mb=5)
-        receipt_key = await storage.upload(receipt_bytes, f"receipts/{tg_id}", receipt.filename or "receipt")
+    if receipt_is_required(normalized_payment_method) and receipt is None:
+        raise HTTPException(status_code=400, detail="receipt_required")
 
     usd_amount_cents = amount * PRICING.nitro_usd_price_cents
     toman_amount_cents = None
@@ -386,41 +399,63 @@ async def submit_receipt(
         ):
             raise HTTPException(status_code=400, detail="payment_quote_expired")
 
-    if tx is None:
-        tx = Transaction(
-            user_id=tg_id,
-            amount=amount,
-            payment_method=normalized_payment_method,
-            status="pending",
-            receipt_url=receipt_key,
-            usd_amount_cents=usd_amount_cents,
-            toman_amount_cents=toman_amount_cents,
+    receipt_bytes = await storage.read_image(receipt, max_mb=5) if receipt else None
+    receipt_sha256 = hashlib.sha256(receipt_bytes).hexdigest() if receipt_bytes else None
+    if receipt_sha256:
+        proof_result = await db.execute(
+            select(Transaction.id).where(Transaction.receipt_sha256 == receipt_sha256)
         )
-        db.add(tx)
-    else:
-        tx.status = "pending"
-    await db.commit()
-    await db.refresh(tx)
+        if proof_result.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="receipt_already_submitted")
+    receipt_key = None
+    if receipt_bytes is not None:
+        receipt_key = await storage.upload(
+            receipt_bytes,
+            f"receipts/{tg_id}/{normalized_submission_id}",
+            receipt.filename or "receipt",
+        )
 
-    # Forward the actual receipt image (uploaded by bytes — MinIO's internal URL is
-    # not reachable by Telegram's servers) plus submitter details to the admin group.
-    # Transaction is already persisted; a Telegram failure must not 500 the
-    # request, or the user would resubmit and create a duplicate receipt.
-    submitter = f"@{user.username}" if user.username else f"ID:{tg_id}"
     try:
-        await notify_admin_new_receipt(
-            tx_id=tx.id,
-            amount=amount,
-            payment_method=normalized_payment_method,
-            submitter=submitter,
-            receipt_bytes=receipt_bytes,
-            receipt_filename=receipt.filename if receipt else None,
-            usd_amount_cents=usd_amount_cents,
-            toman_amount_cents=toman_amount_cents,
-            quote_asset=tx.quote_asset,
-            quote_network=tx.quote_network,
-            quoted_amount=tx.quoted_amount,
+        if tx is None:
+            tx = Transaction(
+                user_id=tg_id,
+                amount=amount,
+                payment_method=normalized_payment_method,
+                status="pending",
+                receipt_url=receipt_key,
+                receipt_sha256=receipt_sha256,
+                submission_id=normalized_submission_id,
+                usd_amount_cents=usd_amount_cents,
+                toman_amount_cents=toman_amount_cents,
+            )
+            db.add(tx)
+            await db.flush()
+        else:
+            tx.status = "pending"
+            tx.receipt_url = receipt_key
+            tx.receipt_sha256 = receipt_sha256
+            tx.submission_id = normalized_submission_id
+        enqueue_notification(
+            db,
+            kind="payment_receipt",
+            aggregate_id=tx.id,
+            idempotency_key=f"payment-receipt:{tx.id}:submitted",
+            payload={"receipt_filename": receipt.filename if receipt else None},
         )
+        await db.commit()
+        await db.refresh(tx)
+    except IntegrityError:
+        await db.rollback()
+        await _delete_receipt_key(receipt_key)
+        duplicate_result = await db.execute(
+            select(Transaction).where(Transaction.submission_id == normalized_submission_id)
+        )
+        duplicate = duplicate_result.scalars().first()
+        if duplicate and duplicate.user_id == tg_id:
+            return {"status": "ok", "transaction_id": duplicate.id}
+        raise HTTPException(status_code=409, detail="receipt_already_submitted") from None
     except Exception:
-        logger.exception("Failed to notify admin of receipt %s", tx.id)
+        await db.rollback()
+        await _delete_receipt_key(receipt_key)
+        raise
     return {"status": "ok", "transaction_id": tx.id}

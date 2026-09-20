@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ledger import add_ledger_entry
 from models import Release, Transaction, User
 
 
@@ -51,13 +52,23 @@ async def fail_release_and_refund(
     release.refunded_at = utc_now()
     if release.charged_cost > 0:
         user.credits += release.charged_cost
-        db.add(
-            Transaction(
-                user_id=release.user_id,
-                amount=release.charged_cost,
-                status="rollback",
-                payment_method=f"release-{release.id}-refund",
-            )
+        refund_tx = Transaction(
+            user_id=release.user_id,
+            amount=release.charged_cost,
+            status="rollback",
+            payment_method=f"release-{release.id}-refund",
+        )
+        db.add(refund_tx)
+        await db.flush()
+        add_ledger_entry(
+            db,
+            user_id=release.user_id,
+            amount=release.charged_cost,
+            kind="release_refund",
+            idempotency_key=f"release:{release.id}:refund",
+            transaction_id=refund_tx.id,
+            release_id=release.id,
+            details={"reason": release.failure_reason},
         )
     await db.commit()
     return True

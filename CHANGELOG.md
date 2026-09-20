@@ -10,6 +10,22 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.6] - 2026-09-20
+
+### Added
+
+- Immutable balance ledger for top-ups, release charges, refunds, and referral rewards.
+- Staff audit records for payment decisions and support replies.
+- Durable notification outbox for admin claims and user results.
+- Idempotency keys and receipt fingerprints for manual payment claims.
+
+### Fixed
+
+- Payment and support actions now require the configured manager, group, and topic.
+- Crypto claims now persist receipt evidence and validate their quote before upload.
+- Manual crypto claims now require proof and reject reused receipt images.
+- Processed payment buttons are removed after a decision.
+
 ## [0.9.0-alpha.5] - 2026-09-13
 
 ### Fixed
@@ -167,7 +183,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.5...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.6...HEAD
+[0.9.0-alpha.6]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.5...v0.9.0-alpha.6
 [0.9.0-alpha.5]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.4...v0.9.0-alpha.5
 [0.9.0-alpha.4]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.3...v0.9.0-alpha.4
 [0.9.0-alpha.3]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.2...v0.9.0-alpha.3

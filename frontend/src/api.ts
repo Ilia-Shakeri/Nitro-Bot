@@ -108,11 +108,13 @@ export const submitReceipt = (
   file: File | null,
   amount: number,
   paymentMethod: string,
+  submissionId: string,
   quoteTransactionId?: number,
 ) => {
   const form = new FormData();
   form.append('amount', amount.toString());
   form.append('payment_method', paymentMethod);
+  form.append('submission_id', submissionId);
   if (quoteTransactionId !== undefined) {
     form.append('quote_transaction_id', quoteTransactionId.toString());
   }

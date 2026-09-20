@@ -11,4 +11,4 @@ def normalize_payment_method(value: str) -> str:
 
 
 def receipt_is_required(value: str) -> bool:
-    return normalize_payment_method(value) == "card"
+    return normalize_payment_method(value) in {"card", *MANUAL_CRYPTO_METHODS}

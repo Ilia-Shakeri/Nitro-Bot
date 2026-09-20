@@ -9,18 +9,19 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject
 from aiogram.types import BufferedInputFile, ForceReply
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 
 from database import AsyncSessionLocal
-from models import User, Transaction, SupportMessage, SupportTicket, get_naive_utc
+from ledger import add_ledger_entry
+from models import StaffAuditLog, User, Transaction, SupportMessage, SupportTicket, get_naive_utc
+from notification_jobs import enqueue_notification
 from payment_stars import stars_payment_matches
 from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.5")
+APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.6")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -42,6 +43,8 @@ def _parse_manager_ids(raw: str) -> set[int]:
 
 
 MANAGER_IDS = _parse_manager_ids(os.getenv("MANAGER_IDS", ""))
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and not MANAGER_IDS:
+    raise RuntimeError("MANAGER_IDS is required in production")
 
 
 def _topic(env_name: str) -> int | None:
@@ -59,6 +62,8 @@ dp = Dispatcher()
 
 _ANSWER_MARKER = "[answer:{ticket_id}:{tg_id}]"
 _ANSWER_RE = re.compile(r"\[answer:(\d+):(\d+)\]")
+_TX_ACTION_RE = re.compile(r"^tx_(approve|reject)_(\d+)$")
+_TICKET_ACTION_RE = re.compile(r"^ticket_answer_(\d+)_(\d+)$")
 
 _TRANSLATIONS = {
     "en": {
@@ -94,6 +99,15 @@ _TRANSLATIONS = {
 
 def _is_missing_message_thread(exc: TelegramBadRequest) -> bool:
     return "message thread not found" in str(exc).lower()
+
+
+def _staff_action_allowed(message: types.Message | None, actor_id: int, topic_id: int | None) -> bool:
+    return bool(
+        message is not None
+        and str(message.chat.id) == str(ADMIN_GROUP_ID)
+        and actor_id in MANAGER_IDS
+        and message.message_thread_id == topic_id
+    )
 
 
 async def _send_with_thread_fallback(method_name: str, **kwargs: Any) -> Any:
@@ -329,20 +343,43 @@ async def fulfill_stars_payment(message: types.Message):
         tx.provider_charge_id = charge_id
         tx.status = "approved"
         user.credits += tx.amount
+        add_ledger_entry(
+            db,
+            user_id=user.telegram_id,
+            amount=tx.amount,
+            kind="topup",
+            idempotency_key=f"transaction:{tx.id}:topup",
+            transaction_id=tx.id,
+            details={"payment_method": tx.payment_method},
+        )
         if user.referred_by:
-            await db.execute(
-                update(User)
-                .where(User.telegram_id == user.referred_by)
-                .values(credits=User.credits + 1)
+            referrer_result = await db.execute(
+                select(User).where(User.telegram_id == user.referred_by).with_for_update()
             )
+            referrer = referrer_result.scalars().first()
+            if referrer:
+                referrer.credits += 1
+                add_ledger_entry(
+                    db,
+                    user_id=referrer.telegram_id,
+                    amount=1,
+                    kind="referral_reward",
+                    idempotency_key=f"transaction:{tx.id}:referral:{referrer.telegram_id}",
+                    transaction_id=tx.id,
+                    details={"referred_user_id": user.telegram_id},
+                )
+        enqueue_notification(
+            db,
+            kind="user_payment_result",
+            aggregate_id=tx.id,
+            idempotency_key=f"transaction:{tx.id}:approved-user-notice",
+        )
         try:
             await db.commit()
         except IntegrityError:
             await db.rollback()
             logger.warning("Duplicate Stars charge ignored")
             return
-    lang = await _user_lang(message.from_user.id)
-    await message.answer(_TRANSLATIONS[lang]["tx_approved"].format(tx.amount))
 
 
 async def notify_admin_new_ticket(ticket_id: int, tg_id: int, name: str, username: str, subject: str, message: str):
@@ -595,14 +632,16 @@ async def _append_status(message: types.Message, suffix: str) -> None:
 
 @dp.callback_query(F.data.startswith("tx_"))
 async def handle_tx_decision(callback: types.CallbackQuery):
-    if (
-        callback.message is None
-        or str(callback.message.chat.id) != str(ADMIN_GROUP_ID)
-    ):
+    actor_id = callback.from_user.id
+    if not _staff_action_allowed(callback.message, actor_id, PAYMENT_TOPIC_ID):
         await callback.answer("Not allowed.", show_alert=True)
         return
-    parts = callback.data.split("_")
-    action, tx_id = parts[1], int(parts[2])
+    match = _TX_ACTION_RE.fullmatch(callback.data or "")
+    if not match:
+        await callback.answer("Invalid action.", show_alert=True)
+        return
+    action, tx_id_raw = match.groups()
+    tx_id = int(tx_id_raw)
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Transaction).where(Transaction.id == tx_id).with_for_update())
@@ -612,41 +651,96 @@ async def handle_tx_decision(callback: types.CallbackQuery):
             await callback.answer("Transaction already processed or not found.")
             return
 
-        user_res = await db.execute(select(User).where(User.telegram_id == tx.user_id))
+        user_res = await db.execute(
+            select(User).where(User.telegram_id == tx.user_id).with_for_update()
+        )
         user = user_res.scalars().first()
-        lang = user.language_preference if user else "fa"
-
+        if not user:
+            await db.rollback()
+            await callback.answer("Transaction user not found.", show_alert=True)
+            return
         if action == "approve":
             tx.status = "approved"
-            if user:
-                await db.execute(
-                    update(User)
-                    .where(User.telegram_id == user.telegram_id)
-                    .values(credits=User.credits + tx.amount)
+            user.credits += tx.amount
+            add_ledger_entry(
+                db,
+                user_id=user.telegram_id,
+                amount=tx.amount,
+                kind="topup",
+                idempotency_key=f"transaction:{tx.id}:topup",
+                transaction_id=tx.id,
+                details={"payment_method": tx.payment_method},
+            )
+            if user.referred_by:
+                referrer_result = await db.execute(
+                    select(User).where(User.telegram_id == user.referred_by).with_for_update()
                 )
-                if user.referred_by:
-                    await db.execute(
-                        update(User)
-                        .where(User.telegram_id == user.referred_by)
-                        .values(credits=User.credits + 1)
+                referrer = referrer_result.scalars().first()
+                if referrer:
+                    referrer.credits += 1
+                    add_ledger_entry(
+                        db,
+                        user_id=referrer.telegram_id,
+                        amount=1,
+                        kind="referral_reward",
+                        idempotency_key=f"transaction:{tx.id}:referral:{referrer.telegram_id}",
+                        transaction_id=tx.id,
+                        details={"referred_user_id": user.telegram_id},
                     )
+            enqueue_notification(
+                db,
+                kind="user_payment_result",
+                aggregate_id=tx.id,
+                idempotency_key=f"transaction:{tx.id}:approved-user-notice",
+            )
+            db.add(StaffAuditLog(
+                actor_id=actor_id,
+                action="transaction_approve",
+                target_type="transaction",
+                target_id=str(tx.id),
+                old_state="pending",
+                new_state="approved",
+            ))
             await db.commit()
-            await _send_message(chat_id=tx.user_id, text=_TRANSLATIONS[lang]["tx_approved"].format(tx.amount))
             await _append_status(callback.message, "\n\nStatus: APPROVED")
 
         elif action == "reject":
             tx.status = "rejected"
+            db.add(StaffAuditLog(
+                actor_id=actor_id,
+                action="transaction_reject",
+                target_type="transaction",
+                target_id=str(tx.id),
+                old_state="pending",
+                new_state="rejected",
+            ))
+            enqueue_notification(
+                db,
+                kind="user_payment_result",
+                aggregate_id=tx.id,
+                idempotency_key=f"transaction:{tx.id}:rejected-user-notice",
+            )
             await db.commit()
-            await _send_message(chat_id=tx.user_id, text=_TRANSLATIONS[lang]["tx_rejected"].format(tx.amount))
             await _append_status(callback.message, "\n\nStatus: REJECTED")
 
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        logger.warning("Could not remove processed transaction buttons", exc_info=True)
     await callback.answer()
 
 
 @dp.callback_query(F.data.startswith("ticket_answer_"))
 async def handle_ticket_answer(callback: types.CallbackQuery):
     """Prompt an admin reply and tag the target ticket and user."""
-    _, _, ticket_id, tg_id = callback.data.split("_")
+    if not _staff_action_allowed(callback.message, callback.from_user.id, TICKET_TOPIC_ID):
+        await callback.answer("Not allowed.", show_alert=True)
+        return
+    match = _TICKET_ACTION_RE.fullmatch(callback.data or "")
+    if not match:
+        await callback.answer("Invalid action.", show_alert=True)
+        return
+    ticket_id, tg_id = match.groups()
     await _send_message(
         chat_id=ADMIN_GROUP_ID,
         message_thread_id=TICKET_TOPIC_ID,
@@ -662,7 +756,7 @@ async def handle_ticket_answer(callback: types.CallbackQuery):
 @dp.message(F.reply_to_message)
 async def handle_admin_reply(message: types.Message):
     """Relay an admin answer to the user and save it in ticket history."""
-    if str(message.chat.id) != str(ADMIN_GROUP_ID):
+    if not _staff_action_allowed(message, message.from_user.id, TICKET_TOPIC_ID):
         return
     replied_text = message.reply_to_message.text or ""
     match = _ANSWER_RE.search(replied_text)
@@ -670,17 +764,39 @@ async def handle_admin_reply(message: types.Message):
         return
     ticket_id = int(match.group(1))
     user_id = int(match.group(2))
-    lang = await _user_lang(user_id)
     try:
         async with AsyncSessionLocal() as db:
-            result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
+            result = await db.execute(
+                select(SupportTicket)
+                .where(SupportTicket.id == ticket_id)
+                .with_for_update()
+            )
             ticket = result.scalars().first()
-            if ticket:
-                ticket.status = "answered"
-                ticket.updated_at = get_naive_utc()
-                db.add(SupportMessage(ticket_id=ticket_id, sender="admin", message=message.text))
-                await db.commit()
-        await _send_message(chat_id=user_id, text=_TRANSLATIONS[lang]["ticket_reply"].format(message.text))
-        await message.reply("Sent to user")
+            if not ticket or ticket.user_id != user_id:
+                await db.rollback()
+                await message.reply("Ticket target mismatch.")
+                return
+            old_state = ticket.status
+            ticket.status = "answered"
+            ticket.updated_at = get_naive_utc()
+            support_message = SupportMessage(ticket_id=ticket_id, sender="admin", message=message.text)
+            db.add(support_message)
+            await db.flush()
+            db.add(StaffAuditLog(
+                actor_id=message.from_user.id,
+                action="ticket_answer",
+                target_type="support_ticket",
+                target_id=str(ticket_id),
+                old_state=old_state,
+                new_state="answered",
+            ))
+            enqueue_notification(
+                db,
+                kind="user_ticket_reply",
+                aggregate_id=support_message.id,
+                idempotency_key=f"support-message:{support_message.id}:user-notice",
+            )
+            await db.commit()
+        await message.reply("Reply queued for delivery")
     except Exception:
         await message.reply("Failed to deliver. User may have blocked the bot.")
