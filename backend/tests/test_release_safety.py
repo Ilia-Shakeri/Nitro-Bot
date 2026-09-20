@@ -15,6 +15,8 @@ from routers import releases
 from routers.internal import (
     _STATUS_TRANSITIONS,
     _parse_evidence,
+    _parse_submit_checkpoint,
+    _submission_fingerprint,
     claimable_release_statement,
     resolve_release_verification,
 )
@@ -235,6 +237,30 @@ def test_dmb_completion_evidence_is_strict_and_relative():
         _parse_evidence("album-123", "bad", "[]", "../outside")
 
 
+def test_dmb_submit_checkpoint_is_bound_to_release_data():
+    fingerprint = _submission_fingerprint(
+        42,
+        "Safe Title",
+        "1234567890123",
+        ["USABC2600001"],
+    )
+    assert _parse_submit_checkpoint(
+        42,
+        "Safe Title",
+        "1234567890123",
+        '["USABC2600001"]',
+        fingerprint,
+    ) == ("1234567890123", ["USABC2600001"], fingerprint)
+    with pytest.raises(HTTPException, match="dmb_checkpoint_invalid"):
+        _parse_submit_checkpoint(
+            42,
+            "Changed Title",
+            "1234567890123",
+            '["USABC2600001"]',
+            fingerprint,
+        )
+
+
 def test_release_has_dmb_lease_and_evidence_fields():
     for field in (
         "source_release_id",
@@ -245,6 +271,7 @@ def test_release_has_dmb_lease_and_evidence_fields():
         "dmb_submission_started_at",
         "dmb_submitted_at",
         "dmb_evidence_path",
+        "dmb_submission_fingerprint",
         "dmb_last_error",
         "dmb_attempts",
         "dmb_lease_owner",
@@ -269,6 +296,18 @@ def test_dmb_delivery_migration_is_additive_and_reversible():
     assert "dmb_reviewed_by" in migration
     assert "source_release_id" in migration
     assert "op.drop_column" in migration
+
+
+def test_dmb_recovery_migration_is_additive_and_reversible():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "016_dmb_submission_recovery.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "015"' in migration
+    assert "dmb_submission_fingerprint" in migration
+    assert 'op.drop_column("releases", "dmb_submission_fingerprint")' in migration
 
 
 @pytest.mark.asyncio

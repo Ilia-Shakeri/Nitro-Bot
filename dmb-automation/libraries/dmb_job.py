@@ -127,7 +127,23 @@ class DmbJob:
         temporary.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
         temporary.replace(target)
 
-    def write_submit_checkpoint(self, path: str, release_id: int) -> None:
+    def write_submit_checkpoint(
+        self,
+        path: str,
+        release_id: int,
+        ean_upc: str,
+        isrc: str,
+        title: str,
+    ) -> None:
+        ean = str(ean_upc).strip()
+        normalized_isrc = str(isrc).strip().upper()
+        normalized_title = str(title).strip()
+        if not re.fullmatch(r"\d{8,14}", ean):
+            raise ValueError("dmb_checkpoint_ean_invalid")
+        if not re.fullmatch(r"[A-Z0-9-]{8,20}", normalized_isrc):
+            raise ValueError("dmb_checkpoint_isrc_invalid")
+        if not normalized_title or len(normalized_title) > 255:
+            raise ValueError("dmb_checkpoint_title_invalid")
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(target.suffix + ".tmp")
@@ -135,6 +151,9 @@ class DmbJob:
             json.dumps(
                 {
                     "release_id": int(release_id),
+                    "ean_upc": ean,
+                    "isrcs": [normalized_isrc],
+                    "title": normalized_title,
                     "started_at": datetime.now(timezone.utc).isoformat(),
                 }
             ),
@@ -178,5 +197,11 @@ def write_dmb_result(
     )
 
 
-def write_submit_checkpoint(path: str, release_id: int) -> None:
-    _library.write_submit_checkpoint(path, release_id)
+def write_submit_checkpoint(
+    path: str,
+    release_id: int,
+    ean_upc: str,
+    isrc: str,
+    title: str,
+) -> None:
+    _library.write_submit_checkpoint(path, release_id, ean_upc, isrc, title)

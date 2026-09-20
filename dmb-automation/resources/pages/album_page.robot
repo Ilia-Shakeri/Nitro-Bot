@@ -209,12 +209,12 @@ Submission Should Be Confirmed
     Should Be True    ${confirmed}    DMB did not confirm album submission
 
 Submit Album And Verify Success
-    [Arguments]    ${release_id}
+    [Arguments]    ${release_id}    ${ean}    ${isrc}    ${title}
     Should Be Equal    %{DMB_SUBMIT_ENABLED}    true
     Wait Until Element Is Enabled    ${SAVE_BUTTON}    timeout=30s
     Scroll Element Into View    ${SAVE_BUTTON}
     ${before_url}=    Get Location
-    Write Submit Checkpoint    %{DMB_SUBMIT_CHECKPOINT}    ${release_id}
+    Write Submit Checkpoint    %{DMB_SUBMIT_CHECKPOINT}    ${release_id}    ${ean}    ${isrc}    ${title}
     Click Element    ${SAVE_BUTTON}
     Wait Until Keyword Succeeds    60s    2s    Submission Should Be Confirmed    ${before_url}
 

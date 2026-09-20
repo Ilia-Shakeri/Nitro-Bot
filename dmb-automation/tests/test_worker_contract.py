@@ -247,11 +247,74 @@ def test_job_library_rejects_result_id_not_in_url(tmp_path):
 def test_submit_checkpoint_is_atomic(tmp_path):
     library = dmb_job_module.DmbJob()
     checkpoint = tmp_path / "submit-started.json"
-    library.write_submit_checkpoint(str(checkpoint), 42)
+    library.write_submit_checkpoint(
+        str(checkpoint),
+        42,
+        "1234567890123",
+        "USABC2600001",
+        "Safe Title",
+    )
     stored = json.loads(checkpoint.read_text(encoding="utf-8"))
     assert stored["release_id"] == 42
+    assert stored["ean_upc"] == "1234567890123"
+    assert stored["isrcs"] == ["USABC2600001"]
+    assert stored["title"] == "Safe Title"
     assert stored["started_at"].endswith("+00:00")
     assert not checkpoint.with_suffix(".json.tmp").exists()
+
+
+def test_submit_checkpoint_loads_with_stable_fingerprint(tmp_path):
+    library = dmb_job_module.DmbJob()
+    checkpoint = tmp_path / "submit-started.json"
+    library.write_submit_checkpoint(
+        str(checkpoint),
+        42,
+        "1234567890123",
+        "USABC2600001",
+        "Safe Title",
+    )
+    loaded = worker.load_submit_checkpoint(checkpoint, 42, "Safe Title")
+    assert loaded["submission_fingerprint"] == worker.submission_fingerprint(
+        42,
+        "Safe Title",
+        "1234567890123",
+        ["USABC2600001"],
+    )
+
+
+def test_submit_checkpoint_rejects_wrong_release_or_title(tmp_path):
+    library = dmb_job_module.DmbJob()
+    checkpoint = tmp_path / "submit-started.json"
+    library.write_submit_checkpoint(
+        str(checkpoint),
+        42,
+        "1234567890123",
+        "USABC2600001",
+        "Safe Title",
+    )
+    with pytest.raises(worker.DeliveryError, match="dmb_submit_checkpoint_invalid"):
+        worker.load_submit_checkpoint(checkpoint, 43, "Safe Title")
+    with pytest.raises(worker.DeliveryError, match="dmb_submit_checkpoint_invalid"):
+        worker.load_submit_checkpoint(checkpoint, 42, "Other Title")
+
+
+def test_result_must_match_pre_submit_checkpoint():
+    result = {
+        "ean_upc": "1234567890123",
+        "isrcs": ["USABC2600001"],
+    }
+    checkpoint = {
+        **result,
+        "submission_fingerprint": "a" * 64,
+    }
+    assert worker.bind_result_to_checkpoint(result, checkpoint)[
+        "submission_fingerprint"
+    ] == "a" * 64
+    with pytest.raises(worker.DeliveryError, match="dmb_result_checkpoint_mismatch"):
+        worker.bind_result_to_checkpoint(
+            {**result, "ean_upc": "1234567890124"},
+            checkpoint,
+        )
 
 
 def test_release_id_is_extracted_from_query_or_path():
@@ -399,6 +462,7 @@ def test_successful_release_reports_verified_completion(tmp_path, monkeypatch):
             "ean_upc": "1234567890123",
             "isrcs": ["USABC2600001"],
             "evidence_path": "results/42",
+            "submission_fingerprint": "a" * 64,
         },
     )
     report = MagicMock()
@@ -420,9 +484,20 @@ def test_failure_after_save_checkpoint_requires_manual_verification(
     monkeypatch.setattr(worker, "prepare_cover_for_dmb", lambda source, path: path)
     monkeypatch.setattr(worker, "validate_track_for_dmb", lambda path: path)
 
-    def fail_after_checkpoint(release_id, job_file, result_file, checkpoint_file):
-        checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
-        checkpoint_file.write_text("{}", encoding="utf-8")
+    def fail_after_checkpoint(
+        release_id,
+        job_file,
+        result_file,
+        checkpoint_file,
+        expected_title,
+    ):
+        dmb_job_module.DmbJob().write_submit_checkpoint(
+            str(checkpoint_file),
+            release_id,
+            "1234567890123",
+            "USABC2600001",
+                expected_title,
+        )
         raise worker.DeliveryError("browser_lost_after_save")
 
     monkeypatch.setattr(worker, "run_robot", fail_after_checkpoint)
@@ -432,3 +507,5 @@ def test_failure_after_save_checkpoint_requires_manual_verification(
     assert worker.process_release(release) == "uncertain"
     assert report.call_args.args == (42, "uncertain")
     assert "browser_lost_after_save" in report.call_args.kwargs["error"]
+    assert report.call_args.kwargs["checkpoint"]["ean_upc"] == "1234567890123"
+    assert len(report.call_args.kwargs["checkpoint"]["submission_fingerprint"]) == 64

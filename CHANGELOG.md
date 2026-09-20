@@ -10,6 +10,23 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.7] - 2026-09-20
+
+### Added
+
+- Atomic pre-submit checkpoint with release ID, title, EAN, ISRC, time, and stable fingerprint.
+- Stored DMB submission fingerprint for crash and duplicate review.
+
+### Fixed
+
+- Successful DMB evidence must match the exact codes captured before Save.
+- Uncertain jobs preserve searchable codes for manual remote-record review.
+- Approved retry clears stale submission evidence before a new attempt.
+
+### Not run
+
+- Final DMB Save and publication were not used.
+
 ## [0.9.0-alpha.6] - 2026-09-20
 
 ### Added
@@ -183,7 +200,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.6...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.7...HEAD
+[0.9.0-alpha.7]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.6...v0.9.0-alpha.7
 [0.9.0-alpha.6]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.5...v0.9.0-alpha.6
 [0.9.0-alpha.5]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.4...v0.9.0-alpha.5
 [0.9.0-alpha.4]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.3...v0.9.0-alpha.4

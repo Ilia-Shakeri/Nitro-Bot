@@ -1,4 +1,5 @@
 import hmac
+import hashlib
 import json
 import os
 import re
@@ -166,6 +167,54 @@ def _parse_evidence(
     return release_id, ean, isrcs, evidence
 
 
+def _submission_fingerprint(
+    release_id: int,
+    title: str,
+    ean_upc: str,
+    isrcs: list[str],
+) -> str:
+    value = json.dumps(
+        {
+            "release_id": release_id,
+            "title": title,
+            "ean_upc": ean_upc,
+            "isrcs": isrcs,
+        },
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _parse_submit_checkpoint(
+    release_id: int,
+    title: str,
+    ean_upc: str | None,
+    isrcs_json: str | None,
+    fingerprint: str | None,
+) -> tuple[str, list[str], str] | None:
+    if not any((ean_upc, isrcs_json, fingerprint)):
+        return None
+    ean = (ean_upc or "").strip()
+    stored_fingerprint = (fingerprint or "").strip().lower()
+    try:
+        isrcs = json.loads(isrcs_json or "[]")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="dmb_checkpoint_invalid") from None
+    if (
+        not _EAN_RE.fullmatch(ean)
+        or not isinstance(isrcs, list)
+        or not isrcs
+        or len(isrcs) > 100
+        or any(not isinstance(code, str) or not _ISRC_RE.fullmatch(code) for code in isrcs)
+        or not re.fullmatch(r"[a-f0-9]{64}", stored_fingerprint)
+        or stored_fingerprint != _submission_fingerprint(release_id, title, ean, isrcs)
+    ):
+        raise HTTPException(status_code=400, detail="dmb_checkpoint_invalid")
+    return ean, isrcs, stored_fingerprint
+
+
 @router.get("/releases/pending", response_model=list[PendingReleaseOut])
 async def get_pending_releases(
     mode: Literal["create", "edit"] = Query("create"),
@@ -237,6 +286,7 @@ async def update_release_status(
     ean_upc: str | None = Form(None),
     isrcs_json: str | None = Form(None),
     evidence_path: str | None = Form(None),
+    submission_fingerprint: str | None = Form(None),
     error: str | None = Form(None),
     worker_id_header: str | None = Header(None, alias="X-DMB-Worker-ID"),
     _: None = Depends(_require_secret),
@@ -266,10 +316,21 @@ async def update_release_status(
             isrcs_json,
             evidence_path,
         )
+        completed_checkpoint = _parse_submit_checkpoint(
+            release.id,
+            release.song_name,
+            stored_ean,
+            json.dumps(stored_isrcs),
+            submission_fingerprint,
+        )
+        if completed_checkpoint is None:
+            await db.rollback()
+            raise HTTPException(status_code=400, detail="dmb_checkpoint_invalid")
         release.dmb_release_id = stored_id
         release.dmb_ean_upc = stored_ean
         release.dmb_isrcs = stored_isrcs
         release.dmb_evidence_path = stored_evidence
+        release.dmb_submission_fingerprint = completed_checkpoint[2]
         release.dmb_submission_started_at = release.dmb_submission_started_at or utc_now()
         release.dmb_submitted_at = utc_now()
         release.dmb_last_error = None
@@ -289,6 +350,15 @@ async def update_release_status(
         release.status = "dmb_verification_required"
         release.dmb_submission_started_at = utc_now()
         release.dmb_evidence_path = evidence
+        checkpoint = _parse_submit_checkpoint(
+            release.id,
+            release.song_name,
+            ean_upc,
+            isrcs_json,
+            submission_fingerprint,
+        )
+        if checkpoint is not None:
+            release.dmb_ean_upc, release.dmb_isrcs, release.dmb_submission_fingerprint = checkpoint
         release.dmb_last_error = reason
         release.dmb_lease_owner = None
         release.dmb_lease_expires_at = None
@@ -352,6 +422,14 @@ async def resolve_release_verification(
             isrcs_json,
             evidence_path,
         )
+        if getattr(release, "dmb_submission_fingerprint", None) and (
+            release.dmb_ean_upc != stored_ean
+            or release.dmb_isrcs != stored_isrcs
+            or release.dmb_submission_fingerprint
+            != _submission_fingerprint(release.id, release.song_name, stored_ean, stored_isrcs)
+        ):
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="dmb_checkpoint_mismatch")
         release.dmb_release_id = stored_id
         release.dmb_ean_upc = stored_ean
         release.dmb_isrcs = stored_isrcs
@@ -369,6 +447,11 @@ async def resolve_release_verification(
             raise HTTPException(status_code=409, detail="dmb_attempts_exhausted")
         release.status = "manual_staging"
         release.dmb_last_error = f"manual_retry:{review_reason}"
+        release.dmb_ean_upc = None
+        release.dmb_isrcs = []
+        release.dmb_submission_fingerprint = None
+        release.dmb_submission_started_at = None
+        release.dmb_evidence_path = None
         await db.commit()
         return {"status": "retry"}
 

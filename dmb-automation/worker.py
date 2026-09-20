@@ -1,6 +1,7 @@
 """Lease-based bridge from the internal release API to DMB browser delivery."""
 
 import json
+import hashlib
 import logging
 import os
 import re
@@ -121,6 +122,7 @@ def set_status(
     status: str,
     *,
     result: dict | None = None,
+    checkpoint: dict | None = None,
     error: str | None = None,
 ) -> None:
     data = {"status": status}
@@ -131,12 +133,21 @@ def set_status(
                 "ean_upc": result["ean_upc"],
                 "isrcs_json": json.dumps(result["isrcs"]),
                 "evidence_path": result["evidence_path"],
+                "submission_fingerprint": result["submission_fingerprint"],
             }
         )
     if error:
         data["error"] = error[:2000]
     if status == "uncertain":
         data["evidence_path"] = f"results/{release_id}"
+        if checkpoint is not None:
+            data.update(
+                {
+                    "ean_upc": checkpoint["ean_upc"],
+                    "isrcs_json": json.dumps(checkpoint["isrcs"]),
+                    "submission_fingerprint": checkpoint["submission_fingerprint"],
+                }
+            )
     response = _http.post(
         f"{API_BASE_URL}/internal/releases/{release_id}/status",
         data=data,
@@ -347,11 +358,73 @@ def load_result(path: Path, release_id: int) -> dict:
     return result
 
 
+def submission_fingerprint(
+    release_id: int,
+    title: str,
+    ean_upc: str,
+    isrcs: list[str],
+) -> str:
+    value = json.dumps(
+        {
+            "release_id": release_id,
+            "title": title,
+            "ean_upc": ean_upc,
+            "isrcs": isrcs,
+        },
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def load_submit_checkpoint(path: Path, release_id: int, expected_title: str) -> dict:
+    try:
+        checkpoint = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(checkpoint, dict):
+            raise ValueError
+        started_at = datetime.fromisoformat(str(checkpoint.get("started_at", "")))
+    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        raise DeliveryError("dmb_submit_checkpoint_invalid") from None
+    ean = str(checkpoint.get("ean_upc", "")).strip()
+    isrcs = checkpoint.get("isrcs")
+    title = str(checkpoint.get("title", "")).strip()
+    if (
+        checkpoint.get("release_id") != release_id
+        or title != expected_title
+        or not _EAN_RE.fullmatch(ean)
+        or not isinstance(isrcs, list)
+        or not isrcs
+        or any(not isinstance(code, str) or not _ISRC_RE.fullmatch(code) for code in isrcs)
+        or started_at.tzinfo is None
+    ):
+        raise DeliveryError("dmb_submit_checkpoint_invalid")
+    checkpoint["ean_upc"] = ean
+    checkpoint["isrcs"] = isrcs
+    checkpoint["submission_fingerprint"] = submission_fingerprint(
+        release_id,
+        title,
+        ean,
+        isrcs,
+    )
+    return checkpoint
+
+
+def bind_result_to_checkpoint(result: dict, checkpoint: dict) -> dict:
+    if (
+        result["ean_upc"] != checkpoint["ean_upc"]
+        or result["isrcs"] != checkpoint["isrcs"]
+    ):
+        raise DeliveryError("dmb_result_checkpoint_mismatch")
+    return {**result, "submission_fingerprint": checkpoint["submission_fingerprint"]}
+
+
 def run_robot(
     release_id: int,
     job_file: Path,
     result_file: Path,
     checkpoint_file: Path,
+    expected_title: str,
 ) -> dict:
     if result_file.exists():
         result_file.unlink()
@@ -393,7 +466,9 @@ def run_robot(
         next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
     if process.returncode != 0:
         raise DeliveryError(f"robot_exit_{process.returncode}")
-    return load_result(result_file, release_id)
+    result = load_result(result_file, release_id)
+    checkpoint = load_submit_checkpoint(checkpoint_file, release_id, expected_title)
+    return bind_result_to_checkpoint(result, checkpoint)
 
 
 def _safe_job_dir(release_id: int) -> Path:
@@ -423,7 +498,13 @@ def process_release(release: dict) -> str:
         )
         job_file = job_dir / "job.json"
         write_json_atomic(job_file, build_job_payload(release, cover, track))
-        result = run_robot(release_id, job_file, result_file, checkpoint_file)
+        result = run_robot(
+            release_id,
+            job_file,
+            result_file,
+            checkpoint_file,
+            release["song_name"],
+        )
         set_status(release_id, "completed", result=result)
         log.info("release %s completed with verified DMB evidence", release_id)
         return "completed"
@@ -432,7 +513,17 @@ def process_release(release: dict) -> str:
         log.exception("release %s delivery failed", release_id)
         try:
             state = "uncertain" if checkpoint_file.exists() else "retry"
-            set_status(release_id, state, error=reason)
+            checkpoint = None
+            if state == "uncertain":
+                try:
+                    checkpoint = load_submit_checkpoint(
+                        checkpoint_file,
+                        release_id,
+                        release["song_name"],
+                    )
+                except DeliveryError as checkpoint_error:
+                    reason = f"{reason};{checkpoint_error}"[:2000]
+            set_status(release_id, state, checkpoint=checkpoint, error=reason)
             return state
         except Exception:
             log.exception("release %s status report failed", release_id)

@@ -76,7 +76,7 @@ Then User Verifies And Submits Album
     ...    ${JOB}[dmb_genre]
     ...    ${JOB}[label]
     ...    ${JOB}[contributors]
-    Submit Album And Verify Success    ${JOB}[release_id]
+    Submit Album And Verify Success    ${JOB}[release_id]    ${EAN}    ${ISRC}    ${JOB}[song_name]
     ${CURRENT_URL}=    Get Location
     ${DMB_RELEASE_ID}=    Extract Dmb Release Id    ${CURRENT_URL}
     ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}submitted.png

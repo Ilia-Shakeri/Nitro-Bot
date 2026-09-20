@@ -123,6 +123,7 @@ class Release(Base):
     dmb_submission_started_at = Column(DateTime, nullable=True)
     dmb_submitted_at = Column(DateTime, nullable=True)
     dmb_evidence_path = Column(String(512), nullable=True)
+    dmb_submission_fingerprint = Column(String(64), nullable=True)
     dmb_last_error = Column(Text, nullable=True)
     dmb_attempts = Column(Integer, nullable=False, default=0)
     dmb_lease_owner = Column(String(128), nullable=True)

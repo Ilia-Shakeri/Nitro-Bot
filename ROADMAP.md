@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.6`
+Current release: `0.9.0-alpha.7`
 
 Target release: `1.0.0`
 
@@ -22,6 +22,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.4` | Match live DMB form | Navigation, dates, labels, roles, and exact suggestions match the live site |
 | `0.9.0-alpha.5` | Harden live DMB input | Contributor blur, role select, and direct track upload avoid destructive UI actions |
 | `0.9.0-alpha.6` | Protect money and staff actions | Immutable ledger, staff allowlist, audit log, claim idempotency, and durable notices exist |
+| `0.9.0-alpha.7` | Bind DMB submission evidence | Pre-submit EAN, ISRC, title, and fingerprint survive crashes and block mismatched completion |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
