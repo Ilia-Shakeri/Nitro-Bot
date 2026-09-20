@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.8`
+Current release: `0.9.0-alpha.9`
 
 Target release: `1.0.0`
 
@@ -24,6 +24,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.6` | Protect money and staff actions | Immutable ledger, staff allowlist, audit log, claim idempotency, and durable notices exist |
 | `0.9.0-alpha.7` | Bind DMB submission evidence | Pre-submit EAN, ISRC, title, and fingerprint survive crashes and block mismatched completion |
 | `0.9.0-alpha.8` | Build safe DMB edit delivery | Exact source, single-track metadata, staged Save, Publish, and edit audit exist |
+| `0.9.0-alpha.9` | Run DMB delivery on Linux | Native headless worker, health, multi-arch image, and VPS runbook exist |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
@@ -166,6 +167,19 @@ Delivered in `0.9.0-alpha.8`:
 
 Authenticated fields and navigation were inspected without Save or Publish.
 The final edit mutation still needs an approved staging release before `0.9.0`.
+
+Delivered in `0.9.0-alpha.9`:
+
+- Firefox runs natively in headless mode inside the Linux worker container.
+- Xvfb and a visible desktop are no longer required.
+- Worker live and ready endpoints expose poll and circuit state inside Docker.
+- Compose adds health checks, init, shared memory, and graceful shutdown time.
+- The image supports amd64 and arm64 with pinned geckodriver checksums.
+- CI checks both Robot suites, Compose syntax, and the DMB image build.
+- A VPS runbook records safe rollout and the path to an official DMB interface.
+
+This alpha still needs an image build and approved staging submission on the
+target Linux VPS. Delivery flags remain off by default.
 
 ### New release workflow
 

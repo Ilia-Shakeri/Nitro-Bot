@@ -9,8 +9,10 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -41,6 +43,9 @@ DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 CREATE_ENABLED = os.getenv("DMB_CREATE_ENABLED", "false").lower() == "true"
 EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
 EDIT_SUBMIT_ENABLED = os.getenv("DMB_EDIT_SUBMIT_ENABLED", "false").lower() == "true"
+DMB_BROWSER_MODE = os.getenv("DMB_BROWSER_MODE", "headless").strip().lower()
+HEALTH_HOST = os.getenv("DMB_HEALTH_HOST", "0.0.0.0").strip()
+HEALTH_PORT = int(os.getenv("DMB_HEALTH_PORT", "8081"))
 DMB_USERNAME = os.getenv("DMB_USERNAME", "")
 DMB_PASSWORD = os.getenv("DMB_PASSWORD", "")
 DMB_ALLOWED_HOST = os.getenv("DMB_ALLOWED_HOST", "dmb.kontornewmedia.com").lower()
@@ -60,6 +65,15 @@ _ISRC_RE = re.compile(r"^[A-Z0-9-]{8,20}$")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s")
 log = logging.getLogger("dmb-automation")
+
+_health_lock = threading.Lock()
+_health_state = {
+    "started_at": datetime.now(timezone.utc).isoformat(),
+    "last_poll_at": None,
+    "last_error": None,
+    "busy_release_id": None,
+    "poll_ok": False,
+}
 
 _s3 = boto3.client(
     "s3",
@@ -81,6 +95,54 @@ class DeliveryError(RuntimeError):
     pass
 
 
+def update_health(**values: object) -> None:
+    with _health_lock:
+        _health_state.update(values)
+
+
+def health_snapshot() -> dict:
+    with _health_lock:
+        state = dict(_health_state)
+    circuit_open = bool(read_circuit_state().get("open"))
+    return {
+        **state,
+        "ready": bool(state["poll_ok"] and not circuit_open),
+        "circuit_open": circuit_open,
+        "worker_id": WORKER_ID,
+        "browser_mode": DMB_BROWSER_MODE,
+    }
+
+
+class WorkerHealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path not in {"/health/live", "/health/ready"}:
+            self.send_error(404)
+            return
+        payload = health_snapshot()
+        live = self.path == "/health/live"
+        status = 200 if live or payload["ready"] else 503
+        body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
+def start_health_server() -> ThreadingHTTPServer:
+    server = ThreadingHTTPServer((HEALTH_HOST, HEALTH_PORT), WorkerHealthHandler)
+    thread = threading.Thread(
+        target=server.serve_forever,
+        name="dmb-health",
+        daemon=True,
+    )
+    thread.start()
+    return server
+
+
 def validate_config() -> None:
     if not SECRET:
         raise DeliveryError("SELENIUM_SECRET_KEY_missing")
@@ -96,6 +158,10 @@ def validate_config() -> None:
         raise DeliveryError("DMB_delivery_disabled")
     if EDIT_ENABLED and not EDIT_SUBMIT_ENABLED:
         raise DeliveryError("DMB_edit_submit_disabled")
+    if DMB_BROWSER_MODE not in {"headless", "visible"}:
+        raise DeliveryError("DMB_browser_mode_invalid")
+    if not HEALTH_HOST or not 1 <= HEALTH_PORT <= 65535:
+        raise DeliveryError("DMB_health_bind_invalid")
 
 
 def get_pending(mode: str = "create") -> list[dict]:
@@ -473,11 +539,10 @@ def run_robot(
         "DMB_SUBMIT_CHECKPOINT": str(checkpoint_file),
         "DMB_SUBMIT_ENABLED": "true",
         "DMB_EDIT_SUBMIT_ENABLED": "true" if mode == "edit" else "false",
+        "DMB_BROWSER_MODE": DMB_BROWSER_MODE,
     }
     suite = EDIT_SUITE if mode == "edit" else CREATE_SUITE
     command = [
-        "xvfb-run",
-        "-a",
         "robot",
         "--outputdir",
         str(output_dir),
@@ -572,11 +637,27 @@ def main() -> None:
     except DeliveryError as exc:
         log.error("worker configuration invalid: %s", exc)
         sys.exit(1)
-    log.info("DMB worker started; api=%s worker=%s", API_BASE_URL, WORKER_ID)
+    try:
+        start_health_server()
+    except OSError:
+        log.exception("DMB health server failed")
+        sys.exit(1)
+    log.info(
+        "DMB worker started; api=%s worker=%s browser=%s",
+        API_BASE_URL,
+        WORKER_ID,
+        DMB_BROWSER_MODE,
+    )
     while True:
         circuit_state = read_circuit_state()
+        update_health(circuit_open=bool(circuit_state["open"]))
         if circuit_state["open"]:
             log.error("DMB circuit open; manual review required")
+            update_health(
+                poll_ok=False,
+                last_error="dmb_circuit_open",
+                last_poll_at=datetime.now(timezone.utc).isoformat(),
+            )
             time.sleep(max(POLL_INTERVAL, 60))
             continue
         try:
@@ -588,11 +669,26 @@ def main() -> None:
             for mode in modes:
                 for release in get_pending(mode):
                     release_id = _validated_release_id(release.get("id"))
-                    outcome = process_release(release)
+                    update_health(busy_release_id=release_id)
+                    try:
+                        outcome = process_release(release)
+                    finally:
+                        update_health(busy_release_id=None)
                     if record_delivery_outcome(release_id, outcome):
                         log.error("DMB circuit opened after release %s", release_id)
-        except Exception:
+            update_health(
+                poll_ok=True,
+                last_error=None,
+                last_poll_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except Exception as exc:
             log.exception("poll loop failed")
+            update_health(
+                poll_ok=False,
+                last_error=f"{type(exc).__name__}:{exc}"[:500],
+                last_poll_at=datetime.now(timezone.utc).isoformat(),
+                busy_release_id=None,
+            )
         time.sleep(POLL_INTERVAL)
 
 

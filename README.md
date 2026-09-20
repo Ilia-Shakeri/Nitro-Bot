@@ -2,10 +2,13 @@
 
 Nitro Bot is a pre-release Telegram Mini-App and Bot platform for music creators. It provides a mobile-first interface for artists to upload tracks (MP3/WAV), cover art, and metadata for distribution through DMB Kontor. The platform features a native wallet system ("Nitro Credits"), manual receipt approvals through Telegram, and Persian, English, Arabic, and Russian localization.
 
-> Current version: `0.9.0-alpha.8`. This build is not production-ready. See
+> Current version: `0.9.0-alpha.9`. This build is not production-ready. See
 > [ROADMAP.md](ROADMAP.md) for the work and evidence required for `1.0.0`, and
 > [RELEASE_POLICY.md](RELEASE_POLICY.md) for version and release rules. Release
 > history is in [CHANGELOG.md](CHANGELOG.md).
+
+Linux VPS DMB operation is documented in
+[docs/DMB_SERVER_AUTOMATION.md](docs/DMB_SERVER_AUTOMATION.md).
 
 ## ✨ Key Features
 

@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import urllib.error
+import urllib.request
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -183,6 +185,66 @@ def test_edit_worker_needs_distinct_submit_gate(monkeypatch):
     monkeypatch.setattr(worker, "EDIT_SUBMIT_ENABLED", False)
     with pytest.raises(worker.DeliveryError, match="DMB_edit_submit_disabled"):
         worker.validate_config()
+
+
+def test_worker_rejects_unknown_browser_mode(monkeypatch):
+    monkeypatch.setattr(worker, "SECRET", "worker-secret")
+    monkeypatch.setattr(worker, "S3_ACCESS_KEY", "access")
+    monkeypatch.setattr(worker, "S3_SECRET_KEY", "secret")
+    monkeypatch.setattr(worker, "DMB_USERNAME", "user")
+    monkeypatch.setattr(worker, "DMB_PASSWORD", "pass")
+    monkeypatch.setattr(worker, "DRY_RUN", False)
+    monkeypatch.setattr(worker, "CREATE_ENABLED", True)
+    monkeypatch.setattr(worker, "EDIT_ENABLED", False)
+    monkeypatch.setattr(worker, "DMB_BROWSER_MODE", "unknown")
+    with pytest.raises(worker.DeliveryError, match="DMB_browser_mode_invalid"):
+        worker.validate_config()
+
+
+def test_worker_health_requires_poll_and_closed_circuit(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker, "CIRCUIT_STATE_PATH", tmp_path / "circuit.json")
+    worker.update_health(poll_ok=False, last_error="starting")
+    assert worker.health_snapshot()["ready"] is False
+
+    worker.update_health(poll_ok=True, last_error=None)
+    assert worker.health_snapshot()["ready"] is True
+
+    worker.write_json_atomic(
+        worker.CIRCUIT_STATE_PATH,
+        {"open": True, "failures": 1},
+    )
+    assert worker.health_snapshot()["ready"] is False
+
+
+def test_worker_health_http_endpoints(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker, "CIRCUIT_STATE_PATH", tmp_path / "circuit.json")
+    monkeypatch.setattr(worker, "HEALTH_HOST", "127.0.0.1")
+    monkeypatch.setattr(worker, "HEALTH_PORT", 0)
+    worker.update_health(poll_ok=False, last_error="starting")
+    server = worker.start_health_server()
+    port = server.server_address[1]
+    try:
+        live = urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/health/live",
+            timeout=2,
+        )
+        assert live.status == 200
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/health/ready",
+                timeout=2,
+            )
+        assert exc.value.code == 503
+
+        worker.update_health(poll_ok=True, last_error=None)
+        ready = urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/health/ready",
+            timeout=2,
+        )
+        assert ready.status == 200
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_claimed_bad_contract_is_reported_for_retry(monkeypatch):
@@ -480,6 +542,24 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC" not in album_page
     assert "Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}" in album_page
     assert "Click Element    ${ADD_TRACKS_BUTTON}" not in album_page
+
+
+def test_linux_worker_uses_native_headless_firefox_without_xvfb():
+    login_page = (ROOT / "resources" / "pages" / "login_page.robot").read_text(
+        encoding="utf-8"
+    )
+    worker_source = (ROOT / "worker.py").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    compose = (ROOT.parent / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "FirefoxOptions" in login_page
+    assert "-headless" in login_page
+    assert "DMB_BROWSER_MODE" in worker_source
+    assert '"xvfb-run"' not in worker_source
+    assert "xvfb" not in dockerfile
+    assert "DMB_BROWSER_MODE=${DMB_BROWSER_MODE:-headless}" in compose
+    assert "/health/ready" in compose
+    assert "shm_size: 512m" in compose
 
 
 def test_circuit_opens_after_bounded_failures_and_clears_on_success(

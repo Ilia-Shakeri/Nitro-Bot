@@ -39,7 +39,7 @@ dmb-automation/
 │   └── edit_album.robot   # سناریوی جدا برای ویرایش ریلیز موجود
 ├── resources/             # page objects, locators, queries, variables (ساختار استاندارد Robot)
 ├── assets/                # sample_cover.jpg / sample_track.wav (نمونه برای تست دستی)
-├── Dockerfile             # Firefox + geckodriver + Xvfb + پایتون
+├── Dockerfile             # Firefox headless + geckodriver + پایتون
 └── requirements.txt
 ```
 
@@ -51,6 +51,7 @@ dmb-automation/
 راه اصلی، اجرای headless روی VPS خارجی است. این راه صف، lease، restart و مدرک پایدار دارد.
 اجرای یک‌ساعته با shortcut لپ‌تاپ فقط راه اضطراری است؛ خاموشی، sleep، اینترنت ناپایدار و قطع
 مرورگر وسط Save، ریسک بیشتری می‌سازد.
+مرورگر درون کانتینر و بدون پنجره اجرا می‌شود؛ به desktop، VNC یا Xvfb نیاز ندارد.
 
 PostgreSQL و MinIO منبع اصلی داده‌اند. DMB worker دیتابیس SQLite جدا و ناسازگار نمی‌سازد.
 اطلاعات سفارش در PostgreSQL و فایل‌ها در MinIO می‌مانند. فقط قرارداد موقت هر job روی worker
@@ -60,6 +61,10 @@ PostgreSQL و MinIO منبع اصلی داده‌اند. DMB worker دیتابی
 `DRY_RUN` هیچ کار زنده را claim نمی‌کند و completed دروغ نمی‌سازد.
 برای edit هر دو مقدار `DMB_EDIT_ENABLED=true` و `DMB_EDIT_SUBMIT_ENABLED=true`
 لازم است. هر دو پیش‌فرض خاموش‌اند.
+
+`/health/live` زنده‌بودن process را نشان می‌دهد. `/health/ready` فقط بعد از ارتباط
+موفق با صف و بسته‌بودن circuit breaker پاسخ 200 می‌دهد. پورت پیش‌فرض `8081`
+است و به میزبان publish نمی‌شود.
 
 **اجرای دستی سناریو (برای توسعه):**
 

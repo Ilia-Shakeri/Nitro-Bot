@@ -10,6 +10,26 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.9] - 2026-09-20
+
+### Added
+
+- Native headless Firefox delivery for unattended Linux VPS operation.
+- Internal worker live and ready endpoints with poll, busy-job, and circuit state.
+- Multi-architecture driver install with pinned checksums.
+- VPS rollout and official-interface migration runbook.
+
+### Changed
+
+- Removed the Xvfb runtime dependency.
+- Compose now gives the worker health checks, init, shared memory, and graceful stop time.
+- CI now validates both Robot suites and the Compose file.
+
+### Not run
+
+- The container image was not built on this host because Docker is unavailable.
+- Final DMB Save and Publish were not used.
+
 ## [0.9.0-alpha.8] - 2026-09-20
 
 ### Added
@@ -218,7 +238,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.8...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.9...HEAD
+[0.9.0-alpha.9]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.8...v0.9.0-alpha.9
 [0.9.0-alpha.8]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.7...v0.9.0-alpha.8
 [0.9.0-alpha.7]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.6...v0.9.0-alpha.7
 [0.9.0-alpha.6]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.5...v0.9.0-alpha.6

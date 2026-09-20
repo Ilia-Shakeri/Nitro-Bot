@@ -4,7 +4,15 @@ Resource   ../locators/login_locators.robot
 
 *** Keywords ***
 Open Login Page
-    Open Browser    ${LOGIN_URL}    firefox
+    ${options}=    Evaluate    selenium.webdriver.FirefoxOptions()    modules=selenium.webdriver
+    IF    '${BROWSER_MODE}' == 'headless'
+        Call Method    ${options}    add_argument    -headless
+    ELSE IF    '${BROWSER_MODE}' != 'visible'
+        Fail    DMB_browser_mode_invalid
+    END
+    Call Method    ${options}    set_preference    browser.cache.disk.enable    ${FALSE}
+    Call Method    ${options}    set_preference    browser.sessionstore.resume_from_crash    ${FALSE}
+    Open Browser    ${LOGIN_URL}    firefox    options=${options}
     Set Window Size    1366    768
 
 Input Username
