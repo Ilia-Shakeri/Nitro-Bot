@@ -20,10 +20,10 @@ Input Username
     Wait Until Element Is Visible    ${USERNAME_FIELD}    timeout=10s
     Input Text    ${USERNAME_FIELD}    ${username}
 
-Input Password
+Input DMB Password
     [Arguments]    ${password}
     Wait Until Element Is Visible    ${PASSWORD_FIELD}    timeout=10s
-    Input Text    ${PASSWORD_FIELD}    ${password}
+    SeleniumLibrary.Input Password    ${PASSWORD_FIELD}    ${password}
 
 Click Login Button
     Wait Until Element Is Enabled    ${LOGIN_BUTTON}    timeout=10s
@@ -32,7 +32,7 @@ Click Login Button
 Login With Credentials
     [Arguments]    ${username}    ${password}
     Input Username    ${username}
-    Input Password    ${password}
+    Input DMB Password    ${password}
     Click Login Button
 
 Close Browser Session

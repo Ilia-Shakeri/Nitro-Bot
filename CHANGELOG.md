@@ -10,6 +10,20 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.16] - 2026-10-03
+
+### Fixed
+
+- DMB login now uses the password-masking Selenium keyword so credentials do
+  not appear in Robot execution logs.
+- Cover upload now waits for the filename shown by the live custom upload
+  control instead of reading the browser-cleared hidden file input.
+
+### Security
+
+- Existing DMB preflight HTML and XML logs on the test VPS were sanitized and
+  verified to contain no remaining password value.
+
 ## [0.9.0-alpha.15] - 2026-10-03
 
 ### Fixed
@@ -314,7 +328,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.15...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.16...HEAD
+[0.9.0-alpha.16]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.15...v0.9.0-alpha.16
 [0.9.0-alpha.15]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.14...v0.9.0-alpha.15
 [0.9.0-alpha.14]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.13...v0.9.0-alpha.14
 [0.9.0-alpha.13]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.12...v0.9.0-alpha.13

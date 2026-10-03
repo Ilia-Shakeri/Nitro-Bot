@@ -42,11 +42,13 @@ Upload Cover Image
     File Should Exist    ${cover_path}    msg=Cover file not found: ${cover_path}
     Wait Until Page Contains Element    ${COVER_FILE_INPUT}    timeout=30s
     Choose File    ${COVER_FILE_INPUT}    ${cover_path}
-    Wait Until Keyword Succeeds    60s    1s    Cover Input Should Have File
+    ${cover_dir}    ${cover_name}=    Split Path    ${cover_path}
+    Wait Until Keyword Succeeds    60s    1s    Cover Upload Should Be Ready    ${cover_name}
 
-Cover Input Should Have File
-    ${value}=    Get Value    ${COVER_FILE_INPUT}
-    Should Not Be Empty    ${value}
+Cover Upload Should Be Ready
+    [Arguments]    ${cover_name}
+    ${ready}=    Execute Javascript    return document.body.innerText.includes(arguments[0]) || Array.from(document.querySelectorAll('input')).some((element) => element.value.endsWith(arguments[0]));    ARGUMENTS    ${cover_name}
+    Should Be True    ${ready}    Cover filename is not visible after upload
 
 Fill Album Title
     [Arguments]    ${title}

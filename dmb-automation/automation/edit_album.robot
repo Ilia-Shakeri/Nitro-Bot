@@ -22,7 +22,7 @@ Given User Is Logged In For Edit
     [Arguments]    ${username}    ${password}
     Wait Until Element Is Visible    ${USERNAME_FIELD}    timeout=20s
     Input Username    ${username}
-    Input Password    ${password}
+    Input DMB Password    ${password}
     Click Login Button
     Wait Until Element Is Visible    ${MUSIC_MENU}    timeout=30s
 
