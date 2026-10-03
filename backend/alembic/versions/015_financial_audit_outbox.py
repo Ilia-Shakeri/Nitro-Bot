@@ -46,7 +46,7 @@ def upgrade():
         INSERT INTO balance_ledger_entries
             (user_id, amount, kind, idempotency_key, transaction_id, details, created_at)
         SELECT user_id, amount, 'topup',
-               'transaction:' || CAST(id AS VARCHAR) || ':topup', id,
+               concat('transaction', chr(58), CAST(id AS VARCHAR), chr(58), 'topup'), id,
                json_build_object('payment_method', payment_method), created_at
         FROM transactions
         WHERE status = 'approved'
@@ -55,7 +55,7 @@ def upgrade():
         INSERT INTO balance_ledger_entries
             (user_id, amount, kind, idempotency_key, release_id, details, created_at)
         SELECT user_id, -charged_cost, 'release_charge',
-               'release:' || CAST(id AS VARCHAR) || ':charge', id,
+               concat('release', chr(58), CAST(id AS VARCHAR), chr(58), 'charge'), id,
                json_build_object('song_name', song_name, 'artist_name', artist_name), created_at
         FROM releases
         WHERE charged_cost > 0
@@ -64,7 +64,7 @@ def upgrade():
         INSERT INTO balance_ledger_entries
             (user_id, amount, kind, idempotency_key, release_id, details, created_at)
         SELECT user_id, charged_cost, 'release_refund',
-               'release:' || CAST(id AS VARCHAR) || ':refund', id,
+               concat('release', chr(58), CAST(id AS VARCHAR), chr(58), 'refund'), id,
                json_build_object('reason', failure_reason), refunded_at
         FROM releases
         WHERE charged_cost > 0 AND refunded_at IS NOT NULL

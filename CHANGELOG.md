@@ -10,6 +10,19 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.11] - 2026-10-03
+
+### Fixed
+
+- Financial ledger migration backfill keys now avoid SQLAlchemy bind parsing
+  for literal colons.
+- Added regression checks for top-up, charge, and refund migration keys.
+
+### Deployment
+
+- The failed migration stayed transactional and the production database
+  remained at revision `011` before this fix.
+
 ## [0.9.0-alpha.10] - 2026-10-03
 
 ### Fixed
@@ -251,7 +264,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.10...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.11...HEAD
+[0.9.0-alpha.11]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.10...v0.9.0-alpha.11
 [0.9.0-alpha.10]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.9...v0.9.0-alpha.10
 [0.9.0-alpha.9]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.8...v0.9.0-alpha.9
 [0.9.0-alpha.8]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.7...v0.9.0-alpha.8

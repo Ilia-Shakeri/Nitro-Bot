@@ -29,6 +29,19 @@ def test_backend_image_installs_sqlalchemy_asyncio_runtime():
     assert any(line.startswith("SQLAlchemy[asyncio]") for line in lines)
 
 
+def test_financial_migration_has_no_unbound_colon_literals():
+    migration = (
+        Path(__file__).resolve().parents[1]
+        / "alembic"
+        / "versions"
+        / "015_financial_audit_outbox.py"
+    ).read_text(encoding="utf-8")
+    assert "|| ':topup'" not in migration
+    assert "|| ':charge'" not in migration
+    assert "|| ':refund'" not in migration
+    assert migration.count("chr(58)") == 6
+
+
 def test_copyright_defaults_off():
     assert Release.copyright_requested.default.arg is False
 
