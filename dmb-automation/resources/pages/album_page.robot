@@ -10,7 +10,8 @@ Navigate To Album Creation Form
     Wait Until Element Is Visible    ${MUSIC_MENU}    timeout=30s
     Click Element    ${MUSIC_MENU}
     Wait Until Element Is Visible    ${CREATE_ALBUM_LINK}    timeout=20s
-    Click Element    ${CREATE_ALBUM_LINK}
+    ${create_link}=    Get WebElement    ${CREATE_ALBUM_LINK}
+    Execute Javascript    arguments[0].click();    ARGUMENTS    ${create_link}
     Wait Until Element Is Visible    ${MAIN_IFRAME}    timeout=30s
 
 Select Album Format And Next

@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.13`
+Current release: `0.9.0-alpha.14`
 
 Target release: `1.0.0`
 
@@ -29,6 +29,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.11` | Fix production migration SQL | Financial ledger backfill uses literal-safe idempotency keys |
 | `0.9.0-alpha.12` | Run safe DMB standby | Dry-run worker stays healthy without claiming live jobs |
 | `0.9.0-alpha.13` | Prove one safe DMB preflight | One allowlisted create reaches review with no Save or queue claim |
+| `0.9.0-alpha.14` | Fix fixed-menu DMB navigation | Create audio product opens from the visible fixed submenu |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
