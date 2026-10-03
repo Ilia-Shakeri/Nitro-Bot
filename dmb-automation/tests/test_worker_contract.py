@@ -187,6 +187,36 @@ def test_edit_worker_needs_distinct_submit_gate(monkeypatch):
         worker.validate_config()
 
 
+def test_worker_allows_safe_dry_run_standby(monkeypatch):
+    monkeypatch.setattr(worker, "SECRET", "worker-secret")
+    monkeypatch.setattr(worker, "S3_ACCESS_KEY", "access")
+    monkeypatch.setattr(worker, "S3_SECRET_KEY", "secret")
+    monkeypatch.setattr(worker, "DMB_USERNAME", "user")
+    monkeypatch.setattr(worker, "DMB_PASSWORD", "pass")
+    monkeypatch.setattr(worker, "DRY_RUN", True)
+    monkeypatch.setattr(worker, "CREATE_ENABLED", False)
+    monkeypatch.setattr(worker, "EDIT_ENABLED", False)
+
+    worker.validate_config()
+    health = worker.health_snapshot()
+    assert health["standby"] is True
+    assert health["delivery_enabled"] is False
+
+
+def test_worker_rejects_dry_run_with_live_delivery_gate(monkeypatch):
+    monkeypatch.setattr(worker, "SECRET", "worker-secret")
+    monkeypatch.setattr(worker, "S3_ACCESS_KEY", "access")
+    monkeypatch.setattr(worker, "S3_SECRET_KEY", "secret")
+    monkeypatch.setattr(worker, "DMB_USERNAME", "user")
+    monkeypatch.setattr(worker, "DMB_PASSWORD", "pass")
+    monkeypatch.setattr(worker, "DRY_RUN", True)
+    monkeypatch.setattr(worker, "CREATE_ENABLED", True)
+    monkeypatch.setattr(worker, "EDIT_ENABLED", False)
+
+    with pytest.raises(worker.DeliveryError, match="DRY_RUN_cannot_claim_live_jobs"):
+        worker.validate_config()
+
+
 def test_worker_rejects_unknown_browser_mode(monkeypatch):
     monkeypatch.setattr(worker, "SECRET", "worker-secret")
     monkeypatch.setattr(worker, "S3_ACCESS_KEY", "access")

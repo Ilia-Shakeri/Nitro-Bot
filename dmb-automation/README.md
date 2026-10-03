@@ -59,12 +59,15 @@ PostgreSQL و MinIO منبع اصلی داده‌اند. DMB worker دیتابی
 
 شروع زنده فقط وقتی مجاز است که `DMB_CREATE_ENABLED=true` باشد. مقدار پیش‌فرض false است.
 `DRY_RUN` هیچ کار زنده را claim نمی‌کند و completed دروغ نمی‌سازد.
+وقتی `DRY_RUN=true` و گیت‌های create و edit خاموش‌اند، worker در حالت standby سالم
+می‌ماند و هیچ صف زنده‌ای را نمی‌خواند. اگر هر گیت تحویل روشن باشد، startup رد می‌شود.
 برای edit هر دو مقدار `DMB_EDIT_ENABLED=true` و `DMB_EDIT_SUBMIT_ENABLED=true`
 لازم است. هر دو پیش‌فرض خاموش‌اند.
 
-`/health/live` زنده‌بودن process را نشان می‌دهد. `/health/ready` فقط بعد از ارتباط
-موفق با صف و بسته‌بودن circuit breaker پاسخ 200 می‌دهد. پورت پیش‌فرض `8081`
-است و به میزبان publish نمی‌شود.
+`/health/live` زنده‌بودن process را نشان می‌دهد. `/health/ready` در حالت زنده بعد از
+ارتباط موفق با صف، و در standby بعد از تأیید گیت‌های امن، پاسخ 200 می‌دهد. پاسخ سلامت
+فیلدهای `standby` و `delivery_enabled` دارد. پورت پیش‌فرض `8081` است و به میزبان
+publish نمی‌شود.
 
 **اجرای دستی سناریو (برای توسعه):**
 

@@ -108,6 +108,8 @@ def health_snapshot() -> dict:
         **state,
         "ready": bool(state["poll_ok"] and not circuit_open),
         "circuit_open": circuit_open,
+        "standby": bool(DRY_RUN and not CREATE_ENABLED and not EDIT_ENABLED),
+        "delivery_enabled": bool(CREATE_ENABLED or EDIT_ENABLED),
         "worker_id": WORKER_ID,
         "browser_mode": DMB_BROWSER_MODE,
     }
@@ -152,9 +154,10 @@ def validate_config() -> None:
         raise DeliveryError("S3_credentials_missing")
     if not DMB_USERNAME or not DMB_PASSWORD:
         raise DeliveryError("DMB_credentials_missing")
-    if DRY_RUN:
+    delivery_enabled = CREATE_ENABLED or EDIT_ENABLED
+    if DRY_RUN and delivery_enabled:
         raise DeliveryError("DRY_RUN_cannot_claim_live_jobs")
-    if not CREATE_ENABLED and not EDIT_ENABLED:
+    if not DRY_RUN and not delivery_enabled:
         raise DeliveryError("DMB_delivery_disabled")
     if EDIT_ENABLED and not EDIT_SUBMIT_ENABLED:
         raise DeliveryError("DMB_edit_submit_disabled")
@@ -643,10 +646,11 @@ def main() -> None:
         log.exception("DMB health server failed")
         sys.exit(1)
     log.info(
-        "DMB worker started; api=%s worker=%s browser=%s",
+        "DMB worker started; api=%s worker=%s browser=%s standby=%s",
         API_BASE_URL,
         WORKER_ID,
         DMB_BROWSER_MODE,
+        DRY_RUN and not CREATE_ENABLED and not EDIT_ENABLED,
     )
     while True:
         circuit_state = read_circuit_state()

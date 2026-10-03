@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.11`
+Current release: `0.9.0-alpha.12`
 
 Target release: `1.0.0`
 
@@ -27,6 +27,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.9` | Run DMB delivery on Linux | Native headless worker, health, multi-arch image, and VPS runbook exist |
 | `0.9.0-alpha.10` | Make VPS migrations runnable | Backend image includes the SQLAlchemy asyncio runtime dependency |
 | `0.9.0-alpha.11` | Fix production migration SQL | Financial ledger backfill uses literal-safe idempotency keys |
+| `0.9.0-alpha.12` | Run safe DMB standby | Dry-run worker stays healthy without claiming live jobs |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

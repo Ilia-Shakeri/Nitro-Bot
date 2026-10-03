@@ -10,6 +10,19 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.12] - 2026-10-03
+
+### Fixed
+
+- DMB dry-run standby now stays alive when all delivery gates are disabled.
+- Dry-run still rejects any enabled create or edit delivery gate, so it cannot
+  claim live jobs.
+
+### Deployment
+
+- The VPS worker can now expose health checks without opening the DMB site or
+  saving and publishing a release.
+
 ## [0.9.0-alpha.11] - 2026-10-03
 
 ### Fixed
@@ -264,7 +277,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.11...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.12...HEAD
+[0.9.0-alpha.12]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.11...v0.9.0-alpha.12
 [0.9.0-alpha.11]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.10...v0.9.0-alpha.11
 [0.9.0-alpha.10]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.9...v0.9.0-alpha.10
 [0.9.0-alpha.9]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.8...v0.9.0-alpha.9
