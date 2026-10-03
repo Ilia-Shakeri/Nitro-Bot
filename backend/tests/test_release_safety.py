@@ -367,6 +367,21 @@ def test_dmb_recovery_migration_is_additive_and_reversible():
     assert 'op.drop_column("releases", "dmb_submission_fingerprint")' in migration
 
 
+def test_dmb_preflight_endpoint_is_read_only_and_review_protected():
+    source = (
+        Path(__file__).parents[1] / "routers" / "internal.py"
+    ).read_text(encoding="utf-8")
+    route_start = source.index('@router.get("/releases/{release_id}/preflight"')
+    route_end = source.index('@router.post("/releases/{release_id}/heartbeat"', route_start)
+    route = source[route_start:route_end]
+    assert "Depends(_require_secret)" in route
+    assert '_validated_worker_id(worker_id_header)' in route
+    assert 'release.status != "manual_staging"' in route
+    assert "with_for_update" not in route
+    assert "db.commit" not in route
+    assert "db.flush" not in route
+
+
 @pytest.mark.asyncio
 async def test_manual_verification_completion_is_audited():
     release = SimpleNamespace(

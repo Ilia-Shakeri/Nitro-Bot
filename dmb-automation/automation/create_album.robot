@@ -16,7 +16,7 @@ End-to-End Album Creation From Isolated Job
     And User Fills Album Form
     And User Adds Track
     And User Selects Territory And Platforms
-    Then User Verifies And Submits Album
+    Then User Verifies Album
     [Teardown]    Capture Failure Evidence And Close Browser
 
 *** Keywords ***
@@ -65,7 +65,7 @@ And User Selects Territory And Platforms
     Select Worldwide And Next
     Select All Platforms And Next
 
-Then User Verifies And Submits Album
+Then User Verifies Album
     Should Match Regexp    ${EAN}    ^[0-9]{8,14}$
     Should Match Regexp    ${ISRC}    ^[A-Za-z0-9-]{8,20}$
     Verify Review Data
@@ -76,6 +76,17 @@ Then User Verifies And Submits Album
     ...    ${JOB}[dmb_genre]
     ...    ${JOB}[label]
     ...    ${JOB}[contributors]
+    IF    '%{DMB_PREFLIGHT_ENABLED=false}' == 'true'
+        ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}preflight-review.png
+        Capture Page Screenshot    ${SCREENSHOT}
+        Write Dmb Preflight Result
+        ...    %{DMB_PREFLIGHT_RESULT}
+        ...    ${JOB}[release_id]
+        ...    ${EAN}
+        ...    ${ISRC}
+        ...    ${SCREENSHOT}
+        RETURN
+    END
     Submit Album And Verify Success    ${JOB}[release_id]    ${EAN}    ${ISRC}    ${JOB}[song_name]
     ${CURRENT_URL}=    Get Location
     ${DMB_RELEASE_ID}=    Extract Dmb Release Id    ${CURRENT_URL}

@@ -574,6 +574,36 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Click Element    ${ADD_TRACKS_BUTTON}" not in album_page
 
 
+def test_preflight_path_stops_before_submit_and_writes_no_checkpoint():
+    suite = (ROOT / "automation" / "create_album.robot").read_text(encoding="utf-8")
+    preflight = (ROOT / "preflight.py").read_text(encoding="utf-8")
+    branch = suite.index("IF    '%{DMB_PREFLIGHT_ENABLED=false}' == 'true'")
+    submit = suite.index("Submit Album And Verify Success", branch)
+    assert branch < submit
+    assert "Write Submit Checkpoint" not in suite[branch:submit]
+    assert '"DMB_SUBMIT_ENABLED": "false"' in preflight
+
+
+def test_preflight_evidence_is_explicitly_not_submitted(tmp_path):
+    screenshot = tmp_path / "review.png"
+    screenshot.write_bytes(b"png")
+    target = tmp_path / "preflight.json"
+
+    dmb_job_module.DmbJob().write_dmb_preflight_result(
+        str(target),
+        42,
+        "1234567890123",
+        "USABC2600001",
+        str(screenshot),
+    )
+
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    assert payload["submitted"] is False
+    assert payload["release_id"] == 42
+    assert payload["ean_upc"] == "1234567890123"
+    assert payload["isrcs"] == ["USABC2600001"]
+
+
 def test_linux_worker_uses_native_headless_firefox_without_xvfb():
     login_page = (ROOT / "resources" / "pages" / "login_page.robot").read_text(
         encoding="utf-8"

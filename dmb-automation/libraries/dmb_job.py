@@ -182,6 +182,43 @@ class DmbJob:
         )
         temporary.replace(target)
 
+    def write_dmb_preflight_result(
+        self,
+        path: str,
+        release_id: int,
+        ean_upc: str,
+        isrc: str,
+        screenshot_path: str,
+    ) -> None:
+        ean = str(ean_upc).strip()
+        normalized_isrc = str(isrc).strip().upper()
+        if not re.fullmatch(r"\d{8,14}", ean):
+            raise ValueError("dmb_preflight_ean_invalid")
+        if not re.fullmatch(r"[A-Z0-9-]{8,20}", normalized_isrc):
+            raise ValueError("dmb_preflight_isrc_invalid")
+        screenshot = Path(screenshot_path).resolve()
+        if not screenshot.is_file():
+            raise ValueError("dmb_preflight_screenshot_missing")
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(target.suffix + ".tmp")
+        temporary.write_text(
+            json.dumps(
+                {
+                    "submitted": False,
+                    "release_id": int(release_id),
+                    "ean_upc": ean,
+                    "isrcs": [normalized_isrc],
+                    "screenshot_path": str(screenshot),
+                    "checked_at": datetime.now(timezone.utc).isoformat(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        temporary.replace(target)
+
 
 _library = DmbJob()
 
@@ -226,3 +263,19 @@ def write_submit_checkpoint(
     title: str,
 ) -> None:
     _library.write_submit_checkpoint(path, release_id, ean_upc, isrc, title)
+
+
+def write_dmb_preflight_result(
+    path: str,
+    release_id: int,
+    ean_upc: str,
+    isrc: str,
+    screenshot_path: str,
+) -> None:
+    _library.write_dmb_preflight_result(
+        path,
+        release_id,
+        ean_upc,
+        isrc,
+        screenshot_path,
+    )

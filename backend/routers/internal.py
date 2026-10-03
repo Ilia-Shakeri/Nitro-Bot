@@ -268,6 +268,29 @@ async def get_pending_releases(
     return [payload]
 
 
+@router.get("/releases/{release_id}/preflight", response_model=PendingReleaseOut)
+async def get_release_preflight(
+    release_id: int,
+    worker_id_header: str | None = Header(None, alias="X-DMB-Worker-ID"),
+    _: None = Depends(_require_secret),
+    db: AsyncSession = Depends(get_db),
+):
+    _validated_worker_id(worker_id_header)
+    result = await db.execute(
+        select(Release)
+        .where(Release.id == release_id)
+        .options(selectinload(Release.source_release))
+    )
+    release = result.scalars().first()
+    if release is None:
+        raise HTTPException(status_code=404, detail="Release not found")
+    if release.status != "manual_staging":
+        raise HTTPException(status_code=409, detail="dmb_preflight_release_not_ready")
+    if release.is_edit:
+        raise HTTPException(status_code=409, detail="dmb_preflight_create_only")
+    return PendingReleaseOut.model_validate(release)
+
+
 @router.post("/releases/{release_id}/heartbeat", response_model=OkResponse)
 async def heartbeat_release(
     release_id: int,

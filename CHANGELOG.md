@@ -10,6 +10,19 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.13] - 2026-10-03
+
+### Added
+
+- Read-only, worker-authenticated lookup for one explicit DMB preflight release.
+- Create preflight runner that downloads and validates media, fills the DMB form,
+  captures review evidence, and cannot run the Save keyword.
+
+### Security
+
+- Preflight does not claim the queue, mutate release status, write a submission
+  checkpoint, or receive the separate manual-review secret.
+
 ## [0.9.0-alpha.12] - 2026-10-03
 
 ### Fixed
@@ -277,7 +290,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.12...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.13...HEAD
+[0.9.0-alpha.13]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.12...v0.9.0-alpha.13
 [0.9.0-alpha.12]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.11...v0.9.0-alpha.12
 [0.9.0-alpha.11]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.10...v0.9.0-alpha.11
 [0.9.0-alpha.10]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.9...v0.9.0-alpha.10

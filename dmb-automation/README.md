@@ -61,6 +61,8 @@ PostgreSQL و MinIO منبع اصلی داده‌اند. DMB worker دیتابی
 `DRY_RUN` هیچ کار زنده را claim نمی‌کند و completed دروغ نمی‌سازد.
 وقتی `DRY_RUN=true` و گیت‌های create و edit خاموش‌اند، worker در حالت standby سالم
 می‌ماند و هیچ صف زنده‌ای را نمی‌خواند. اگر هر گیت تحویل روشن باشد، startup رد می‌شود.
+برای تست یک سفارش بدون claim و Save، runner جدا با `DMB_PREFLIGHT_RELEASE_ID` اجرا
+می‌شود. این runner فقط release صریح را می‌خواند و در صفحه review مدرک می‌سازد.
 برای edit هر دو مقدار `DMB_EDIT_ENABLED=true` و `DMB_EDIT_SUBMIT_ENABLED=true`
 لازم است. هر دو پیش‌فرض خاموش‌اند.
 
