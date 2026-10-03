@@ -560,12 +560,16 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     login_locators = (
         ROOT / "resources" / "locators" / "login_locators.robot"
     ).read_text(encoding="utf-8")
+    locators = (ROOT / "resources" / "locators" / "album_locators.robot").read_text(
+        encoding="utf-8"
+    )
     album_page = (ROOT / "resources" / "pages" / "album_page.robot").read_text(
         encoding="utf-8"
     )
     assert "normalize-space()='Audio'" in login_locators
     assert "normalize-space()='Create audio product'" in login_locators
     assert "//iframe[contains(@src, 'album.create')]" in login_locators
+    assert "not(self::option) and normalize-space()='(Maxi-) Single'" in locators
     assert "Execute Javascript    arguments[0].click();" in album_page
     assert "ARGUMENTS    ${create_link}" in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page

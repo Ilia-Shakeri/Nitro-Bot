@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.15] - 2026-10-03
+
+### Fixed
+
+- Product-type selection now targets the visible `(Maxi-) Single` card instead
+  of the hidden select option with the same text.
+
+### Deployment
+
+- The second live no-save preflight passed login and navigation, then stopped
+  safely on the hidden duplicate before any release was claimed or saved.
+
 ## [0.9.0-alpha.14] - 2026-10-03
 
 ### Fixed
@@ -302,7 +314,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.14...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.15...HEAD
+[0.9.0-alpha.15]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.14...v0.9.0-alpha.15
 [0.9.0-alpha.14]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.13...v0.9.0-alpha.14
 [0.9.0-alpha.13]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.12...v0.9.0-alpha.13
 [0.9.0-alpha.12]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.11...v0.9.0-alpha.12

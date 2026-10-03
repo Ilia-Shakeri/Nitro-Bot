@@ -1,6 +1,6 @@
 *** Variables ***
 ${CREATE_FORM_XPATH}           //form[.//button[normalize-space()='Save & View Audio Product']]
-${MAXI_SINGLE_OPTION}          xpath=//*[normalize-space()='(Maxi-) Single']
+${MAXI_SINGLE_OPTION}          xpath=//*[not(self::option) and normalize-space()='(Maxi-) Single']
 ${NEXT_BUTTON}                 xpath=(//button[normalize-space()='Next' and not(@disabled)])[last()]
 
 ${EAN_INPUT}                   xpath=${CREATE_FORM_XPATH}//input[@name='eanUpc']
