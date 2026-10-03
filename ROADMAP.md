@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.9`
+Current release: `0.9.0-alpha.10`
 
 Target release: `1.0.0`
 
@@ -25,6 +25,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.7` | Bind DMB submission evidence | Pre-submit EAN, ISRC, title, and fingerprint survive crashes and block mismatched completion |
 | `0.9.0-alpha.8` | Build safe DMB edit delivery | Exact source, single-track metadata, staged Save, Publish, and edit audit exist |
 | `0.9.0-alpha.9` | Run DMB delivery on Linux | Native headless worker, health, multi-arch image, and VPS runbook exist |
+| `0.9.0-alpha.10` | Make VPS migrations runnable | Backend image includes the SQLAlchemy asyncio runtime dependency |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
@@ -180,6 +181,12 @@ Delivered in `0.9.0-alpha.9`:
 
 This alpha still needs an image build and approved staging submission on the
 target Linux VPS. Delivery flags remain off by default.
+
+Delivered in `0.9.0-alpha.10`:
+
+- The backend image installs the SQLAlchemy asyncio extra required by Alembic.
+- VPS migrations can run from the built backend image before service replacement.
+- A regression test keeps the migration runtime dependency in the image contract.
 
 ### New release workflow
 

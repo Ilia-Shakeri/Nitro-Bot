@@ -10,6 +10,19 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.10] - 2026-10-03
+
+### Fixed
+
+- The backend image now installs the SQLAlchemy asyncio runtime dependency so
+  Alembic migrations can run during VPS deployment.
+- Added a regression check for the backend migration dependency contract.
+
+### Deployment
+
+- This hotfix was found before schema mutation; the database stayed at revision
+  `011` until the corrected image was built.
+
 ## [0.9.0-alpha.9] - 2026-09-20
 
 ### Added
@@ -238,7 +251,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.9...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.10...HEAD
+[0.9.0-alpha.10]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.9...v0.9.0-alpha.10
 [0.9.0-alpha.9]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.8...v0.9.0-alpha.9
 [0.9.0-alpha.8]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.7...v0.9.0-alpha.8
 [0.9.0-alpha.7]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.6...v0.9.0-alpha.7

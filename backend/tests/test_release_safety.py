@@ -23,6 +23,12 @@ from routers.internal import (
 )
 
 
+def test_backend_image_installs_sqlalchemy_asyncio_runtime():
+    requirements = Path(__file__).resolve().parents[1] / "requirements.txt"
+    lines = requirements.read_text(encoding="utf-8").splitlines()
+    assert any(line.startswith("SQLAlchemy[asyncio]") for line in lines)
+
+
 def test_copyright_defaults_off():
     assert Release.copyright_requested.default.arg is False
 
