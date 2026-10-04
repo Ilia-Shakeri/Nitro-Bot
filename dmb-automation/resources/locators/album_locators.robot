@@ -14,6 +14,7 @@ ${AJAX_EXACT_OPTION}           xpath=//table[contains(@class, 'vc-js-ajax-result
 
 ${SALES_START_DATE}            xpath=${CREATE_FORM_XPATH}//input[@name='salesStartDate']
 ${SALES_END_DATE}              xpath=${CREATE_FORM_XPATH}//input[@name='salesEndDate']
+${DATEPICKER}                  xpath=//*[@id='ui-datepicker-div']
 ${PRICE_CODE_SELECT}           xpath=${CREATE_FORM_XPATH}//select[@name='pricecode']
 ${PRICE_CODE_ITUNES_SELECT}    xpath=${CREATE_FORM_XPATH}//select[@name='pricecodeItunes']
 

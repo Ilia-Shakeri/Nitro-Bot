@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.21] - 2026-10-04
+
+### Fixed
+
+- DMB date entry now dismisses the live date picker after value proof so it
+  cannot intercept the following price selection.
+
+### Deployment
+
+- The eighth live no-save preflight accepted both normalized dates, then
+  exposed the still-open date picker over the price field.
+
 ## [0.9.0-alpha.20] - 2026-10-04
 
 ### Fixed
@@ -379,7 +391,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.20...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.21...HEAD
+[0.9.0-alpha.21]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.20...v0.9.0-alpha.21
 [0.9.0-alpha.20]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.19...v0.9.0-alpha.20
 [0.9.0-alpha.19]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.18...v0.9.0-alpha.19
 [0.9.0-alpha.18]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.17...v0.9.0-alpha.18

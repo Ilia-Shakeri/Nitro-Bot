@@ -605,6 +605,9 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
         in album_page
     )
     assert "Should Be Equal As Strings    ${actual_date}    ${date_value}" not in album_page
+    assert "Press Keys    ${locator}    ESC" in album_page
+    assert "Wait Until Element Is Not Visible    ${DATEPICKER}" in album_page
+    assert "${DATEPICKER}                  xpath=//*[@id='ui-datepicker-div']" in locators
     assert "Capture Final Page Source" in album_page
     assert "${OUTPUT DIR}${/}final-state.html" in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page

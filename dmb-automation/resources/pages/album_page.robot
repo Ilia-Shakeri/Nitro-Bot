@@ -113,6 +113,8 @@ Input Date And Confirm
     ${expected_digits}=    Remove String    ${date_value}    .
     ${actual_digits}=    Remove String    ${actual_date}    .
     Should Be Equal As Strings    ${actual_digits}    ${expected_digits}
+    Press Keys    ${locator}    ESC
+    Wait Until Element Is Not Visible    ${DATEPICKER}    timeout=5s
 
 Set Release Dates
     [Arguments]    ${start_date}    ${end_date}
