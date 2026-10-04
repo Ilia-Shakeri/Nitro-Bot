@@ -286,7 +286,9 @@ Verify Review Data
     Review Wizard List Should Contain    track:title    ${title}
     Date Field Should Equal    ${SALES_START_DATE}    ${release_date}
     Date Field Should Equal    ${SALES_END_DATE}    ${expiration_date}
-    Genre Should Be Selected    ${genre}
+    Field Value Should Equal    ${GENRE_INPUT}    ${genre}
+    Review Wizard Value Should Equal    genre    ${genre}
+    Review Wizard Value Should Not Be Empty    genre_id
     ${selected_label}=    Get Selected List Label    ${LABEL_SELECT}
     Should Be Equal As Strings    ${selected_label}    ${label}
     FOR    ${contributor}    IN    @{contributors}
@@ -303,6 +305,11 @@ Review Wizard Value Should Equal
     [Arguments]    ${field}    ${expected}
     ${actual}=    Get Review Wizard Value    ${field}
     Should Be Equal As Strings    ${actual}    ${expected}
+
+Review Wizard Value Should Not Be Empty
+    [Arguments]    ${field}
+    ${actual}=    Get Review Wizard Value    ${field}
+    Should Not Be Empty    ${actual}
 
 Review Wizard List Should Contain
     [Arguments]    ${field}    ${expected}

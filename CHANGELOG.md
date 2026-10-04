@@ -10,6 +10,20 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.43] - 2026-10-04
+
+### Fixed
+
+- Final review checks the visible read-only genre and the committed genre ID
+  in active wizard data. It no longer expects the editable hidden input after
+  DMB removes that input on the last step.
+
+### Deployment
+
+- The alpha.42 live no-save preflight passed EAN, ISRC, title, and date proof,
+  then exposed the review-only genre shape. Database submission state remained
+  unchanged.
+
 ## [0.9.0-alpha.42] - 2026-10-04
 
 ### Fixed
@@ -656,7 +670,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.42...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.43...HEAD
+[0.9.0-alpha.43]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.42...v0.9.0-alpha.43
 [0.9.0-alpha.42]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.41...v0.9.0-alpha.42
 [0.9.0-alpha.41]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.40...v0.9.0-alpha.41
 [0.9.0-alpha.40]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.39...v0.9.0-alpha.40

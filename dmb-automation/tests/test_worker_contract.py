@@ -662,6 +662,8 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Review Wizard List Should Contain    track:isrc" in album_page
     assert "Review Wizard List Should Contain    track:title" in album_page
     assert "Review Wizard List Should Contain    cce_aName" in album_page
+    assert "Review Wizard Value Should Equal    genre" in album_page
+    assert "Review Wizard Value Should Not Be Empty    genre_id" in album_page
     assert "JSON.parse(arguments[0].value)" in album_page
     assert "@name='_wizData'" in locators
     assert "normalize-space()='EAN/UPC'" in locators
