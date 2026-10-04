@@ -24,8 +24,8 @@ Select Album Format And Next
 
 Click Ready Next
     Wait Until Element Is Enabled    ${NEXT_BUTTON}    timeout=30s
-    Scroll Element Into View    ${NEXT_BUTTON}
-    Click Element    ${NEXT_BUTTON}
+    ${next_button}=    Get WebElement    ${NEXT_BUTTON}
+    Execute Javascript    arguments[0].click();    ARGUMENTS    ${next_button}
 
 Generate EAN Code
     Wait Until Element Is Visible    ${GENERATE_EAN_BUTTON}    timeout=20s

@@ -590,6 +590,9 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "ARGUMENTS    ${music_menu}" in album_page
     assert "Execute Javascript    arguments[0].click();" in album_page
     assert "ARGUMENTS    ${create_link}" in album_page
+    assert "${next_button}=    Get WebElement    ${NEXT_BUTTON}" in album_page
+    assert "ARGUMENTS    ${next_button}" in album_page
+    assert "Scroll Element Into View    ${NEXT_BUTTON}" not in album_page
     assert "Cover Upload Should Be Ready" in album_page
     assert "${cover_dir}    ${cover_name}=    Split Path" in album_page
     assert "document.body.innerText.includes(arguments[0])" in album_page

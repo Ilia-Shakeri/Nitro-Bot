@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.27] - 2026-10-04
+
+### Fixed
+
+- DMB Next buttons now activate through their DOM event after readiness proof,
+  avoiding Firefox iframe coordinates outside the headless viewport.
+
+### Deployment
+
+- The fourteenth live no-save preflight restored frame context and found the
+  real Next button, then exposed headless scrolling outside the viewport.
+
 ## [0.9.0-alpha.26] - 2026-10-04
 
 ### Fixed
@@ -451,7 +463,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.26...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.27...HEAD
+[0.9.0-alpha.27]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.26...v0.9.0-alpha.27
 [0.9.0-alpha.26]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.25...v0.9.0-alpha.26
 [0.9.0-alpha.25]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.24...v0.9.0-alpha.25
 [0.9.0-alpha.24]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.23...v0.9.0-alpha.24
