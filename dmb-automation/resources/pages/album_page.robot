@@ -219,6 +219,7 @@ Select All Platforms And Next
     Click Element    ${ALL_PLATFORMS_BUTTON}
     Wait Until Keyword Succeeds    10s    1s    Assigned Platforms Should Exist
     Click Ready Next
+    Wait Until Element Is Not Visible    ${ALL_PLATFORMS_BUTTON}    timeout=60s
     Wait Until Element Is Visible    ${SAVE_BUTTON}    timeout=60s
 
 Assigned Platforms Should Exist

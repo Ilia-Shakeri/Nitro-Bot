@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.33] - 2026-10-04
+
+### Fixed
+
+- Review verification now waits for the live outlet panel to close after the
+  platform Next action instead of accepting the shared Save button.
+
+### Deployment
+
+- The twentieth live no-save preflight proved 37 assigned outlets and exposed
+  the missing asynchronous platform-page transition wait.
+
 ## [0.9.0-alpha.32] - 2026-10-04
 
 ### Fixed
@@ -523,7 +535,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.32...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.33...HEAD
+[0.9.0-alpha.33]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.32...v0.9.0-alpha.33
 [0.9.0-alpha.32]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.31...v0.9.0-alpha.32
 [0.9.0-alpha.31]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.30...v0.9.0-alpha.31
 [0.9.0-alpha.30]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.29...v0.9.0-alpha.30
