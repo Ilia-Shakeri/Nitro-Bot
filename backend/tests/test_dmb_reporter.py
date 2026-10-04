@@ -52,6 +52,10 @@ def test_dmb_report_buttons_are_bound_to_release_and_attempt(monkeypatch, tmp_pa
     assert resume.inline_keyboard[0][0].callback_data == "dmb_resume_8_2"
     assert resume.inline_keyboard[0][0].text == "🔁 تلاش مجدد امن"
 
+    locked_review = SimpleNamespace(id=9)
+    locked_resume = bot._dmb_report_keyboard(locked_review, "review", 3)
+    assert locked_resume.inline_keyboard[0][0].callback_data == "dmb_resume_9_3"
+
 
 def test_dmb_evidence_never_escapes_release_directory(monkeypatch, tmp_path):
     bot = _load_bot(monkeypatch, tmp_path)

@@ -22,7 +22,7 @@ from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.51")
+APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.52")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -741,18 +741,7 @@ def _dmb_report_keyboard(
             text="🔄 تلاش دوباره",
             callback_data=f"dmb_retry_{release.id}_{attempt}",
         )
-    elif (
-        event == "review"
-        and release.status == "dmb_verification_required"
-        and release.dmb_attempts == attempt
-        and not release.is_edit
-        and release.dmb_release_id
-        and release.dmb_ean_upc
-        and release.dmb_isrcs
-        and release.dmb_submission_fingerprint
-        and attempt < DMB_MAX_ATTEMPTS
-        and DMB_RECOVERY_ENABLED
-    ):
+    elif event == "review":
         builder.button(
             text="🔁 تلاش مجدد امن",
             callback_data=f"dmb_resume_{release.id}_{attempt}",
@@ -798,10 +787,21 @@ def _dmb_report_content(
         )
     elif event == "review":
         topic_id = DMB_REVIEW_TOPIC_ID
+        retry_allowed = (
+            release.status == "dmb_verification_required"
+            and release.dmb_attempts == attempt
+            and not release.is_edit
+            and release.dmb_release_id
+            and release.dmb_ean_upc
+            and release.dmb_isrcs
+            and release.dmb_submission_fingerprint
+            and attempt < DMB_MAX_ATTEMPTS
+            and DMB_RECOVERY_ENABLED
+        )
         next_action = (
             "دکمه «تلاش مجدد امن» همان آلبوم ذخیره‌شده را ادامه می‌دهد."
-            if reply_markup is not None
-            else "تلاش مجدد قفل است؛ مدرک هویت آلبوم کامل نیست یا سقف تلاش پر است."
+            if retry_allowed
+            else "دکمه وضعیت را دوباره می‌سنجد؛ اگر قفل باشد دلیل را نشان می‌دهد."
         )
         text = (
             "🟠 بررسی انسانی DMB لازم است\n\n"
