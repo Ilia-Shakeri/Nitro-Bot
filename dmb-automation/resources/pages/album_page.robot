@@ -309,7 +309,8 @@ Review Wizard Value Should Equal
 Review Wizard Value Should Not Be Empty
     [Arguments]    ${field}
     ${actual}=    Get Review Wizard Value    ${field}
-    Should Not Be Empty    ${actual}
+    ${present}=    Evaluate    $actual is not None and str($actual).strip() != ""
+    Should Be True    ${present}    DMB review field is empty: ${field}
 
 Review Wizard List Should Contain
     [Arguments]    ${field}    ${expected}

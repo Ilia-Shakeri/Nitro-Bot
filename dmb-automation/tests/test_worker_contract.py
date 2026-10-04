@@ -540,6 +540,11 @@ def test_robot_flow_contains_attachment_steps():
     assert "    Sleep" not in page
 
 
+def test_runtime_results_are_not_copied_into_images():
+    dockerignore = (ROOT.parent / ".dockerignore").read_text(encoding="utf-8")
+    assert "**/results" in dockerignore.splitlines()
+
+
 def test_edit_flow_targets_source_and_has_two_submit_gates():
     suite = (ROOT / "automation" / "edit_album.robot").read_text(encoding="utf-8")
     page = (ROOT / "resources" / "pages" / "edit_album_page.robot").read_text(
@@ -664,6 +669,7 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Review Wizard List Should Contain    cce_aName" in album_page
     assert "Review Wizard Value Should Equal    genre" in album_page
     assert "Review Wizard Value Should Not Be Empty    genre_id" in album_page
+    assert '$actual is not None and str($actual).strip() != ""' in album_page
     assert "JSON.parse(arguments[0].value)" in album_page
     assert "@name='_wizData'" in locators
     assert "normalize-space()='EAN/UPC'" in locators

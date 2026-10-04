@@ -2,7 +2,7 @@
 
 Nitro Bot uses Semantic Versioning: `MAJOR.MINOR.PATCH`.
 
-Current version: `0.9.0-alpha.43`
+Current version: `0.9.0-alpha.44`
 
 ## Meaning
 

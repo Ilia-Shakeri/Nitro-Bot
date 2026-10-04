@@ -10,6 +10,20 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.44] - 2026-10-04
+
+### Fixed
+
+- Final review accepts a non-empty numeric DMB genre ID as committed state.
+- Runtime screenshots, page sources, and reports are excluded from container
+  build contexts and images.
+
+### Deployment
+
+- The alpha.43 live no-save preflight reached final genre proof and returned
+  the committed numeric genre ID. Database submission state remained
+  unchanged.
+
 ## [0.9.0-alpha.43] - 2026-10-04
 
 ### Fixed
@@ -670,7 +684,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.43...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.44...HEAD
+[0.9.0-alpha.44]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.43...v0.9.0-alpha.44
 [0.9.0-alpha.43]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.42...v0.9.0-alpha.43
 [0.9.0-alpha.42]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.41...v0.9.0-alpha.42
 [0.9.0-alpha.41]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.40...v0.9.0-alpha.41
