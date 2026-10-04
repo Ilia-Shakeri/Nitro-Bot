@@ -611,6 +611,8 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${DATEPICKER}                  xpath=//*[@id='ui-datepicker-div']" in locators
     assert "Capture Final Page Source" in album_page
     assert "${OUTPUT DIR}${/}final-state.html" in album_page
+    assert "return document.documentElement.outerHTML;" in album_page
+    assert "${source}=    Get Source" not in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page

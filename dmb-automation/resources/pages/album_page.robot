@@ -241,5 +241,5 @@ Capture Failure Evidence And Close Browser
     Run Keyword And Ignore Error    Close Browser Session
 
 Capture Final Page Source
-    ${source}=    Get Source
+    ${source}=    Execute Javascript    return document.documentElement.outerHTML;
     Create File    ${OUTPUT DIR}${/}final-state.html    ${source}

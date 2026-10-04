@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.23`
+Current release: `0.9.0-alpha.24`
 
 Target release: `1.0.0`
 
@@ -39,6 +39,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.21` | Close DMB date picker | Date entry dismisses its calendar before price selection |
 | `0.9.0-alpha.22` | Set hidden DMB roles | Contributor roles update through the hidden select state and change event |
 | `0.9.0-alpha.23` | Drop stale contributor toggle | Create follows the live form where album contributors carry forward without the removed checkbox |
+| `0.9.0-alpha.24` | Capture live iframe DOM | Failure evidence records the active DMB form instead of only the outer shell |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
