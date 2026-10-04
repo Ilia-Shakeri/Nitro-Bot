@@ -280,17 +280,34 @@ Assigned Platforms Should Exist
 Verify Review Data
     [Arguments]    ${title}    ${ean}    ${isrc}    ${release_date}    ${expiration_date}    ${genre}    ${label}    ${contributors}
     Field Value Should Equal    ${TITLE_INPUT}    ${title}
-    Field Value Should Equal    ${EAN_INPUT}    ${ean}
-    ${review_isrc}=    Get Generated ISRC
-    Should Be Equal As Strings    ${review_isrc}    ${isrc}
+    Field Value Should Equal    ${REVIEW_EAN_INPUT}    ${ean}
+    Review Wizard Value Should Equal    eanUpc    ${ean}
+    Review Wizard List Should Contain    track:isrc    ${isrc}
+    Review Wizard List Should Contain    track:title    ${title}
     Date Field Should Equal    ${SALES_START_DATE}    ${release_date}
     Date Field Should Equal    ${SALES_END_DATE}    ${expiration_date}
     Genre Should Be Selected    ${genre}
     ${selected_label}=    Get Selected List Label    ${LABEL_SELECT}
     Should Be Equal As Strings    ${selected_label}    ${label}
     FOR    ${contributor}    IN    @{contributors}
-        Page Should Contain    ${contributor}[name]
+        Review Wizard List Should Contain    cce_aName    ${contributor}[name]
     END
+
+Get Review Wizard Value
+    [Arguments]    ${field}
+    ${wizard_data}=    Get WebElement    ${REVIEW_WIZARD_DATA}
+    ${value}=    Execute Javascript    const data = JSON.parse(arguments[0].value); return data[arguments[1]] ?? '';    ARGUMENTS    ${wizard_data}    ${field}
+    RETURN    ${value}
+
+Review Wizard Value Should Equal
+    [Arguments]    ${field}    ${expected}
+    ${actual}=    Get Review Wizard Value    ${field}
+    Should Be Equal As Strings    ${actual}    ${expected}
+
+Review Wizard List Should Contain
+    [Arguments]    ${field}    ${expected}
+    ${actual}=    Get Review Wizard Value    ${field}
+    Should Contain    ${actual}    ${expected}
 
 Submission Should Be Confirmed
     [Arguments]    ${before_url}

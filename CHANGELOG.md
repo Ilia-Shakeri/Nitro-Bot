@@ -10,6 +10,21 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.42] - 2026-10-04
+
+### Fixed
+
+- Final no-save review now reads the live read-only EAN field instead of the
+  earlier editable field, which DMB removes on the last wizard step.
+- Final review verifies EAN, ISRC, track title, and contributors from DMB's
+  active serialized wizard state before any submit action can run.
+
+### Deployment
+
+- The alpha.41 live no-save preflight reached the final review with correct
+  title, EAN, genre, label, dates, prices, copyright, contributor, track,
+  territory, and platform data. Database submission state remained unchanged.
+
 ## [0.9.0-alpha.41] - 2026-10-04
 
 ### Fixed
@@ -641,7 +656,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.41...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.42...HEAD
+[0.9.0-alpha.42]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.41...v0.9.0-alpha.42
 [0.9.0-alpha.41]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.40...v0.9.0-alpha.41
 [0.9.0-alpha.40]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.39...v0.9.0-alpha.40
 [0.9.0-alpha.39]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.38...v0.9.0-alpha.39

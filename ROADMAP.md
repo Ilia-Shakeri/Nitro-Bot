@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.41`
+Current release: `0.9.0-alpha.42`
 
 Target release: `1.0.0`
 
@@ -57,6 +57,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.39` | Traverse live genre tree | Expand the parent and select the child radio from the DMB taxonomy |
 | `0.9.0-alpha.40` | Wait for genre taxonomy | Parent expansion retries until the nested chooser finishes rendering |
 | `0.9.0-alpha.41` | Verify normalized dates | Date checks accept the two live DMB display forms but reject empty state |
+| `0.9.0-alpha.42` | Verify final DMB review | Read the live read-only review fields and serialized wizard data before submit |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

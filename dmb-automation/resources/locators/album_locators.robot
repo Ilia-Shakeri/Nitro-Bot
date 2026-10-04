@@ -40,4 +40,6 @@ ${ALL_PLATFORMS_BUTTON}        xpath=//a[@title='Add all to right side']
 ${ASSIGNED_PLATFORMS}          xpath=//select[contains(concat(' ', normalize-space(@class), ' '), ' assigned ')]/option
 ${LOADING_OVERLAY}             id=vc_loading_layer_overlay
 ${SAVE_BUTTON}                 xpath=${CREATE_FORM_XPATH}//button[normalize-space()='Save & View Audio Product']
+${REVIEW_EAN_INPUT}            xpath=${CREATE_FORM_XPATH}//label[normalize-space()='EAN/UPC']/following::input[1]
+${REVIEW_WIZARD_DATA}          xpath=${CREATE_FORM_XPATH}//input[@name='_wizData']
 ${SUBMISSION_SUCCESS}          xpath=//*[contains(@class,'success') and (contains(normalize-space(.),'created') or contains(normalize-space(.),'saved'))]

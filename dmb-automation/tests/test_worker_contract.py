@@ -656,6 +656,15 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${JOB}[expiration_date]" in create_suite
     assert "Date Field Should Equal    ${SALES_START_DATE}" in album_page
     assert "Date Field Should Equal    ${SALES_END_DATE}" in album_page
+    assert "${REVIEW_EAN_INPUT}" in album_page
+    assert "${REVIEW_WIZARD_DATA}" in album_page
+    assert "Review Wizard Value Should Equal    eanUpc" in album_page
+    assert "Review Wizard List Should Contain    track:isrc" in album_page
+    assert "Review Wizard List Should Contain    track:title" in album_page
+    assert "Review Wizard List Should Contain    cce_aName" in album_page
+    assert "JSON.parse(arguments[0].value)" in album_page
+    assert "@name='_wizData'" in locators
+    assert "normalize-space()='EAN/UPC'" in locators
     assert "Page Should Contain    ${title}" not in album_page
     assert "Page Should Contain    ${ean}" not in album_page
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
