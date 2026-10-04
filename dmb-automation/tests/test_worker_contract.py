@@ -818,6 +818,8 @@ def test_publish_recovery_suite_cannot_create_or_save_an_album():
     assert "SAVE_BUTTON" not in suite
     assert "${CREATED_ALBUM_FORM_XPATH}" in locators
     assert "xpath=${CREATED_ALBUM_FORM}//" not in locators
+    assert "input[@name='ean']" in locators
+    assert "input[@name='ean' and @readonly]" not in locators
 
 
 def test_edit_locators_compose_bare_xpath_roots():
@@ -833,6 +835,8 @@ def test_edit_locators_compose_bare_xpath_roots():
     assert "xpath=${TRACK_EDIT_FORM}//" not in locators
     assert "xpath=(${EDIT_CONTRIBUTOR_ROW}//" not in locators
     assert "xpath=(${TRACK_EDIT_CONTRIBUTOR_ROW}//" not in locators
+    assert "input[@name='ean']" in locators
+    assert "input[@name='ean' and @readonly]" not in locators
 
 
 def test_preflight_evidence_is_explicitly_not_submitted(tmp_path):

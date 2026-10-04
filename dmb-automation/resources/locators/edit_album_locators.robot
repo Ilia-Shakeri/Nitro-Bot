@@ -2,7 +2,7 @@
 ${EDIT_IFRAME}                 xpath=//iframe[contains(@src, '/page/album/')]
 ${EDIT_FORM_XPATH}             //form[.//input[@name='editMode']]
 ${EDIT_FORM}                   xpath=${EDIT_FORM_XPATH}
-${EDIT_EAN}                    xpath=${EDIT_FORM_XPATH}//input[@name='ean' and @readonly]
+${EDIT_EAN}                    xpath=${EDIT_FORM_XPATH}//input[@name='ean']
 ${EDIT_TITLE}                  xpath=${EDIT_FORM_XPATH}//input[@name='title']
 ${EDIT_LANGUAGE}               xpath=${EDIT_FORM_XPATH}//select[@name='language']
 ${EDIT_LABEL}                  xpath=${EDIT_FORM_XPATH}//select[@name='label_id']

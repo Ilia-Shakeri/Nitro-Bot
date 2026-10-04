@@ -10,6 +10,14 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.48] - 2026-10-04
+
+### Fixed
+
+- Saved-album identity checks read the live `ean` input without assuming DMB
+  marks it readonly.
+- The same live EAN locator is shared by create recovery and album edit.
+
 ## [0.9.0-alpha.47] - 2026-10-04
 
 ### Added
@@ -25,6 +33,12 @@ Versioning and release states follow `RELEASE_POLICY.md`.
   contributor locators no longer create invalid nested locator prefixes.
 - Recovery and normal create publication use DOM scrolling and clicking for
   the Publish action in headless Firefox.
+
+### Deployment
+
+- Recovery opened exact album `2255903` and found the expected edit form. It
+  stopped before Publish because the live EAN input is editable, not readonly.
+  DOM evidence confirmed its value matches release 11's checkpoint.
 
 ## [0.9.0-alpha.46] - 2026-10-04
 
@@ -738,7 +752,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.47...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.48...HEAD
+[0.9.0-alpha.48]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.47...v0.9.0-alpha.48
 [0.9.0-alpha.47]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.46...v0.9.0-alpha.47
 [0.9.0-alpha.46]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.45...v0.9.0-alpha.46
 [0.9.0-alpha.45]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.44...v0.9.0-alpha.45

@@ -46,6 +46,6 @@ ${SUBMISSION_SUCCESS}          xpath=//*[contains(@class,'success') and (contain
 ${CREATED_ALBUM_IFRAME}        xpath=//iframe[contains(@src, '/page/album/')]
 ${CREATED_ALBUM_FORM_XPATH}    //form[.//input[@name='editMode']]
 ${CREATED_ALBUM_FORM}          xpath=${CREATED_ALBUM_FORM_XPATH}
-${CREATED_ALBUM_EAN}           xpath=${CREATED_ALBUM_FORM_XPATH}//input[@name='ean' and @readonly]
+${CREATED_ALBUM_EAN}           xpath=${CREATED_ALBUM_FORM_XPATH}//input[@name='ean']
 ${CREATE_PUBLISH_ACTION}       xpath=//a[contains(@onclick,'"action":"publish"')]
 ${PUBLICATION_SUCCESS}         xpath=//*[contains(@class,'success') and contains(normalize-space(.),'published')]

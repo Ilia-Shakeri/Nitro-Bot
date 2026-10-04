@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.47`
+Current release: `0.9.0-alpha.48`
 
 Target release: `1.0.0`
 
@@ -63,6 +63,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.45` | Prove targeted live publication | Claim one exact release, save it, verify its identity, and publish it |
 | `0.9.0-alpha.46` | Fix headless Save click | Center and activate the final create action without viewport pointer movement |
 | `0.9.0-alpha.47` | Recover saved create safely | Publish one exact saved album from its durable checkpoint without creating a duplicate |
+| `0.9.0-alpha.48` | Match saved-album EAN | Verify the editable live EAN field before Publish without assuming readonly markup |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
