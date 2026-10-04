@@ -65,9 +65,7 @@ Select DMB Genre
     [Arguments]    ${dmb_genre}
     Wait Until Element Is Visible    ${GENRE_INPUT}    timeout=20s
     Input Text    ${GENRE_INPUT}    ${dmb_genre}
-    ${genre_option}=    Replace String    ${AJAX_EXACT_OPTION}    __VALUE__    ${dmb_genre}
-    Wait Until Element Is Visible    ${genre_option}    timeout=20s
-    Click Element    ${genre_option}
+    Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}    ${dmb_genre}
     Wait Until Keyword Succeeds    10s    1s    Genre Should Be Selected    ${dmb_genre}
 
 Genre Should Be Selected
@@ -79,9 +77,23 @@ Fill Ajax Value
     [Arguments]    ${locator}    ${value}
     Wait Until Element Is Visible    ${locator}    timeout=20s
     Input Text    ${locator}    ${value}
+    Choose Ajax Result Or Confirm Text    ${locator}    ${value}
+    Wait Until Keyword Succeeds    10s    1s    Field Value Should Equal    ${locator}    ${value}
+
+Choose Ajax Result Or Confirm Text
+    [Arguments]    ${locator}    ${value}
     ${exact_option}=    Replace String    ${AJAX_EXACT_OPTION}    __VALUE__    ${value}
-    Wait Until Element Is Visible    ${exact_option}    timeout=20s
-    Click Element    ${exact_option}
+    ${option_visible}=    Run Keyword And Return Status    Wait Until Element Is Visible    ${exact_option}    timeout=3s
+    IF    ${option_visible}
+        Click Element    ${exact_option}
+    ELSE
+        Press Keys    ${locator}    TAB
+    END
+
+Field Value Should Equal
+    [Arguments]    ${locator}    ${value}
+    ${actual}=    Get Value    ${locator}
+    Should Be Equal As Strings    ${actual}    ${value}
 
 Set Label
     [Arguments]    ${label}

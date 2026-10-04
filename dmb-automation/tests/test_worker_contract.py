@@ -590,8 +590,12 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${cover_dir}    ${cover_name}=    Split Path" in album_page
     assert "document.body.innerText.includes(arguments[0])" in album_page
     assert "Cover Input Should Have File" not in album_page
+    assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
+    assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
+    assert "Press Keys    ${locator}    TAB" in album_page
+    assert "Field Value Should Equal" in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page
-    assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 3
+    assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC" not in album_page
     assert "Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}" in album_page
