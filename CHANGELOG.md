@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.40] - 2026-10-04
+
+### Fixed
+
+- Genre parent expansion now retries until the nested taxonomy finishes its
+  asynchronous render.
+
+### Deployment
+
+- The alpha.39 live no-save preflight entered the chooser before its tree nodes
+  were ready. Database submission state remained unchanged.
+
 ## [0.9.0-alpha.39] - 2026-10-04
 
 ### Fixed
@@ -615,7 +627,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.39...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.40...HEAD
+[0.9.0-alpha.40]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.39...v0.9.0-alpha.40
 [0.9.0-alpha.39]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.38...v0.9.0-alpha.39
 [0.9.0-alpha.38]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.37...v0.9.0-alpha.38
 [0.9.0-alpha.37]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.36...v0.9.0-alpha.37

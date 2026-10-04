@@ -82,7 +82,7 @@ Select Genre From Picker
     IF    ${has_parent}
         ${tree_value}=    Evaluate    $dmb_genre.rsplit(" [", 1)[0]
         ${tree_parent}=    Evaluate    $dmb_genre.rsplit(" [", 1)[1][:-1]
-        Expand Genre Tree Parent    ${tree_parent}
+        Wait Until Keyword Succeeds    20s    500ms    Expand Genre Tree Parent    ${tree_parent}
         Wait Until Keyword Succeeds    10s    500ms    Select Genre Tree Value    ${tree_value}
     ELSE
         Wait Until Keyword Succeeds    10s    500ms    Select Genre Tree Value    ${dmb_genre}
