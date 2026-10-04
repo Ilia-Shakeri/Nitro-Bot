@@ -195,12 +195,16 @@ Fill Track Info And Generate ISRC
     Wait Until Element Is Visible    ${TRACK_TITLE_INPUT}    timeout=20s
     Input Text    ${TRACK_TITLE_INPUT}    ${track_title}
     Press Keys    ${TRACK_TITLE_INPUT}    TAB
-    ${isrc}=    Get Value    ${TRACK_ISRC_INPUT}
+    ${isrc}=    Get Generated ISRC
     RETURN    ${isrc}
 
 ISRC Should Be Generated
-    ${isrc}=    Get Value    ${TRACK_ISRC_INPUT}
+    ${isrc}=    Get Generated ISRC
     Should Match Regexp    ${isrc}    ^[A-Za-z0-9-]{8,20}$
+
+Get Generated ISRC
+    ${isrc}=    Execute Javascript    return Array.from(document.querySelectorAll("input[name='track:isrc[]']")).map((element) => element.value.trim()).find(Boolean) || "";
+    RETURN    ${isrc}
 
 Continue To Territory Page
     Click Ready Next
