@@ -88,7 +88,8 @@ Choose Ajax Result Or Confirm Text
     IF    ${option_visible}
         Click Element    ${exact_option}
     ELSE
-        Press Keys    ${locator}    TAB
+        Press Keys    ${locator}    ARROW_DOWN
+        Press Keys    ${locator}    ENTER
     END
 
 Field Value Should Equal
@@ -236,4 +237,9 @@ Submit Album And Verify Success
 
 Capture Failure Evidence And Close Browser
     Run Keyword And Ignore Error    Capture Page Screenshot    ${OUTPUT DIR}${/}final-state.png
+    Run Keyword And Ignore Error    Capture Final Page Source
     Run Keyword And Ignore Error    Close Browser Session
+
+Capture Final Page Source
+    ${source}=    Get Source
+    Create File    ${OUTPUT DIR}${/}final-state.html    ${source}

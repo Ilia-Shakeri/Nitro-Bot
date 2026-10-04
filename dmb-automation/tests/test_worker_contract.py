@@ -595,8 +595,11 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Cover Input Should Have File" not in album_page
     assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
-    assert "Press Keys    ${locator}    TAB" in album_page
+    assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
+    assert "Press Keys    ${locator}    ENTER" in album_page
     assert "Field Value Should Equal" in album_page
+    assert "Capture Final Page Source" in album_page
+    assert "${OUTPUT DIR}${/}final-state.html" in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page
