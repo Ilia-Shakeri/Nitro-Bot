@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.27`
+Current release: `0.9.0-alpha.28`
 
 Target release: `1.0.0`
 
@@ -43,6 +43,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.25` | Pin pre-navigation form DOM | Filled album-form evidence is retained before DMB changes browsing context |
 | `0.9.0-alpha.26` | Restore DMB frame context | Contributor refresh returns automation to the live album iframe before navigation |
 | `0.9.0-alpha.27` | Click deep DMB navigation | Next buttons activate through their DOM event when Firefox cannot move to iframe coordinates |
+| `0.9.0-alpha.28` | Prove consumed track upload | Track upload proof uses the rendered filename after DMB clears the file input |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

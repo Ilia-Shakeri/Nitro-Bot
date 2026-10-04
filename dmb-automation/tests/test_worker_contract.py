@@ -597,6 +597,10 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${cover_dir}    ${cover_name}=    Split Path" in album_page
     assert "document.body.innerText.includes(arguments[0])" in album_page
     assert "Cover Input Should Have File" not in album_page
+    assert "Track Upload Should Be Ready" in album_page
+    assert "${music_dir}    ${music_name}=    Split Path" in album_page
+    assert album_page.count("document.body.innerText.includes(arguments[0])") == 2
+    assert "Track Input Should Have File" not in album_page
     assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page

@@ -178,12 +178,14 @@ Open Add Tracks
 Upload Track
     [Arguments]    ${music_path}
     File Should Exist    ${music_path}    msg=Music file not found: ${music_path}
+    ${music_dir}    ${music_name}=    Split Path    ${music_path}
     Choose File    ${TRACK_FILE_INPUT}    ${music_path}
-    Wait Until Keyword Succeeds    60s    1s    Track Input Should Have File
+    Wait Until Keyword Succeeds    60s    1s    Track Upload Should Be Ready    ${music_name}
 
-Track Input Should Have File
-    ${value}=    Get Value    ${TRACK_FILE_INPUT}
-    Should Not Be Empty    ${value}
+Track Upload Should Be Ready
+    [Arguments]    ${music_name}
+    ${ready}=    Execute Javascript    return document.body.innerText.includes(arguments[0]) || Array.from(document.querySelectorAll('input')).some((element) => element.value.endsWith(arguments[0]));    ARGUMENTS    ${music_name}
+    Should Be True    ${ready}    Track filename is not visible after upload
 
 Fill Track Info And Generate ISRC
     [Arguments]    ${track_title}
