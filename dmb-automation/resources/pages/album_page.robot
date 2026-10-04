@@ -66,13 +66,25 @@ Select DMB Genre
     [Arguments]    ${dmb_genre}
     Wait Until Element Is Visible    ${GENRE_INPUT}    timeout=20s
     Input Text    ${GENRE_INPUT}    ${dmb_genre}
-    Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}    ${dmb_genre}
+    ${choice_clicked}=    Run Keyword And Return Status    Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
+    IF    not ${choice_clicked}
+        ${genre_picker}=    Get WebElement    ${GENRE_PICKER}
+        Execute Javascript    arguments[0].click();    ARGUMENTS    ${genre_picker}
+        Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
+    END
     Wait Until Keyword Succeeds    10s    1s    Genre Should Be Selected    ${dmb_genre}
+
+Click Visible Exact Choice
+    [Arguments]    ${value}
+    ${clicked}=    Execute Javascript    const value = arguments[0]; const nodes = Array.from(document.querySelectorAll('td, li, a, button, span, div')); const choice = nodes.find((node) => node.offsetParent !== null && node.textContent.trim() === value && !Array.from(node.children).some((child) => child.textContent.trim() === value)); if (!choice) { return false; } choice.click(); return true;    ARGUMENTS    ${value}
+    Should Be True    ${clicked}    Exact DMB choice not visible: ${value}
 
 Genre Should Be Selected
     [Arguments]    ${dmb_genre}
     ${value}=    Get Value    ${GENRE_INPUT}
+    ${genre_id}=    Get Value    ${GENRE_ID_INPUT}
     Should Be Equal As Strings    ${value}    ${dmb_genre}
+    Should Not Be Empty    ${genre_id}    DMB genre ID was not committed
 
 Fill Ajax Value
     [Arguments]    ${locator}    ${value}
@@ -106,14 +118,9 @@ Set Label
 Input Date And Confirm
     [Arguments]    ${locator}    ${date_value}
     Wait Until Element Is Visible    ${locator}    timeout=20s
-    Press Keys    ${locator}    CTRL+A
-    Input Text    ${locator}    ${date_value}
-    Press Keys    ${locator}    TAB
-    ${actual_date}=    Get Value    ${locator}
-    ${expected_digits}=    Remove String    ${date_value}    .
-    ${actual_digits}=    Remove String    ${actual_date}    .
-    Should Be Equal As Strings    ${actual_digits}    ${expected_digits}
-    Press Keys    ${locator}    ESC
+    ${date_input}=    Get WebElement    ${locator}
+    ${actual_date}=    Execute Javascript    const element = arguments[0]; const value = arguments[1]; const parts = value.split('.').map(Number); if (window.jQuery && window.jQuery.fn.datepicker) { window.jQuery(element).datepicker('setDate', new Date(parts[2], parts[1] - 1, parts[0])); window.jQuery(element).trigger('input').trigger('change'); } else { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); } element.blur(); return element.value;    ARGUMENTS    ${date_input}    ${date_value}
+    Should Be Equal As Strings    ${actual_date}    ${date_value}
     Wait Until Element Is Not Visible    ${DATEPICKER}    timeout=5s
 
 Set Release Dates
@@ -229,13 +236,18 @@ Assigned Platforms Should Exist
     Should Be True    ${count} > 0    No assigned DMB outlets found
 
 Verify Review Data
-    [Arguments]    ${title}    ${ean}    ${isrc}    ${release_date}    ${genre}    ${label}    ${contributors}
-    Page Should Contain    ${title}
-    Page Should Contain    ${ean}
-    Page Should Contain    ${isrc}
-    Page Should Contain    ${release_date}
-    Page Should Contain    ${genre}
-    Page Should Contain    ${label}
+    [Arguments]    ${title}    ${ean}    ${isrc}    ${release_date}    ${expiration_date}    ${genre}    ${label}    ${contributors}
+    Field Value Should Equal    ${TITLE_INPUT}    ${title}
+    Field Value Should Equal    ${EAN_INPUT}    ${ean}
+    ${review_isrc}=    Get Generated ISRC
+    Should Be Equal As Strings    ${review_isrc}    ${isrc}
+    ${dmb_release_date}=    Format Dmb Date    ${release_date}
+    ${dmb_expiration_date}=    Format Dmb Date    ${expiration_date}
+    Field Value Should Equal    ${SALES_START_DATE}    ${dmb_release_date}
+    Field Value Should Equal    ${SALES_END_DATE}    ${dmb_expiration_date}
+    Genre Should Be Selected    ${genre}
+    ${selected_label}=    Get Selected List Label    ${LABEL_SELECT}
+    Should Be Equal As Strings    ${selected_label}    ${label}
     FOR    ${contributor}    IN    @{contributors}
         Page Should Contain    ${contributor}[name]
     END

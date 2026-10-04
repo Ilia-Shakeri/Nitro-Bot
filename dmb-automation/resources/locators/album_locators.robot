@@ -9,6 +9,8 @@ ${COVER_FILE_INPUT}            xpath=${CREATE_FORM_XPATH}//input[@type='file' an
 ${TITLE_INPUT}                 xpath=${CREATE_FORM_XPATH}//input[@name='title']
 ${LANGUAGE_SELECT}             xpath=${CREATE_FORM_XPATH}//select[@name='language']
 ${GENRE_INPUT}                 xpath=${CREATE_FORM_XPATH}//input[@name='genre']
+${GENRE_ID_INPUT}              xpath=${CREATE_FORM_XPATH}//input[@name='genre_id']
+${GENRE_PICKER}                xpath=${GENRE_INPUT}/following-sibling::*[name()='svg' and contains(@class, 'dmb-icon--extract')]
 ${LABEL_SELECT}                xpath=${CREATE_FORM_XPATH}//select[@name='label']
 ${AJAX_EXACT_OPTION}           xpath=//table[contains(@class, 'vc-js-ajax-result-list')]//td[normalize-space()="__VALUE__"]
 

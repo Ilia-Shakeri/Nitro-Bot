@@ -618,19 +618,19 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Wait Until Element Is Not Visible    ${ALL_PLATFORMS_BUTTON}" in album_page
     assert "${LOADING_OVERLAY}             id=vc_loading_layer_overlay" in locators
     assert album_page.count("Wait Until Element Is Not Visible    ${LOADING_OVERLAY}") == 2
-    assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
+    assert "Click Visible Exact Choice    ${dmb_genre}" in album_page
+    assert "${GENRE_ID_INPUT}" in album_page
+    assert "DMB genre ID was not committed" in album_page
+    assert "${GENRE_PICKER}" in album_page
+    assert "@name='genre_id'" in locators
+    assert "dmb-icon--extract" in locators
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
     assert "Press Keys    ${locator}    ENTER" in album_page
     assert "Field Value Should Equal" in album_page
-    assert "${expected_digits}=    Remove String    ${date_value}    ." in album_page
-    assert "${actual_digits}=    Remove String    ${actual_date}    ." in album_page
-    assert (
-        "Should Be Equal As Strings    ${actual_digits}    ${expected_digits}"
-        in album_page
-    )
-    assert "Should Be Equal As Strings    ${actual_date}    ${date_value}" not in album_page
-    assert "Press Keys    ${locator}    ESC" in album_page
+    assert "window.jQuery(element).datepicker('setDate'" in album_page
+    assert "window.jQuery(element).trigger('input').trigger('change')" in album_page
+    assert "Should Be Equal As Strings    ${actual_date}    ${date_value}" in album_page
     assert "Wait Until Element Is Not Visible    ${DATEPICKER}" in album_page
     assert "${DATEPICKER}                  xpath=//*[@id='ui-datepicker-div']" in locators
     assert "Capture Final Page Source" in album_page
@@ -643,6 +643,11 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "return document.documentElement.outerHTML;" in album_page
     assert "${source}=    Get Source" not in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page
+    assert "${JOB}[expiration_date]" in create_suite
+    assert "${dmb_expiration_date}=    Format Dmb Date" in album_page
+    assert "Field Value Should Equal    ${SALES_END_DATE}" in album_page
+    assert "Page Should Contain    ${title}" not in album_page
+    assert "Page Should Contain    ${ean}" not in album_page
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC" not in album_page

@@ -74,6 +74,7 @@ Then User Verifies Album
     ...    ${EAN}
     ...    ${ISRC}
     ...    ${JOB}[release_date]
+    ...    ${JOB}[expiration_date]
     ...    ${JOB}[dmb_genre]
     ...    ${JOB}[label]
     ...    ${JOB}[contributors]
