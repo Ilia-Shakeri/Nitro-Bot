@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.23] - 2026-10-04
+
+### Fixed
+
+- The create flow no longer waits for the removed `contributors2tracks`
+  checkbox; the live form carries album contributors into the next step.
+
+### Deployment
+
+- The tenth live no-save preflight proved exact Performer selection, then
+  exposed the removed legacy contributor checkbox.
+
 ## [0.9.0-alpha.22] - 2026-10-04
 
 ### Fixed
@@ -403,7 +415,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.22...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.23...HEAD
+[0.9.0-alpha.23]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.22...v0.9.0-alpha.23
 [0.9.0-alpha.22]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.21...v0.9.0-alpha.22
 [0.9.0-alpha.21]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.20...v0.9.0-alpha.21
 [0.9.0-alpha.20]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.19...v0.9.0-alpha.20

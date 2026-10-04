@@ -532,9 +532,10 @@ def test_robot_flow_contains_attachment_steps():
         "Select Worldwide And Next",
         "Select All Platforms And Next",
         "Verify Review Data",
-        "Apply Contributors To Tracks",
     ):
         assert step in suite or step in page
+    assert "Apply Contributors To Tracks" not in suite
+    assert "contributors2tracks" not in locators
     assert "Save & View Audio Product" in locators
     assert "    Sleep" not in page
 

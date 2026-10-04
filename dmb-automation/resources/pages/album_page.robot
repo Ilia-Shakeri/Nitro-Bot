@@ -163,10 +163,6 @@ Keep Only Performer Role
     Should Be Equal As Integers    ${role_count}    1
     Should Be Equal As Strings    ${selected_roles}[0]    Performer
 
-Apply Contributors To Tracks
-    Select Checkbox    ${APPLY_CONTRIBUTORS_TO_TRACKS}
-    Checkbox Should Be Selected    ${APPLY_CONTRIBUTORS_TO_TRACKS}
-
 Open Add Tracks
     Wait Until Page Contains Element    ${TRACK_FILE_INPUT}    timeout=30s
 

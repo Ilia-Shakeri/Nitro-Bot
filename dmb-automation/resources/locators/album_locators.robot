@@ -26,7 +26,6 @@ ${P_LINE_TEXT}                 xpath=${CREATE_FORM_XPATH}//input[@name='p_line_t
 ${CONTRIBUTOR_NAME_INPUT}      xpath=${CREATE_FORM_XPATH}//input[@name='newArtist']
 ${CONTRIBUTOR_ROLES_SELECT}    xpath=(${CREATE_FORM_XPATH}//select[@name='cce_roles[][]'])[last()]
 ${ADD_CONTRIBUTOR_BUTTON}      xpath=${CREATE_FORM_XPATH}//button[contains(@class, 'dmb-js-cce__add-btn')]
-${APPLY_CONTRIBUTORS_TO_TRACKS}    xpath=${CREATE_FORM_XPATH}//input[@name='contributors2tracks']
 
 ${ADD_TRACKS_BUTTON}           xpath=//*[self::button or self::a][normalize-space()='Add Tracks']
 ${TRACK_FILE_INPUT}            xpath=//input[@type='file' and not(contains(@accept,'image'))]
