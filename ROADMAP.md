@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.50`
+Current release: `0.9.0-alpha.51`
 
 Target release: `1.0.0`
 
@@ -66,6 +66,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.48` | Match saved-album EAN | Verify the editable live EAN field before Publish without assuming readonly markup |
 | `0.9.0-alpha.49` | Report and recover DMB jobs | Route success, error, and review proof to Telegram; let staff retry only safe work or resume one exact saved album |
 | `0.9.0-alpha.50` | Complete DMB operator reports | Send distinct useful reports without build versions, include final full-page proof, and expose safe review retry controls |
+| `0.9.0-alpha.51` | Lock success proof | Accept only the full final page or a legacy published-page image as success proof |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

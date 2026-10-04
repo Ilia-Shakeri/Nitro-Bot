@@ -22,7 +22,7 @@ from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.50")
+APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.51")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -669,14 +669,14 @@ def _dmb_evidence_image(
         return None
     candidates = []
     if base.is_file():
-        candidates.append(base)
+        if event != "success" or base.name in {"final-page-full.png", "published.png"}:
+            candidates.append(base)
     else:
         candidates.extend(
             [
                 base / "recovery" / "final-page-full.png",
                 base / "final-page-full.png",
                 base / "recovery" / "published.png",
-                base / "submitted.png",
                 base / "final-state.png",
                 base / "recovery" / "final-state.png",
             ]
@@ -696,7 +696,6 @@ def _dmb_evidence_image(
             priority = {
                 "final-page-full.png": 3,
                 "published.png": 2,
-                "submitted.png": 1,
             }
             candidates = [item for item in candidates if item.name in priority]
             candidates = sorted(

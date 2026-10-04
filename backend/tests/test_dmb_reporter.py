@@ -119,6 +119,9 @@ def test_success_report_only_accepts_final_success_image(monkeypatch, tmp_path):
         b"\x89PNG\r\n\x1a\n" + b"x" * 200
     )
     assert bot._dmb_evidence_image("results/21", 21, "success") is None
+    assert bot._dmb_evidence_image(
+        "results/21/final-state.png", 21, "success"
+    ) is None
     final_image = release_dir / "final-page-full.png"
     final_image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"y" * 200)
     evidence = bot._dmb_evidence_image("results/21", 21, "success")
