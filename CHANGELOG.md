@@ -10,6 +10,25 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.49] - 2026-10-04
+
+### Added
+
+- DMB success, error, and manual-review reports go through the durable
+  notification outbox to three dedicated Telegram topics.
+- Failure reports attach bounded release evidence and carry an admin-only retry
+  button when no remote submission can exist.
+- Saved album identity is checkpointed after Save. Review reports can request
+  exact-album publication recovery without running the create wizard again.
+
+### Safety
+
+- Topic delivery fails closed and never falls back into the group General topic.
+- Retry and recovery buttons bind release ID plus attempt number, check staff
+  access, lock the row, reject stale clicks, and write an audit record.
+- Recovery needs the exact DMB ID, EAN, ISRC, and submission fingerprint. An
+  open create circuit permits recovery only; it cannot claim fresh create work.
+
 ## [0.9.0-alpha.48] - 2026-10-04
 
 ### Fixed
@@ -752,7 +771,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.48...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.49...HEAD
+[0.9.0-alpha.49]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.48...v0.9.0-alpha.49
 [0.9.0-alpha.48]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.47...v0.9.0-alpha.48
 [0.9.0-alpha.47]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.46...v0.9.0-alpha.47
 [0.9.0-alpha.46]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.45...v0.9.0-alpha.46

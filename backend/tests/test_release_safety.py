@@ -395,6 +395,7 @@ def test_dmb_preflight_endpoint_is_read_only_and_review_protected():
 @pytest.mark.asyncio
 async def test_manual_verification_completion_is_audited():
     release = SimpleNamespace(
+        id=42,
         status="dmb_verification_required",
         dmb_attempts=1,
         dmb_lease_owner=None,
@@ -403,6 +404,7 @@ async def test_manual_verification_completion_is_audited():
     result = MagicMock()
     result.scalars.return_value.first.return_value = release
     db = AsyncMock()
+    db.add = MagicMock()
     db.execute.return_value = result
 
     response = await resolve_release_verification(
@@ -428,6 +430,7 @@ async def test_manual_verification_completion_is_audited():
 @pytest.mark.asyncio
 async def test_manual_verification_retry_keeps_attempt_limit():
     release = SimpleNamespace(
+        id=42,
         status="dmb_verification_required",
         dmb_attempts=1,
         dmb_lease_owner=None,
@@ -455,3 +458,31 @@ async def test_manual_verification_retry_keeps_attempt_limit():
     assert release.dmb_attempts == 1
     assert release.dmb_last_error == "manual_retry:no remote record"
     db.commit.assert_awaited_once()
+
+
+def test_dmb_reporter_migration_keeps_retry_and_review_states():
+    migration = (
+        Path(__file__).parents[1]
+        / "alembic"
+        / "versions"
+        / "018_dmb_reporter_and_safe_retry.py"
+    ).read_text(encoding="utf-8")
+    assert 'down_revision = "017"' in migration
+    assert "dmb_retry_waiting" in migration
+    assert "dmb_recovery_requested" in migration
+    assert "dmb_success" in migration
+    assert "dmb_error" in migration
+    assert "dmb_review" in migration
+
+
+def test_dmb_recovery_claim_requires_exact_saved_identity():
+    compiled = str(
+        claimable_release_statement("recover", datetime(2026, 10, 4)).compile(
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
+    )
+    assert "dmb_recovery_requested" in compiled
+    assert "dmb_release_id IS NOT NULL" in compiled
+    assert "dmb_ean_upc IS NOT NULL" in compiled
+    assert "dmb_submission_fingerprint IS NOT NULL" in compiled
+    assert "FOR UPDATE SKIP LOCKED" in compiled

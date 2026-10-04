@@ -5,6 +5,9 @@ __pycache__
 node_modules
 dist
 frontend/.test-dist
+**/.pytest_cache/
+**/.test-tmp*/
+**/.robot-dryrun/
 
 design-refrence
 code_dumper.py

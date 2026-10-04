@@ -1,5 +1,5 @@
 {
-  "release": "0.9.0-alpha.48",
+  "release": "0.9.0-alpha.49",
   "features": [
     "nitro-service-pricing",
     "nobitex-usdt-rate",
@@ -17,6 +17,9 @@
     "localized-errors",
     "nobitex-wallex-rate-fallback",
     "producer-tag-input",
-    "async-media-conversion"
+    "async-media-conversion",
+    "dmb-telegram-reporter",
+    "dmb-admin-retry",
+    "dmb-safe-publish-recovery"
   ]
 }

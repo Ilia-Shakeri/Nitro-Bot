@@ -29,7 +29,11 @@ DMB_HEALTH_PORT=8081
 DMB_CREATE_ENABLED=false
 DMB_EDIT_ENABLED=false
 DMB_EDIT_SUBMIT_ENABLED=false
+DMB_RECOVERY_ENABLED=false
 DMB_TARGET_RELEASE_ID=
+DMB_SUCCESS_TOPIC_ID=44
+DMB_ERROR_TOPIC_ID=43
+DMB_REVIEW_TOPIC_ID=42
 DMB_USERNAME=replace_me
 DMB_PASSWORD=replace_me
 SELENIUM_SECRET_KEY=replace_with_long_random_value
@@ -73,8 +77,14 @@ docker compose exec dmb-automation python -c "import os,urllib.request; print(ur
 - The backend lease and browser heartbeat protect an active job.
 - A failure before the submit checkpoint becomes retryable.
 - A failure after the checkpoint becomes manual verification required.
+- Retry waits for an allowed admin click in the DMB error topic.
+- Save records the exact DMB ID. Recovery resumes that album only after an
+  allowed admin click in the DMB review topic.
 - An uncertain result opens the circuit and stops new claims.
+- An open circuit may run exact recovery work, but never a fresh create.
 - The `dmb-results` directory must remain persistent for screenshots and logs.
+- Success, error, and review reports use topics 44, 43, and 42. Error and review
+  reports attach the saved browser screenshot when one exists.
 
 ## Moving to the official interface
 

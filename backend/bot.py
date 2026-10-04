@@ -1,6 +1,7 @@
 import os
 import re
 import logging
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -14,14 +15,14 @@ from sqlalchemy.future import select
 
 from database import AsyncSessionLocal
 from ledger import add_ledger_entry
-from models import StaffAuditLog, User, Transaction, SupportMessage, SupportTicket, get_naive_utc
+from models import Release, StaffAuditLog, User, Transaction, SupportMessage, SupportTicket, get_naive_utc
 from notification_jobs import enqueue_notification
 from payment_stars import stars_payment_matches
 from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.48")
+APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.49")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -56,6 +57,17 @@ def _topic(env_name: str) -> int | None:
 ORDER_TOPIC_ID = _topic("ORDER_TOPIC_ID")
 TICKET_TOPIC_ID = _topic("TICKET_TOPIC_ID")
 PAYMENT_TOPIC_ID = _topic("PAYMENT_TOPIC_ID")
+DMB_SUCCESS_TOPIC_ID = _topic("DMB_SUCCESS_TOPIC_ID")
+DMB_ERROR_TOPIC_ID = _topic("DMB_ERROR_TOPIC_ID")
+DMB_REVIEW_TOPIC_ID = _topic("DMB_REVIEW_TOPIC_ID")
+DMB_MAX_ATTEMPTS = max(1, int(os.getenv("DMB_MAX_ATTEMPTS", "3")))
+DMB_RECOVERY_ENABLED = os.getenv("DMB_RECOVERY_ENABLED", "false").lower() == "true"
+DMB_RESULTS_ROOT = Path(os.getenv("DMB_RESULTS_ROOT", "/app/dmb-results")).resolve()
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and any(
+    topic is None
+    for topic in (DMB_SUCCESS_TOPIC_ID, DMB_ERROR_TOPIC_ID, DMB_REVIEW_TOPIC_ID)
+):
+    raise RuntimeError("DMB report topic IDs are required in production")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -64,6 +76,7 @@ _ANSWER_MARKER = "[answer:{ticket_id}:{tg_id}]"
 _ANSWER_RE = re.compile(r"\[answer:(\d+):(\d+)\]")
 _TX_ACTION_RE = re.compile(r"^tx_(approve|reject)_(\d+)$")
 _TICKET_ACTION_RE = re.compile(r"^ticket_answer_(\d+)_(\d+)$")
+_DMB_ACTION_RE = re.compile(r"^dmb_(retry|resume)_(\d+)_(\d+)$")
 
 _TRANSLATIONS = {
     "en": {
@@ -110,7 +123,12 @@ def _staff_action_allowed(message: types.Message | None, actor_id: int, topic_id
     )
 
 
-async def _send_with_thread_fallback(method_name: str, **kwargs: Any) -> Any:
+async def _send_with_thread_fallback(
+    method_name: str,
+    *,
+    strict_thread: bool = False,
+    **kwargs: Any,
+) -> Any:
     chat_id = kwargs.get("chat_id")
     message_thread_id = kwargs.get("message_thread_id")
     logger.info(
@@ -123,7 +141,7 @@ async def _send_with_thread_fallback(method_name: str, **kwargs: Any) -> Any:
     try:
         return await send_method(**kwargs)
     except TelegramBadRequest as exc:
-        if not _is_missing_message_thread(exc) or message_thread_id is None:
+        if strict_thread or not _is_missing_message_thread(exc) or message_thread_id is None:
             raise
         fallback_kwargs = {**kwargs, "message_thread_id": None}
         logger.info(
@@ -144,12 +162,16 @@ async def _send_with_thread_fallback(method_name: str, **kwargs: Any) -> Any:
             raise
 
 
-async def _send_message(**kwargs: Any) -> Any:
-    return await _send_with_thread_fallback("send_message", **kwargs)
+async def _send_message(*, strict_thread: bool = False, **kwargs: Any) -> Any:
+    return await _send_with_thread_fallback(
+        "send_message", strict_thread=strict_thread, **kwargs
+    )
 
 
-async def _send_photo(**kwargs: Any) -> Any:
-    return await _send_with_thread_fallback("send_photo", **kwargs)
+async def _send_photo(*, strict_thread: bool = False, **kwargs: Any) -> Any:
+    return await _send_with_thread_fallback(
+        "send_photo", strict_thread=strict_thread, **kwargs
+    )
 
 
 async def _send_document(**kwargs: Any) -> Any:
@@ -619,6 +641,193 @@ async def notify_admin_new_release(
                 logger.error("Fallback release %s document send failed", release_id, exc_info=True)
                 raise
 
+def _safe_dmb_error(value: object) -> str:
+    text = re.sub(r"\s+", " ", str(value or "dmb_delivery_failed")).strip()
+    text = re.sub(
+        r"(?i)(password|token|secret|authorization)\s*[:=]\s*\S+",
+        r"\1=[hidden]",
+        text,
+    )
+    return text[:500]
+
+
+def _dmb_evidence_image(
+    evidence_path: object,
+    release_id: int,
+) -> tuple[bytes, str] | None:
+    raw = str(evidence_path or "").replace("\\", "/").strip("/")
+    parts = [part for part in raw.split("/") if part]
+    if parts[:1] == ["results"]:
+        parts = parts[1:]
+    if not parts or parts[0] != str(release_id) or any(part in {".", ".."} for part in parts):
+        return None
+    base = DMB_RESULTS_ROOT.joinpath(*parts).resolve()
+    if not base.is_relative_to(DMB_RESULTS_ROOT):
+        return None
+    candidates = []
+    if base.is_file():
+        candidates.append(base)
+    else:
+        candidates.extend(
+            [
+                base / "final-state.png",
+                base / "recovery" / "final-state.png",
+                base / "submitted.png",
+                base / "recovery" / "published.png",
+            ]
+        )
+        try:
+            candidates.extend(
+                base.rglob("selenium-screenshot-*.png")
+            )
+        except OSError:
+            pass
+        def _mtime(item: Path) -> float:
+            try:
+                return item.stat().st_mtime
+            except OSError:
+                return -1
+        candidates = sorted(set(candidates), key=_mtime, reverse=True)
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+            size = resolved.stat().st_size
+            header = resolved.read_bytes()[:12]
+        except OSError:
+            continue
+        if (
+            resolved.is_relative_to(DMB_RESULTS_ROOT)
+            and 100 <= size <= 10 * 1024 * 1024
+            and (
+                header.startswith(b"\x89PNG\r\n\x1a\n")
+                or header.startswith(b"\xff\xd8\xff")
+            )
+        ):
+            return resolved.read_bytes(), resolved.name
+    return None
+
+
+def _dmb_report_keyboard(
+    release: Release,
+    event: str,
+    attempt: int,
+) -> types.InlineKeyboardMarkup | None:
+    builder = InlineKeyboardBuilder()
+    if (
+        event == "error"
+        and release.status == "dmb_retry_waiting"
+        and release.dmb_attempts == attempt
+        and attempt < DMB_MAX_ATTEMPTS
+        and release.dmb_submission_started_at is None
+    ):
+        builder.button(
+            text="🔄 تلاش دوباره",
+            callback_data=f"dmb_retry_{release.id}_{attempt}",
+        )
+    elif (
+        event == "review"
+        and release.status == "dmb_verification_required"
+        and release.dmb_attempts == attempt
+        and not release.is_edit
+        and release.dmb_release_id
+        and release.dmb_ean_upc
+        and release.dmb_isrcs
+        and release.dmb_submission_fingerprint
+        and attempt < DMB_MAX_ATTEMPTS
+        and DMB_RECOVERY_ENABLED
+    ):
+        builder.button(
+            text="▶️ ادامه امن همان آلبوم",
+            callback_data=f"dmb_resume_{release.id}_{attempt}",
+        )
+    return builder.as_markup() if list(builder.buttons) else None
+
+
+async def notify_admin_dmb_report(
+    release: Release,
+    event: str,
+    payload: dict,
+) -> None:
+    attempt = int(payload.get("attempt") or release.dmb_attempts or 0)
+    mode = "ویرایش" if release.is_edit else "ساخت"
+    error = _safe_dmb_error(payload.get("error") or release.dmb_last_error)
+    reply_markup = _dmb_report_keyboard(release, event, attempt)
+    if event == "success":
+        topic_id = DMB_SUCCESS_TOPIC_ID
+        text = (
+            "✅ DMB انجام شد\n"
+            f"سفارش: {release.id}\n"
+            f"آهنگ: {release.song_name}\n"
+            f"کار: {mode}\n"
+            f"شناسه DMB: {release.dmb_release_id or '-'}\n"
+            f"EAN: {release.dmb_ean_upc or '-'}\n"
+            f"ISRC: {', '.join(release.dmb_isrcs or []) or '-'}\n"
+            f"تلاش: {attempt}"
+        )
+    elif event == "review":
+        topic_id = DMB_REVIEW_TOPIC_ID
+        text = (
+            "⚠️ DMB نیاز به بررسی\n"
+            f"سفارش: {release.id}\n"
+            f"آهنگ: {release.song_name}\n"
+            f"کار: {mode}\n"
+            f"شناسه DMB: {release.dmb_release_id or '-'}\n"
+            f"تلاش: {attempt}\n"
+            f"خطا: {error}\n"
+            "ساخت دوباره قفل است."
+        )
+    else:
+        topic_id = DMB_ERROR_TOPIC_ID
+        retry_line = (
+            "دکمه تلاش دوباره آماده است."
+            if reply_markup is not None
+            else "تلاش خودکار قفل است."
+        )
+        text = (
+            "❌ DMB خطا\n"
+            f"سفارش: {release.id}\n"
+            f"آهنگ: {release.song_name}\n"
+            f"کار: {mode}\n"
+            f"تلاش: {attempt}/{DMB_MAX_ATTEMPTS}\n"
+            f"خطا: {error}\n"
+            f"{retry_line}"
+        )
+    if topic_id is None:
+        raise RuntimeError("dmb_report_topic_missing")
+    evidence = _dmb_evidence_image(
+        payload.get("evidence_path") or release.dmb_evidence_path,
+        release.id,
+    )
+    if event != "success" and evidence is not None:
+        image_bytes, image_name = evidence
+        await _send_photo(
+            strict_thread=True,
+            chat_id=ADMIN_GROUP_ID,
+            message_thread_id=topic_id,
+            photo=BufferedInputFile(image_bytes, filename=image_name),
+            caption=text,
+            reply_markup=reply_markup,
+        )
+        return
+    await _send_message(
+        strict_thread=True,
+        chat_id=ADMIN_GROUP_ID,
+        message_thread_id=topic_id,
+        text=text,
+        reply_markup=reply_markup,
+    )
+
+
+async def _finish_dmb_action_message(message: types.Message, suffix: str) -> None:
+    try:
+        if message.caption is not None:
+            await message.edit_caption(caption=message.caption + suffix, reply_markup=None)
+        elif message.text is not None:
+            await message.edit_text(message.text + suffix, reply_markup=None)
+    except Exception:
+        logger.warning("Could not close DMB report action", exc_info=True)
+
+
 async def _append_status(message: types.Message, suffix: str) -> None:
     """Append a status line to a group message when Telegram allows editing."""
     try:
@@ -728,6 +937,83 @@ async def handle_tx_decision(callback: types.CallbackQuery):
     except Exception:
         logger.warning("Could not remove processed transaction buttons", exc_info=True)
     await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("dmb_"))
+async def handle_dmb_action(callback: types.CallbackQuery):
+    match = _DMB_ACTION_RE.fullmatch(callback.data or "")
+    if not match:
+        await callback.answer("کار نامعتبر.", show_alert=True)
+        return
+    action, release_id_raw, attempt_raw = match.groups()
+    topic_id = DMB_ERROR_TOPIC_ID if action == "retry" else DMB_REVIEW_TOPIC_ID
+    actor_id = callback.from_user.id
+    if not _staff_action_allowed(callback.message, actor_id, topic_id):
+        await callback.answer("دسترسی نیست.", show_alert=True)
+        return
+    release_id = int(release_id_raw)
+    expected_attempt = int(attempt_raw)
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Release).where(Release.id == release_id).with_for_update()
+        )
+        release = result.scalars().first()
+        if release is None or release.dmb_attempts != expected_attempt:
+            await db.rollback()
+            await callback.answer("این دکمه قدیمی است.", show_alert=True)
+            return
+        if release.dmb_attempts >= DMB_MAX_ATTEMPTS:
+            await db.rollback()
+            await callback.answer("سقف تلاش پر است.", show_alert=True)
+            return
+        old_state = release.status
+        if action == "retry":
+            if (
+                release.status != "dmb_retry_waiting"
+                or release.dmb_submission_started_at is not None
+                or release.dmb_submission_fingerprint is not None
+            ):
+                await db.rollback()
+                await callback.answer("تلاش از اول امن نیست.", show_alert=True)
+                return
+            release.status = "manual_staging"
+            audit_action = "dmb_retry_requested"
+            suffix = f"\n\n🔄 تلاش دوباره را ادمین {actor_id} خواست."
+        else:
+            if not DMB_RECOVERY_ENABLED:
+                await db.rollback()
+                await callback.answer("ادامه امن خاموش است.", show_alert=True)
+                return
+            if (
+                release.status != "dmb_verification_required"
+                or release.is_edit
+                or not release.dmb_release_id
+                or not release.dmb_ean_upc
+                or not release.dmb_isrcs
+                or not release.dmb_submission_fingerprint
+            ):
+                await db.rollback()
+                await callback.answer("مدرک ادامه امن کامل نیست.", show_alert=True)
+                return
+            release.status = "dmb_recovery_requested"
+            audit_action = "dmb_recovery_requested"
+            suffix = f"\n\n▶️ ادامه امن را ادمین {actor_id} خواست."
+        release.dmb_reviewed_by = f"telegram:{actor_id}"
+        release.dmb_reviewed_at = get_naive_utc()
+        db.add(
+            StaffAuditLog(
+                actor_id=actor_id,
+                action=audit_action,
+                target_type="release",
+                target_id=str(release.id),
+                old_state=old_state,
+                new_state=release.status,
+                details={"attempt": expected_attempt},
+            )
+        )
+        await db.commit()
+    await callback.answer("ثبت شد.")
+    await _finish_dmb_action_message(callback.message, suffix)
 
 
 @dp.callback_query(F.data.startswith("ticket_answer_"))

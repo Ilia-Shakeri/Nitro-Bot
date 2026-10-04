@@ -43,6 +43,7 @@ DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 CREATE_ENABLED = os.getenv("DMB_CREATE_ENABLED", "false").lower() == "true"
 EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
 EDIT_SUBMIT_ENABLED = os.getenv("DMB_EDIT_SUBMIT_ENABLED", "false").lower() == "true"
+RECOVERY_ENABLED = os.getenv("DMB_RECOVERY_ENABLED", "false").lower() == "true"
 DMB_BROWSER_MODE = os.getenv("DMB_BROWSER_MODE", "headless").strip().lower()
 HEALTH_HOST = os.getenv("DMB_HEALTH_HOST", "0.0.0.0").strip()
 HEALTH_PORT = int(os.getenv("DMB_HEALTH_PORT", "8081"))
@@ -63,6 +64,7 @@ DOWNLOAD_DIR = BASE_DIR / "downloads"
 RESULTS_DIR = BASE_DIR / "results"
 CREATE_SUITE = BASE_DIR / "automation" / "create_album.robot"
 EDIT_SUITE = BASE_DIR / "automation" / "edit_album.robot"
+RECOVERY_SUITE = BASE_DIR / "automation" / "recover_publish.robot"
 CIRCUIT_STATE_PATH = RESULTS_DIR / "dmb-circuit.json"
 _WORKER_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _DMB_ID_RE = re.compile(r"^(?=[A-Za-z0-9._:-]{1,128}$)(?=.*\d)[A-Za-z0-9._:-]+$")
@@ -114,8 +116,8 @@ def health_snapshot() -> dict:
         **state,
         "ready": bool(state["poll_ok"] and not circuit_open),
         "circuit_open": circuit_open,
-        "standby": bool(DRY_RUN and not CREATE_ENABLED and not EDIT_ENABLED),
-        "delivery_enabled": bool(CREATE_ENABLED or EDIT_ENABLED),
+        "standby": bool(DRY_RUN and not CREATE_ENABLED and not EDIT_ENABLED and not RECOVERY_ENABLED),
+        "delivery_enabled": bool(CREATE_ENABLED or EDIT_ENABLED or RECOVERY_ENABLED),
         "worker_id": WORKER_ID,
         "browser_mode": DMB_BROWSER_MODE,
         "target_release_id": TARGET_RELEASE_ID,
@@ -161,7 +163,7 @@ def validate_config() -> None:
         raise DeliveryError("S3_credentials_missing")
     if not DMB_USERNAME or not DMB_PASSWORD:
         raise DeliveryError("DMB_credentials_missing")
-    delivery_enabled = CREATE_ENABLED or EDIT_ENABLED
+    delivery_enabled = CREATE_ENABLED or EDIT_ENABLED or RECOVERY_ENABLED
     if DRY_RUN and delivery_enabled:
         raise DeliveryError("DRY_RUN_cannot_claim_live_jobs")
     if not DRY_RUN and not delivery_enabled:
@@ -206,6 +208,7 @@ def set_status(
     *,
     result: dict | None = None,
     checkpoint: dict | None = None,
+    saved_checkpoint: dict | None = None,
     error: str | None = None,
 ) -> None:
     data = {"status": status}
@@ -231,6 +234,8 @@ def set_status(
                     "submission_fingerprint": checkpoint["submission_fingerprint"],
                 }
             )
+        if saved_checkpoint is not None:
+            data["dmb_release_id"] = saved_checkpoint["dmb_release_id"]
     response = _http.post(
         f"{API_BASE_URL}/internal/releases/{release_id}/status",
         data=data,
@@ -518,6 +523,70 @@ def load_submit_checkpoint(path: Path, release_id: int, expected_title: str) -> 
     return checkpoint
 
 
+def load_saved_checkpoint(path: Path, release_id: int, expected_title: str) -> dict:
+    try:
+        checkpoint = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(checkpoint, dict):
+            raise ValueError
+        saved_at = datetime.fromisoformat(str(checkpoint.get("saved_at", "")))
+    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        raise DeliveryError("dmb_saved_checkpoint_invalid") from None
+    dmb_release_id = str(checkpoint.get("dmb_release_id", "")).strip()
+    ean = str(checkpoint.get("ean_upc", "")).strip()
+    isrcs = checkpoint.get("isrcs")
+    title = str(checkpoint.get("title", "")).strip()
+    current_url = str(checkpoint.get("current_url", "")).strip()
+    parsed_url = urlparse(current_url)
+    if (
+        checkpoint.get("release_id") != release_id
+        or title != expected_title
+        or not _DMB_ID_RE.fullmatch(dmb_release_id)
+        or not _EAN_RE.fullmatch(ean)
+        or not isinstance(isrcs, list)
+        or len(isrcs) != 1
+        or any(not isinstance(code, str) or not _ISRC_RE.fullmatch(code) for code in isrcs)
+        or parsed_url.scheme != "https"
+        or parsed_url.hostname != DMB_ALLOWED_HOST
+        or dmb_release_id not in current_url
+        or saved_at.tzinfo is None
+    ):
+        raise DeliveryError("dmb_saved_checkpoint_invalid")
+    checkpoint["dmb_release_id"] = dmb_release_id
+    checkpoint["ean_upc"] = ean
+    checkpoint["isrcs"] = isrcs
+    checkpoint["submission_fingerprint"] = submission_fingerprint(
+        release_id, title, ean, isrcs
+    )
+    return checkpoint
+
+
+def recovery_checkpoint_from_release(release: dict) -> dict:
+    release_id = _validated_release_id(release.get("id"))
+    title = str(release.get("song_name", "")).strip()
+    dmb_release_id = str(release.get("dmb_release_id", "")).strip()
+    ean = str(release.get("dmb_ean_upc", "")).strip()
+    isrcs = release.get("dmb_isrcs")
+    fingerprint = str(release.get("dmb_submission_fingerprint", "")).strip()
+    if (
+        not title
+        or not _DMB_ID_RE.fullmatch(dmb_release_id)
+        or not _EAN_RE.fullmatch(ean)
+        or not isinstance(isrcs, list)
+        or len(isrcs) != 1
+        or any(not isinstance(code, str) or not _ISRC_RE.fullmatch(code) for code in isrcs)
+        or fingerprint != submission_fingerprint(release_id, title, ean, isrcs)
+    ):
+        raise DeliveryError("dmb_recovery_checkpoint_invalid")
+    return {
+        "release_id": release_id,
+        "title": title,
+        "dmb_release_id": dmb_release_id,
+        "ean_upc": ean,
+        "isrcs": isrcs,
+        "submission_fingerprint": fingerprint,
+    }
+
+
 def bind_result_to_checkpoint(result: dict, checkpoint: dict) -> dict:
     if (
         result["ean_upc"] != checkpoint["ean_upc"]
@@ -532,12 +601,15 @@ def run_robot(
     job_file: Path,
     result_file: Path,
     checkpoint_file: Path,
+    saved_checkpoint_file: Path,
     expected_title: str,
 ) -> dict:
     if result_file.exists():
         result_file.unlink()
     if checkpoint_file.exists():
         checkpoint_file.unlink()
+    if saved_checkpoint_file.exists():
+        saved_checkpoint_file.unlink()
     output_dir = RESULTS_DIR / str(release_id)
     try:
         mode = json.loads(job_file.read_text(encoding="utf-8"))["mode"]
@@ -552,6 +624,7 @@ def run_robot(
         "DMB_JOB_FILE": str(job_file),
         "DMB_RESULT_FILE": str(result_file),
         "DMB_SUBMIT_CHECKPOINT": str(checkpoint_file),
+        "DMB_SAVED_CHECKPOINT": str(saved_checkpoint_file),
         "DMB_SUBMIT_ENABLED": "true",
         "DMB_PUBLISH_ENABLED": "true" if mode == "create" else "false",
         "DMB_EDIT_SUBMIT_ENABLED": "true" if mode == "edit" else "false",
@@ -587,6 +660,49 @@ def run_robot(
     return bind_result_to_checkpoint(result, checkpoint)
 
 
+def run_recovery_robot(checkpoint: dict, result_file: Path) -> dict:
+    release_id = checkpoint["release_id"]
+    if result_file.exists():
+        return bind_result_to_checkpoint(load_result(result_file, release_id), checkpoint)
+    output_dir = result_file.parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+    env = {
+        **os.environ,
+        "DMB_USERNAME": DMB_USERNAME,
+        "DMB_PASSWORD": DMB_PASSWORD,
+        "DMB_RESULT_FILE": str(result_file),
+        "DMB_RECOVERY_RELEASE_ID": str(release_id),
+        "DMB_RECOVERY_DMB_ID": checkpoint["dmb_release_id"],
+        "DMB_RECOVERY_EAN": checkpoint["ean_upc"],
+        "DMB_RECOVERY_ISRC": checkpoint["isrcs"][0],
+        "DMB_BROWSER_MODE": DMB_BROWSER_MODE,
+        "DMB_PUBLISH_ENABLED": "true",
+    }
+    process = subprocess.Popen(
+        ["robot", "--outputdir", str(output_dir), str(RECOVERY_SUITE)],
+        cwd=str(BASE_DIR),
+        env=env,
+    )
+    next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
+    while process.poll() is None:
+        time.sleep(1)
+        if time.monotonic() < next_heartbeat:
+            continue
+        try:
+            heartbeat(release_id)
+        except Exception:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            raise DeliveryError("dmb_lease_heartbeat_failed") from None
+        next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
+    if process.returncode != 0:
+        raise DeliveryError(f"robot_exit_{process.returncode}")
+    return bind_result_to_checkpoint(load_result(result_file, release_id), checkpoint)
+
+
 def _safe_job_dir(release_id: int) -> Path:
     root = DOWNLOAD_DIR.resolve()
     job_dir = (root / str(release_id)).resolve()
@@ -600,6 +716,7 @@ def process_release(release: dict) -> str:
     job_dir = _safe_job_dir(release_id)
     result_file = RESULTS_DIR / str(release_id) / "result.json"
     checkpoint_file = RESULTS_DIR / str(release_id) / "submit-started.json"
+    saved_checkpoint_file = RESULTS_DIR / str(release_id) / "saved.json"
     try:
         validate_release_contract(release)
         if job_dir.exists():
@@ -617,6 +734,7 @@ def process_release(release: dict) -> str:
             job_file,
             result_file,
             checkpoint_file,
+            saved_checkpoint_file,
             release["song_name"],
         )
         set_status(release_id, "completed", result=result)
@@ -628,6 +746,7 @@ def process_release(release: dict) -> str:
         try:
             state = "uncertain" if checkpoint_file.exists() else "retry"
             checkpoint = None
+            saved_checkpoint = None
             if state == "uncertain":
                 try:
                     checkpoint = load_submit_checkpoint(
@@ -637,7 +756,22 @@ def process_release(release: dict) -> str:
                     )
                 except DeliveryError as checkpoint_error:
                     reason = f"{reason};{checkpoint_error}"[:2000]
-            set_status(release_id, state, checkpoint=checkpoint, error=reason)
+                if saved_checkpoint_file.exists():
+                    try:
+                        saved_checkpoint = load_saved_checkpoint(
+                            saved_checkpoint_file,
+                            release_id,
+                            release["song_name"],
+                        )
+                    except DeliveryError as saved_error:
+                        reason = f"{reason};{saved_error}"[:2000]
+            set_status(
+                release_id,
+                state,
+                checkpoint=checkpoint,
+                saved_checkpoint=saved_checkpoint,
+                error=reason,
+            )
             return state
         except Exception:
             log.exception("release %s status report failed", release_id)
@@ -645,6 +779,32 @@ def process_release(release: dict) -> str:
     finally:
         if job_dir.exists():
             shutil.rmtree(job_dir)
+
+
+def process_recovery_release(release: dict) -> str:
+    release_id = _validated_release_id(release.get("id") if isinstance(release, dict) else None)
+    checkpoint = recovery_checkpoint_from_release(release)
+    result_file = RESULTS_DIR / str(release_id) / "recovery" / "result.json"
+    try:
+        result = run_recovery_robot(checkpoint, result_file)
+        set_status(release_id, "completed", result=result)
+        log.info("release %s recovery completed with verified DMB evidence", release_id)
+        return "completed"
+    except Exception as exc:
+        reason = f"{type(exc).__name__}:{exc}"[:2000]
+        log.exception("release %s recovery failed", release_id)
+        try:
+            set_status(
+                release_id,
+                "uncertain",
+                checkpoint=checkpoint,
+                saved_checkpoint=checkpoint,
+                error=reason,
+            )
+            return "uncertain"
+        except Exception:
+            log.exception("release %s recovery status report failed", release_id)
+            return "report_failed"
 
 
 def main() -> None:
@@ -663,12 +823,12 @@ def main() -> None:
         API_BASE_URL,
         WORKER_ID,
         DMB_BROWSER_MODE,
-        DRY_RUN and not CREATE_ENABLED and not EDIT_ENABLED,
+        DRY_RUN and not CREATE_ENABLED and not EDIT_ENABLED and not RECOVERY_ENABLED,
     )
     while True:
         circuit_state = read_circuit_state()
         update_health(circuit_open=bool(circuit_state["open"]))
-        if circuit_state["open"]:
+        if circuit_state["open"] and not RECOVERY_ENABLED:
             log.error("DMB circuit open; manual review required")
             update_health(
                 poll_ok=False,
@@ -679,16 +839,25 @@ def main() -> None:
             continue
         try:
             modes = []
-            if CREATE_ENABLED:
-                modes.append("create")
-            if EDIT_ENABLED:
-                modes.append("edit")
+            if circuit_state["open"]:
+                modes.append("recover")
+            else:
+                if CREATE_ENABLED:
+                    modes.append("create")
+                if EDIT_ENABLED:
+                    modes.append("edit")
+                if RECOVERY_ENABLED:
+                    modes.append("recover")
             for mode in modes:
                 for release in get_pending(mode):
                     release_id = _validated_release_id(release.get("id"))
                     update_health(busy_release_id=release_id)
                     try:
-                        outcome = process_release(release)
+                        outcome = (
+                            process_recovery_release(release)
+                            if mode == "recover"
+                            else process_release(release)
+                        )
                     finally:
                         update_health(busy_release_id=None)
                     if record_delivery_outcome(release_id, outcome):

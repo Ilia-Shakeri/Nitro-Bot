@@ -77,7 +77,7 @@ class Release(Base):
         CheckConstraint("charged_cost >= 0", name="ck_releases_charged_cost_nonnegative"),
         CheckConstraint("dmb_attempts >= 0", name="ck_releases_dmb_attempts_nonnegative"),
         CheckConstraint(
-            "status IN ('pending', 'staging', 'notification_pending', 'manual_staging', 'processing', 'dmb_verification_required', 'completed', 'failed')",
+            "status IN ('pending', 'staging', 'notification_pending', 'manual_staging', 'processing', 'dmb_retry_waiting', 'dmb_verification_required', 'dmb_recovery_requested', 'completed', 'failed')",
             name="ck_releases_status_allowed",
         ),
     )
@@ -222,7 +222,7 @@ class NotificationOutbox(Base):
             name="ck_notification_outbox_status_allowed",
         ),
         CheckConstraint(
-            "kind IN ('payment_receipt', 'support_ticket', 'user_payment_result', 'user_ticket_reply')",
+            "kind IN ('payment_receipt', 'support_ticket', 'user_payment_result', 'user_ticket_reply', 'dmb_success', 'dmb_error', 'dmb_review')",
             name="ck_notification_outbox_kind_allowed",
         ),
     )

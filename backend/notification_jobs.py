@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import storage
 from database import AsyncSessionLocal
-from models import NotificationOutbox, SupportMessage, SupportTicket, Transaction, User
+from models import NotificationOutbox, Release, SupportMessage, SupportTicket, Transaction, User
 
 logger = logging.getLogger("nitro.notification_jobs")
 LEASE_SECONDS = max(30, int(os.getenv("NOTIFICATION_JOB_LEASE_SECONDS", "120")))
@@ -177,6 +177,17 @@ async def _send_ticket_reply(message_id: int) -> None:
         )
 
 
+async def _send_dmb_report(release_id: int, event: str, payload: dict) -> None:
+    from bot import notify_admin_dmb_report
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Release).where(Release.id == release_id))
+        release = result.scalars().first()
+        if release is None:
+            raise RuntimeError("dmb_report_release_missing")
+        await notify_admin_dmb_report(release, event, payload)
+
+
 async def _process(job_id: int) -> None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(NotificationOutbox).where(NotificationOutbox.id == job_id))
@@ -195,6 +206,12 @@ async def _process(job_id: int) -> None:
         await _send_payment_result(aggregate_id)
     elif kind == "user_ticket_reply":
         await _send_ticket_reply(aggregate_id)
+    elif kind == "dmb_success":
+        await _send_dmb_report(aggregate_id, "success", payload)
+    elif kind == "dmb_error":
+        await _send_dmb_report(aggregate_id, "error", payload)
+    elif kind == "dmb_review":
+        await _send_dmb_report(aggregate_id, "review", payload)
     else:
         raise RuntimeError("notification_kind_invalid")
 

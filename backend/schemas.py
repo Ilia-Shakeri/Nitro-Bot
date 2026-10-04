@@ -150,6 +150,10 @@ class PendingReleaseOut(BaseModel):
     source_dmb_ean_upc: str | None = None
     source_dmb_isrcs: list[str] = Field(default_factory=list)
     source_cover_url: str | None = None
+    dmb_release_id: str | None = None
+    dmb_ean_upc: str | None = None
+    dmb_isrcs: list[str] = Field(default_factory=list)
+    dmb_submission_fingerprint: str | None = None
     dmb_attempts: int = 0
     dmb_lease_expires_at: datetime | None = None
     status: str

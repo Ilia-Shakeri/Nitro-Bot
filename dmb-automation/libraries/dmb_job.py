@@ -182,6 +182,54 @@ class DmbJob:
         )
         temporary.replace(target)
 
+    def write_saved_checkpoint(
+        self,
+        path: str,
+        release_id: int,
+        dmb_release_id: str,
+        ean_upc: str,
+        isrc: str,
+        title: str,
+        current_url: str,
+    ) -> None:
+        dmb_id = str(dmb_release_id).strip()
+        ean = str(ean_upc).strip()
+        normalized_isrc = str(isrc).strip().upper()
+        normalized_title = str(title).strip()
+        parsed_url = _urlparse(current_url)
+        allowed_host = os.getenv("DMB_ALLOWED_HOST", "dmb.kontornewmedia.com").lower()
+        if (
+            not re.fullmatch(r"(?=[A-Za-z0-9._:-]{1,128}$)(?=.*\d)[A-Za-z0-9._:-]+", dmb_id)
+            or not re.fullmatch(r"\d{8,14}", ean)
+            or not re.fullmatch(r"[A-Z0-9-]{8,20}", normalized_isrc)
+            or not normalized_title
+            or len(normalized_title) > 255
+            or parsed_url.scheme != "https"
+            or parsed_url.hostname != allowed_host
+            or self.extract_dmb_release_id(current_url) != dmb_id
+        ):
+            raise ValueError("dmb_saved_checkpoint_invalid")
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(target.suffix + ".tmp")
+        temporary.write_text(
+            json.dumps(
+                {
+                    "release_id": int(release_id),
+                    "dmb_release_id": dmb_id,
+                    "ean_upc": ean,
+                    "isrcs": [normalized_isrc],
+                    "title": normalized_title,
+                    "current_url": current_url,
+                    "saved_at": datetime.now(timezone.utc).isoformat(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        temporary.replace(target)
+
     def write_dmb_preflight_result(
         self,
         path: str,
@@ -263,6 +311,26 @@ def write_submit_checkpoint(
     title: str,
 ) -> None:
     _library.write_submit_checkpoint(path, release_id, ean_upc, isrc, title)
+
+
+def write_saved_checkpoint(
+    path: str,
+    release_id: int,
+    dmb_release_id: str,
+    ean_upc: str,
+    isrc: str,
+    title: str,
+    current_url: str,
+) -> None:
+    _library.write_saved_checkpoint(
+        path,
+        release_id,
+        dmb_release_id,
+        ean_upc,
+        isrc,
+        title,
+        current_url,
+    )
 
 
 def write_dmb_preflight_result(

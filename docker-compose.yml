@@ -100,10 +100,13 @@ services:
       - ORDER_TOPIC_ID=${ORDER_TOPIC_ID:-}
       - TICKET_TOPIC_ID=${TICKET_TOPIC_ID:-}
       - PAYMENT_TOPIC_ID=${PAYMENT_TOPIC_ID:-}
+      - DMB_SUCCESS_TOPIC_ID=${DMB_SUCCESS_TOPIC_ID:-44}
+      - DMB_ERROR_TOPIC_ID=${DMB_ERROR_TOPIC_ID:-43}
+      - DMB_REVIEW_TOPIC_ID=${DMB_REVIEW_TOPIC_ID:-42}
       - MINI_APP_URL=${MINI_APP_URL}
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Tehran}
-      - APP_VERSION=${APP_VERSION:-0.9.0-alpha.48}
+      - APP_VERSION=${APP_VERSION:-0.9.0-alpha.49}
       - USDT_RATE_URL=${USDT_RATE_URL:-}
       - USDT_TOMAN_FALLBACK=${USDT_TOMAN_FALLBACK:-0}
       - PAYMENT_CARD_NUMBER=${PAYMENT_CARD_NUMBER:-}
@@ -122,6 +125,7 @@ services:
       - INIT_DATA_FUTURE_SKEW_SECONDS=${INIT_DATA_FUTURE_SKEW_SECONDS:-30}
       - DMB_CREATE_ENABLED=${DMB_CREATE_ENABLED:-false}
       - DMB_EDIT_ENABLED=${DMB_EDIT_ENABLED:-false}
+      - DMB_RECOVERY_ENABLED=${DMB_RECOVERY_ENABLED:-false}
       - DMB_LEASE_SECONDS=${DMB_LEASE_SECONDS:-900}
       - DMB_MAX_ATTEMPTS=${DMB_MAX_ATTEMPTS:-3}
     depends_on:
@@ -132,6 +136,8 @@ services:
       redis:
         condition: service_healthy
     restart: always
+    volumes:
+      - ./dmb-results:/app/dmb-results:ro
     networks:
       - nitro_internal_net
       - caddy_gateway_net
@@ -172,6 +178,7 @@ services:
       - DMB_CREATE_ENABLED=${DMB_CREATE_ENABLED:-false}
       - DMB_EDIT_ENABLED=${DMB_EDIT_ENABLED:-false}
       - DMB_EDIT_SUBMIT_ENABLED=${DMB_EDIT_SUBMIT_ENABLED:-false}
+      - DMB_RECOVERY_ENABLED=${DMB_RECOVERY_ENABLED:-false}
       - DMB_BROWSER_MODE=${DMB_BROWSER_MODE:-headless}
       - DMB_HEALTH_PORT=${DMB_HEALTH_PORT:-8081}
       - DMB_HEARTBEAT_SECONDS=${DMB_HEARTBEAT_SECONDS:-60}

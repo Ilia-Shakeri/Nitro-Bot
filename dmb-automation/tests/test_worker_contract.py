@@ -949,6 +949,7 @@ def test_failure_after_save_checkpoint_requires_manual_verification(
         job_file,
         result_file,
         checkpoint_file,
+        saved_checkpoint_file,
         expected_title,
     ):
         dmb_job_module.DmbJob().write_submit_checkpoint(
@@ -969,3 +970,67 @@ def test_failure_after_save_checkpoint_requires_manual_verification(
     assert "browser_lost_after_save" in report.call_args.kwargs["error"]
     assert report.call_args.kwargs["checkpoint"]["ean_upc"] == "1234567890123"
     assert len(report.call_args.kwargs["checkpoint"]["submission_fingerprint"]) == 64
+
+
+def test_saved_checkpoint_keeps_exact_remote_album(tmp_path):
+    checkpoint = tmp_path / "saved.json"
+    dmb_job_module.DmbJob().write_saved_checkpoint(
+        str(checkpoint),
+        42,
+        "2255903",
+        "1234567890123",
+        "USABC2600001",
+        "Safe Title",
+        "https://dmb.kontornewmedia.com/page/album/2255903",
+    )
+    loaded = worker.load_saved_checkpoint(checkpoint, 42, "Safe Title")
+    assert loaded["dmb_release_id"] == "2255903"
+    assert loaded["submission_fingerprint"] == worker.submission_fingerprint(
+        42, "Safe Title", "1234567890123", ["USABC2600001"]
+    )
+
+
+def test_recovery_checkpoint_rejects_changed_release_identity():
+    release = sample_release()
+    release.update(
+        {
+            "dmb_release_id": "2255903",
+            "dmb_ean_upc": "1234567890123",
+            "dmb_isrcs": ["USABC2600001"],
+            "dmb_submission_fingerprint": "bad",
+        }
+    )
+    with pytest.raises(worker.DeliveryError, match="dmb_recovery_checkpoint_invalid"):
+        worker.recovery_checkpoint_from_release(release)
+
+
+def test_recovery_reuses_verified_result_without_new_browser(tmp_path, monkeypatch):
+    release = sample_release()
+    fingerprint = worker.submission_fingerprint(
+        42, "Safe Title", "1234567890123", ["USABC2600001"]
+    )
+    release.update(
+        {
+            "song_name": "Safe Title",
+            "dmb_release_id": "2255903",
+            "dmb_ean_upc": "1234567890123",
+            "dmb_isrcs": ["USABC2600001"],
+            "dmb_submission_fingerprint": fingerprint,
+        }
+    )
+    monkeypatch.setattr(worker, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(
+        worker,
+        "run_recovery_robot",
+        lambda checkpoint, result_file: {
+            "dmb_release_id": checkpoint["dmb_release_id"],
+            "ean_upc": checkpoint["ean_upc"],
+            "isrcs": checkpoint["isrcs"],
+            "evidence_path": "results/42",
+            "submission_fingerprint": checkpoint["submission_fingerprint"],
+        },
+    )
+    report = MagicMock()
+    monkeypatch.setattr(worker, "set_status", report)
+    assert worker.process_recovery_release(release) == "completed"
+    assert report.call_args.args == (42, "completed")

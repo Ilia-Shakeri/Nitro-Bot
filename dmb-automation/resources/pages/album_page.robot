@@ -338,6 +338,14 @@ Submit Album And Verify Success
     Unselect Frame
     ${saved_url}=    Get Location
     ${dmb_release_id}=    Extract Dmb Release Id    ${saved_url}
+    Write Saved Checkpoint
+    ...    %{DMB_SAVED_CHECKPOINT}
+    ...    ${release_id}
+    ...    ${dmb_release_id}
+    ...    ${ean}
+    ...    ${isrc}
+    ...    ${title}
+    ...    ${saved_url}
     Publish Created Album And Verify Identity    ${dmb_release_id}    ${ean}
 
 Publish Created Album And Verify Identity

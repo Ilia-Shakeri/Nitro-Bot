@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from database import get_db
 from models import Release
+from notification_jobs import enqueue_notification
 from release_service import fail_release_and_refund
 from schemas import OkResponse, PendingReleaseOut
 
@@ -21,6 +22,7 @@ _SECRET = os.getenv("SELENIUM_SECRET_KEY", "")
 _REVIEW_SECRET = os.getenv("DMB_REVIEW_SECRET_KEY", "")
 _CREATE_ENABLED = os.getenv("DMB_CREATE_ENABLED", "false").lower() == "true"
 _EDIT_ENABLED = os.getenv("DMB_EDIT_ENABLED", "false").lower() == "true"
+_RECOVERY_ENABLED = os.getenv("DMB_RECOVERY_ENABLED", "false").lower() == "true"
 _LEASE_SECONDS = max(120, int(os.getenv("DMB_LEASE_SECONDS", "900")))
 _MAX_ATTEMPTS = max(1, int(os.getenv("DMB_MAX_ATTEMPTS", "3")))
 _WORKER_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -32,7 +34,9 @@ _STATUS_TRANSITIONS = {
     "pending": {"processing"},
     "manual_staging": {"processing"},
     "processing": {"processing", "completed", "retry", "uncertain", "failed"},
+    "dmb_retry_waiting": {"manual_staging", "failed"},
     "dmb_verification_required": {"dmb_verification_required"},
+    "dmb_recovery_requested": {"processing", "failed"},
     "completed": {"completed"},
     "failed": {"failed"},
 }
@@ -81,19 +85,29 @@ def _validated_reviewer_id(reviewer_id: str | None) -> str:
     return reviewer_id
 
 
-def _mode_enabled(mode: Literal["create", "edit"]) -> bool:
+def _mode_enabled(mode: Literal["create", "edit", "recover"]) -> bool:
+    if mode == "recover":
+        return _RECOVERY_ENABLED
     return _EDIT_ENABLED if mode == "edit" else _CREATE_ENABLED
 
 
 def claimable_release_statement(
-    mode: Literal["create", "edit"] = "create",
+    mode: Literal["create", "edit", "recover"] = "create",
     now: datetime | None = None,
     release_id: int | None = None,
 ):
     claim_time = now or utc_now()
-    statement = (
-        select(Release)
-        .where(
+    if mode == "recover":
+        statement = select(Release).where(
+            Release.is_edit.is_(False),
+            Release.status == "dmb_recovery_requested",
+            Release.dmb_attempts < _MAX_ATTEMPTS,
+            Release.dmb_release_id.is_not(None),
+            Release.dmb_ean_upc.is_not(None),
+            Release.dmb_submission_fingerprint.is_not(None),
+        )
+    else:
+        statement = select(Release).where(
             Release.is_edit.is_(mode == "edit"),
             Release.dmb_attempts < _MAX_ATTEMPTS,
             or_(
@@ -107,7 +121,6 @@ def claimable_release_statement(
                 ),
             ),
         )
-    )
     if release_id is not None:
         statement = statement.where(Release.id == release_id)
     return (
@@ -119,13 +132,18 @@ def claimable_release_statement(
 
 
 def exhausted_release_statement(
-    mode: Literal["create", "edit"],
+    mode: Literal["create", "edit", "recover"],
     now: datetime,
     release_id: int | None = None,
 ):
-    statement = (
-        select(Release)
-        .where(
+    if mode == "recover":
+        statement = select(Release).where(
+            Release.is_edit.is_(False),
+            Release.dmb_attempts >= _MAX_ATTEMPTS,
+            Release.status == "dmb_recovery_requested",
+        )
+    else:
+        statement = select(Release).where(
             Release.is_edit.is_(mode == "edit"),
             Release.dmb_attempts >= _MAX_ATTEMPTS,
             or_(
@@ -139,7 +157,6 @@ def exhausted_release_statement(
                 ),
             ),
         )
-    )
     if release_id is not None:
         statement = statement.where(Release.id == release_id)
     return (
@@ -227,9 +244,30 @@ def _parse_submit_checkpoint(
     return ean, isrcs, stored_fingerprint
 
 
+def _enqueue_dmb_report(
+    db: AsyncSession,
+    release: Release,
+    kind: Literal["dmb_success", "dmb_error", "dmb_review"],
+    *,
+    error: str | None = None,
+    evidence_path: str | None = None,
+) -> None:
+    enqueue_notification(
+        db,
+        kind=kind,
+        aggregate_id=release.id,
+        idempotency_key=f"dmb:{release.id}:{release.dmb_attempts}:{kind}",
+        payload={
+            "attempt": release.dmb_attempts,
+            "error": (error or "")[:2000],
+            "evidence_path": evidence_path or getattr(release, "dmb_evidence_path", None),
+        },
+    )
+
+
 @router.get("/releases/pending", response_model=list[PendingReleaseOut])
 async def get_pending_releases(
-    mode: Literal["create", "edit"] = Query("create"),
+    mode: Literal["create", "edit", "recover"] = Query("create"),
     release_id: int | None = Query(None, ge=1),
     worker_id_header: str | None = Header(None, alias="X-DMB-Worker-ID"),
     _: None = Depends(_require_secret),
@@ -248,11 +286,23 @@ async def get_pending_releases(
         exhausted.dmb_last_error = "dmb_attempts_exhausted"
         exhausted.dmb_lease_owner = None
         exhausted.dmb_lease_expires_at = None
+        _enqueue_dmb_report(
+            db,
+            exhausted,
+            "dmb_error",
+            error="dmb_attempts_exhausted",
+        )
         await fail_release_and_refund(
             db,
             exhausted.id,
             "dmb_attempts_exhausted",
-            allowed_statuses={"pending", "manual_staging", "processing", "failed"},
+            allowed_statuses={
+                "pending",
+                "manual_staging",
+                "processing",
+                "dmb_recovery_requested",
+                "failed",
+            },
         )
 
     result = await db.execute(claimable_release_statement(mode, now, release_id))
@@ -387,6 +437,7 @@ async def update_release_status(
         release.status = "completed"
         release.dmb_lease_owner = None
         release.dmb_lease_expires_at = None
+        _enqueue_dmb_report(db, release, "dmb_success")
         await db.commit()
         return {"status": "updated"}
 
@@ -409,22 +460,52 @@ async def update_release_status(
         )
         if checkpoint is not None:
             release.dmb_ean_upc, release.dmb_isrcs, release.dmb_submission_fingerprint = checkpoint
+        if dmb_release_id is not None:
+            normalized_dmb_id = dmb_release_id.strip()
+            if not _DMB_ID_RE.fullmatch(normalized_dmb_id):
+                await db.rollback()
+                raise HTTPException(status_code=400, detail="dmb_release_id_invalid")
+            release.dmb_release_id = normalized_dmb_id
         release.dmb_last_error = reason
         release.dmb_lease_owner = None
         release.dmb_lease_expires_at = None
+        _enqueue_dmb_report(
+            db,
+            release,
+            "dmb_review",
+            error=reason,
+            evidence_path=evidence,
+        )
         await db.commit()
         return {"status": "verification_required"}
     if status == "retry" and release.dmb_attempts < _MAX_ATTEMPTS:
-        release.status = "manual_staging"
+        if release.dmb_submission_started_at is not None or release.dmb_submission_fingerprint:
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="dmb_retry_requires_review")
+        evidence = (evidence_path or f"results/{release_id}").replace("\\", "/")
+        path = PurePosixPath(evidence)
+        if len(evidence) > 512 or path.is_absolute() or ".." in path.parts:
+            await db.rollback()
+            raise HTTPException(status_code=400, detail="dmb_evidence_invalid")
+        release.status = "dmb_retry_waiting"
         release.dmb_last_error = reason
+        release.dmb_evidence_path = evidence
         release.dmb_lease_owner = None
         release.dmb_lease_expires_at = None
+        _enqueue_dmb_report(
+            db,
+            release,
+            "dmb_error",
+            error=reason,
+            evidence_path=evidence,
+        )
         await db.commit()
-        return {"status": "retry"}
+        return {"status": "retry_waiting"}
 
     release.dmb_last_error = reason
     release.dmb_lease_owner = None
     release.dmb_lease_expires_at = None
+    _enqueue_dmb_report(db, release, "dmb_error", error=reason, evidence_path=evidence_path)
     await fail_release_and_refund(
         db,
         release_id,
@@ -487,6 +568,7 @@ async def resolve_release_verification(
         release.dmb_submitted_at = now
         release.dmb_last_error = None
         release.status = "completed"
+        _enqueue_dmb_report(db, release, "dmb_success")
         await db.commit()
         return {"status": "completed"}
 
@@ -495,6 +577,13 @@ async def resolve_release_verification(
         if release.dmb_attempts >= _MAX_ATTEMPTS:
             await db.rollback()
             raise HTTPException(status_code=409, detail="dmb_attempts_exhausted")
+        if (
+            getattr(release, "dmb_release_id", None)
+            or getattr(release, "dmb_submission_started_at", None)
+            or getattr(release, "dmb_submission_fingerprint", None)
+        ):
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="dmb_retry_remote_state_unknown")
         release.status = "manual_staging"
         release.dmb_last_error = f"manual_retry:{review_reason}"
         release.dmb_ean_upc = None
@@ -506,6 +595,7 @@ async def resolve_release_verification(
         return {"status": "retry"}
 
     release.dmb_last_error = review_reason
+    _enqueue_dmb_report(db, release, "dmb_error", error=review_reason)
     await fail_release_and_refund(
         db,
         release_id,
