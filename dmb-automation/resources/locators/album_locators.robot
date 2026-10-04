@@ -34,5 +34,6 @@ ${GENERATE_ALL_ISRCS}          xpath=//a[@data-tippy-content='Generate all ISRCs
 ${WORLDWIDE_OPTION}            xpath=//label[contains(normalize-space(.), 'Worldwide')]
 ${ALL_PLATFORMS_BUTTON}        xpath=//a[@title='Add all to right side']
 ${ASSIGNED_PLATFORMS}          xpath=//select[contains(concat(' ', normalize-space(@class), ' '), ' assigned ')]/option
+${LOADING_OVERLAY}             id=vc_loading_layer_overlay
 ${SAVE_BUTTON}                 xpath=${CREATE_FORM_XPATH}//button[normalize-space()='Save & View Audio Product']
 ${SUBMISSION_SUCCESS}          xpath=//*[contains(@class,'success') and (contains(normalize-space(.),'created') or contains(normalize-space(.),'saved'))]

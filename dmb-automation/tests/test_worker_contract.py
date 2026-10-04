@@ -616,6 +616,8 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "No assigned DMB outlets found" in album_page
     assert "normalize-space()='<<'" not in locators
     assert "Wait Until Element Is Not Visible    ${ALL_PLATFORMS_BUTTON}" in album_page
+    assert "${LOADING_OVERLAY}             id=vc_loading_layer_overlay" in locators
+    assert album_page.count("Wait Until Element Is Not Visible    ${LOADING_OVERLAY}") == 2
     assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
