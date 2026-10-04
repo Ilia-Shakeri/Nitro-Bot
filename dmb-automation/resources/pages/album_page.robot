@@ -163,6 +163,10 @@ Keep Only Performer Role
     Should Be Equal As Integers    ${role_count}    1
     Should Be Equal As Strings    ${selected_roles}[0]    Performer
 
+Capture Active Form Source
+    ${source}=    Execute Javascript    return document.documentElement.outerHTML;
+    Create File    ${OUTPUT DIR}${/}form-state.html    ${source}
+
 Open Add Tracks
     Wait Until Page Contains Element    ${TRACK_FILE_INPUT}    timeout=30s
 

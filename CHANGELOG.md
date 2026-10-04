@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.25] - 2026-10-04
+
+### Added
+
+- The filled album form DOM is retained before navigation so live controls can
+  be diagnosed even when a failed wait returns browser focus to the shell.
+
+### Deployment
+
+- The twelfth live no-save preflight reproduced the missing legacy Next button
+  and proved teardown-time source capture is too late for the active form.
+
 ## [0.9.0-alpha.24] - 2026-10-04
 
 ### Fixed
@@ -427,7 +439,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.24...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.25...HEAD
+[0.9.0-alpha.25]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.24...v0.9.0-alpha.25
 [0.9.0-alpha.24]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.23...v0.9.0-alpha.24
 [0.9.0-alpha.23]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.22...v0.9.0-alpha.23
 [0.9.0-alpha.22]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.21...v0.9.0-alpha.22
