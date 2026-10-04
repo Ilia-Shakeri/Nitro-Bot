@@ -192,9 +192,8 @@ Fill Track Info And Generate ISRC
     Wait Until Element Is Visible    ${GENERATE_ALL_ISRCS}    timeout=30s
     Click Element    ${GENERATE_ALL_ISRCS}
     Wait Until Keyword Succeeds    30s    1s    ISRC Should Be Generated
-    Wait Until Element Is Visible    ${TRACK_TITLE_INPUT}    timeout=20s
-    Input Text    ${TRACK_TITLE_INPUT}    ${track_title}
-    Press Keys    ${TRACK_TITLE_INPUT}    TAB
+    ${actual_title}=    Execute Javascript    const element = Array.from(document.querySelectorAll("input[name='track:title[]']")).find((candidate) => candidate.offsetParent !== null); if (!element) { return ""; } element.value = arguments[0]; element.dispatchEvent(new Event("input", {bubbles: true})); element.dispatchEvent(new Event("change", {bubbles: true})); element.blur(); return element.value;    ARGUMENTS    ${track_title}
+    Should Be Equal As Strings    ${actual_title}    ${track_title}
     ${isrc}=    Get Generated ISRC
     RETURN    ${isrc}
 

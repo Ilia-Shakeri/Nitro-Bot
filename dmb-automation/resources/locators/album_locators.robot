@@ -30,7 +30,6 @@ ${ADD_CONTRIBUTOR_BUTTON}      xpath=${CREATE_FORM_XPATH}//button[contains(@clas
 ${ADD_TRACKS_BUTTON}           xpath=//*[self::button or self::a][normalize-space()='Add Tracks']
 ${TRACK_FILE_INPUT}            xpath=//input[@type='file' and not(contains(@accept,'image'))]
 ${GENERATE_ALL_ISRCS}          xpath=//a[@data-tippy-content='Generate all ISRCs']
-${TRACK_TITLE_INPUT}           xpath=//tbody//tr[contains(@class,'track') and not(contains(@style,'display: none'))]//input[@name='track:title[]']
 
 ${WORLDWIDE_OPTION}            xpath=//label[contains(normalize-space(.), 'Worldwide')]
 ${ALL_PLATFORMS_BUTTON}        xpath=(//*[self::button or self::a][normalize-space()='<<'])[1]

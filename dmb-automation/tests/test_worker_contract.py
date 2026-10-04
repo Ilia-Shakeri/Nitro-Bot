@@ -606,6 +606,10 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "input[name='track:isrc[]']" in album_page
     assert ".map((element) => element.value.trim()).find(Boolean)" in album_page
     assert "${TRACK_ISRC_INPUT}" not in album_page
+    assert "input[name='track:title[]']" in album_page
+    assert "candidate.offsetParent !== null" in album_page
+    assert "element.dispatchEvent(new Event(\"input\", {bubbles: true}))" in album_page
+    assert "${TRACK_TITLE_INPUT}" not in album_page
     assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
