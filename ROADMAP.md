@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.19`
+Current release: `0.9.0-alpha.20`
 
 Target release: `1.0.0`
 
@@ -35,6 +35,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.17` | Match live DMB text completion | Exact suggestions are used when shown; accepted text is confirmed on blur otherwise |
 | `0.9.0-alpha.18` | Handle collapsed DMB navigation | Audio navigation works with either expanded or collapsed sidebar state |
 | `0.9.0-alpha.19` | Confirm live DMB suggestions | Keyboard selection commits custom completion fields and failure DOM is retained |
+| `0.9.0-alpha.20` | Accept DMB masked dates | Date proof matches formatted display and raw masked input values |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

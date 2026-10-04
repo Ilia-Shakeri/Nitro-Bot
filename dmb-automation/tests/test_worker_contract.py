@@ -598,6 +598,13 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
     assert "Press Keys    ${locator}    ENTER" in album_page
     assert "Field Value Should Equal" in album_page
+    assert "${expected_digits}=    Remove String    ${date_value}    ." in album_page
+    assert "${actual_digits}=    Remove String    ${actual_date}    ." in album_page
+    assert (
+        "Should Be Equal As Strings    ${actual_digits}    ${expected_digits}"
+        in album_page
+    )
+    assert "Should Be Equal As Strings    ${actual_date}    ${date_value}" not in album_page
     assert "Capture Final Page Source" in album_page
     assert "${OUTPUT DIR}${/}final-state.html" in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page

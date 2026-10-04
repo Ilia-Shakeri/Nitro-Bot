@@ -110,7 +110,9 @@ Input Date And Confirm
     Input Text    ${locator}    ${date_value}
     Press Keys    ${locator}    TAB
     ${actual_date}=    Get Value    ${locator}
-    Should Be Equal As Strings    ${actual_date}    ${date_value}
+    ${expected_digits}=    Remove String    ${date_value}    .
+    ${actual_digits}=    Remove String    ${actual_date}    .
+    Should Be Equal As Strings    ${actual_digits}    ${expected_digits}
 
 Set Release Dates
     [Arguments]    ${start_date}    ${end_date}
