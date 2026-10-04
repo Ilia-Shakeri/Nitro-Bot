@@ -156,8 +156,8 @@ Add DMB Contributor
     Wait Until Keyword Succeeds    20s    1s    Page Should Contain    ${name}
 
 Keep Only Performer Role
-    Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}
-    Select From List By Label    ${CONTRIBUTOR_ROLES_SELECT}    Performer
+    ${roles_select}=    Get WebElement    ${CONTRIBUTOR_ROLES_SELECT}
+    Execute Javascript    const select = arguments[0]; Array.from(select.options).forEach((option) => { option.selected = option.textContent.trim() === 'Performer'; }); select.dispatchEvent(new Event('change', { bubbles: true }));    ARGUMENTS    ${roles_select}
     @{selected_roles}=    Get Selected List Labels    ${CONTRIBUTOR_ROLES_SELECT}
     ${role_count}=    Get Length    ${selected_roles}
     Should Be Equal As Integers    ${role_count}    1

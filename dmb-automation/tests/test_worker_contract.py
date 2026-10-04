@@ -614,7 +614,11 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC" not in album_page
-    assert "Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}" in album_page
+    assert "const select = arguments[0]" in album_page
+    assert "option.textContent.trim() === 'Performer'" in album_page
+    assert "select.dispatchEvent(new Event('change', { bubbles: true }))" in album_page
+    assert "Unselect All From List    ${CONTRIBUTOR_ROLES_SELECT}" not in album_page
+    assert "Select From List By Label    ${CONTRIBUTOR_ROLES_SELECT}" not in album_page
     assert "Click Element    ${ADD_TRACKS_BUTTON}" not in album_page
 
 

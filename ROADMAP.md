@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.21`
+Current release: `0.9.0-alpha.22`
 
 Target release: `1.0.0`
 
@@ -37,6 +37,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.19` | Confirm live DMB suggestions | Keyboard selection commits custom completion fields and failure DOM is retained |
 | `0.9.0-alpha.20` | Accept DMB masked dates | Date proof matches formatted display and raw masked input values |
 | `0.9.0-alpha.21` | Close DMB date picker | Date entry dismisses its calendar before price selection |
+| `0.9.0-alpha.22` | Set hidden DMB roles | Contributor roles update through the hidden select state and change event |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
