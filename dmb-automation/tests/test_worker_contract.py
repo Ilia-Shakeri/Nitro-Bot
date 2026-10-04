@@ -822,6 +822,17 @@ def test_publish_recovery_suite_cannot_create_or_save_an_album():
     assert "input[@name='ean' and @readonly]" not in locators
 
 
+def test_success_suites_capture_full_final_page():
+    for relative in (
+        "automation/create_album.robot",
+        "automation/edit_album.robot",
+        "automation/recover_publish.robot",
+    ):
+        suite = (ROOT / relative).read_text(encoding="utf-8")
+        assert "final-page-full.png" in suite
+        assert "Capture Element Screenshot    xpath=//html" in suite
+
+
 def test_edit_locators_compose_bare_xpath_roots():
     locators = (ROOT / "resources" / "locators" / "edit_album_locators.robot").read_text(
         encoding="utf-8"

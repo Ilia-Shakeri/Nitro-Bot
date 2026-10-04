@@ -85,6 +85,9 @@ docker compose exec dmb-automation python -c "import os,urllib.request; print(ur
 - The `dmb-results` directory must remain persistent for screenshots and logs.
 - Success, error, and review reports use topics 44, 43, and 42. Error and review
   reports attach the saved browser screenshot when one exists.
+- Reports never include the application build version. Success needs a full-page
+  final screenshot and fails closed without it. Review text is distinct from an
+  error and exposes safe retry only when exact saved-album identity is complete.
 
 ## Moving to the official interface
 

@@ -28,8 +28,8 @@ User Publishes Exact Saved Album
     ${current_url}=    Get Location
     ${actual_dmb_id}=    Extract Dmb Release Id    ${current_url}
     Should Be Equal As Strings    ${actual_dmb_id}    %{DMB_RECOVERY_DMB_ID}
-    ${screenshot}=    Set Variable    ${OUTPUT DIR}${/}published.png
-    Capture Page Screenshot    ${screenshot}
+    ${screenshot}=    Set Variable    ${OUTPUT DIR}${/}final-page-full.png
+    Capture Element Screenshot    xpath=//html    ${screenshot}
     Write Dmb Result
     ...    %{DMB_RESULT_FILE}
     ...    %{DMB_RECOVERY_RELEASE_ID}

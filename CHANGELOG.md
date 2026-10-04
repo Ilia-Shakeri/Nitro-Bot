@@ -10,6 +10,24 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.50] - 2026-10-04
+
+### Changed
+
+- DMB reports no longer expose application version text.
+- Success reports include song, artist, order ID, DMB ID, EAN, ISRC, work type,
+  attempt count, and a required final full-page screenshot.
+- Error reports show song and order identity, failure stage, retry state, and a
+  bounded safe error summary.
+- Manual-review reports use distinct text, richer saved-album evidence, a clear
+  next action, and an inline safe-retry button when exact recovery is allowed.
+
+### Safety
+
+- Success notification fails closed when final-page proof is missing.
+- Full-page images fall back to file delivery when Telegram rejects photo form.
+- Report captions are bounded below the Telegram caption limit.
+
 ## [0.9.0-alpha.49] - 2026-10-04
 
 ### Added
@@ -771,7 +789,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.49...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.50...HEAD
+[0.9.0-alpha.50]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.49...v0.9.0-alpha.50
 [0.9.0-alpha.49]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.48...v0.9.0-alpha.49
 [0.9.0-alpha.48]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.47...v0.9.0-alpha.48
 [0.9.0-alpha.47]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.46...v0.9.0-alpha.47

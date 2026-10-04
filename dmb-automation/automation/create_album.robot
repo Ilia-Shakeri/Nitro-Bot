@@ -92,8 +92,8 @@ Then User Verifies Album
     Submit Album And Verify Success    ${JOB}[release_id]    ${EAN}    ${ISRC}    ${JOB}[song_name]
     ${CURRENT_URL}=    Get Location
     ${DMB_RELEASE_ID}=    Extract Dmb Release Id    ${CURRENT_URL}
-    ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}submitted.png
-    Capture Page Screenshot    ${SCREENSHOT}
+    ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}final-page-full.png
+    Capture Element Screenshot    xpath=//html    ${SCREENSHOT}
     Write Dmb Result
     ...    %{DMB_RESULT_FILE}
     ...    ${JOB}[release_id]

@@ -22,7 +22,7 @@ from user_identity import sync_telegram_profile
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_GROUP_ID = os.getenv("ADMIN_GROUP_ID", "").strip()
-APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.49")
+APP_VERSION = os.getenv("APP_VERSION", "0.9.0-alpha.50")
 logger = logging.getLogger("nitro.bot")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
@@ -174,8 +174,10 @@ async def _send_photo(*, strict_thread: bool = False, **kwargs: Any) -> Any:
     )
 
 
-async def _send_document(**kwargs: Any) -> Any:
-    return await _send_with_thread_fallback("send_document", **kwargs)
+async def _send_document(*, strict_thread: bool = False, **kwargs: Any) -> Any:
+    return await _send_with_thread_fallback(
+        "send_document", strict_thread=strict_thread, **kwargs
+    )
 
 
 async def _send_audio(**kwargs: Any) -> Any:
@@ -654,6 +656,7 @@ def _safe_dmb_error(value: object) -> str:
 def _dmb_evidence_image(
     evidence_path: object,
     release_id: int,
+    event: str = "error",
 ) -> tuple[bytes, str] | None:
     raw = str(evidence_path or "").replace("\\", "/").strip("/")
     parts = [part for part in raw.split("/") if part]
@@ -670,10 +673,12 @@ def _dmb_evidence_image(
     else:
         candidates.extend(
             [
+                base / "recovery" / "final-page-full.png",
+                base / "final-page-full.png",
+                base / "recovery" / "published.png",
+                base / "submitted.png",
                 base / "final-state.png",
                 base / "recovery" / "final-state.png",
-                base / "submitted.png",
-                base / "recovery" / "published.png",
             ]
         )
         try:
@@ -687,7 +692,20 @@ def _dmb_evidence_image(
                 return item.stat().st_mtime
             except OSError:
                 return -1
-        candidates = sorted(set(candidates), key=_mtime, reverse=True)
+        if event == "success":
+            priority = {
+                "final-page-full.png": 3,
+                "published.png": 2,
+                "submitted.png": 1,
+            }
+            candidates = [item for item in candidates if item.name in priority]
+            candidates = sorted(
+                set(candidates),
+                key=lambda item: (priority.get(item.name, 0), _mtime(item)),
+                reverse=True,
+            )
+        else:
+            candidates = sorted(set(candidates), key=_mtime, reverse=True)
     for candidate in candidates:
         try:
             resolved = candidate.resolve()
@@ -697,7 +715,7 @@ def _dmb_evidence_image(
             continue
         if (
             resolved.is_relative_to(DMB_RESULTS_ROOT)
-            and 100 <= size <= 10 * 1024 * 1024
+            and 100 <= size <= 45 * 1024 * 1024
             and (
                 header.startswith(b"\x89PNG\r\n\x1a\n")
                 or header.startswith(b"\xff\xd8\xff")
@@ -737,69 +755,109 @@ def _dmb_report_keyboard(
         and DMB_RECOVERY_ENABLED
     ):
         builder.button(
-            text="▶️ ادامه امن همان آلبوم",
+            text="🔁 تلاش مجدد امن",
             callback_data=f"dmb_resume_{release.id}_{attempt}",
         )
     return builder.as_markup() if list(builder.buttons) else None
 
 
-async def notify_admin_dmb_report(
+def _short_report_value(value: object, limit: int = 160) -> str:
+    text = re.sub(r"\s+", " ", str(value or "-")).strip()
+    return text[:limit] or "-"
+
+
+def _dmb_report_content(
     release: Release,
     event: str,
     payload: dict,
-) -> None:
+) -> tuple[int, str, types.InlineKeyboardMarkup | None]:
+    if event not in {"success", "error", "review"}:
+        raise RuntimeError("dmb_report_event_invalid")
     attempt = int(payload.get("attempt") or release.dmb_attempts or 0)
     mode = "ویرایش" if release.is_edit else "ساخت"
-    error = _safe_dmb_error(payload.get("error") or release.dmb_last_error)
+    error = _safe_dmb_error(payload.get("error") or release.dmb_last_error)[:260]
     reply_markup = _dmb_report_keyboard(release, event, attempt)
+    title = _short_report_value(release.song_name)
+    artist = _short_report_value(getattr(release, "artist_name", None))
+    order_id = release.id
+    dmb_id = _short_report_value(release.dmb_release_id)
+    ean = _short_report_value(release.dmb_ean_upc)
+    isrcs = _short_report_value(", ".join(release.dmb_isrcs or []), 240)
     if event == "success":
         topic_id = DMB_SUCCESS_TOPIC_ID
         text = (
-            "✅ DMB انجام شد\n"
-            f"سفارش: {release.id}\n"
-            f"آهنگ: {release.song_name}\n"
-            f"کار: {mode}\n"
-            f"شناسه DMB: {release.dmb_release_id or '-'}\n"
-            f"EAN: {release.dmb_ean_upc or '-'}\n"
-            f"ISRC: {', '.join(release.dmb_isrcs or []) or '-'}\n"
-            f"تلاش: {attempt}"
+            "✅ انتشار در DMB موفق شد\n\n"
+            f"🎵 نام آهنگ: {title}\n"
+            f"👤 هنرمند: {artist}\n"
+            f"🆔 ID سفارش: {order_id}\n"
+            f"🔗 ID در DMB: {dmb_id}\n"
+            f"🏷 EAN/UPC: {ean}\n"
+            f"🎧 ISRC: {isrcs}\n"
+            f"🛠 نوع کار: {mode}\n"
+            f"🔢 تعداد تلاش: {attempt}\n\n"
+            "📸 تصویر کامل صفحه نهایی پیوست شد."
         )
     elif event == "review":
         topic_id = DMB_REVIEW_TOPIC_ID
+        next_action = (
+            "دکمه «تلاش مجدد امن» همان آلبوم ذخیره‌شده را ادامه می‌دهد."
+            if reply_markup is not None
+            else "تلاش مجدد قفل است؛ مدرک هویت آلبوم کامل نیست یا سقف تلاش پر است."
+        )
         text = (
-            "⚠️ DMB نیاز به بررسی\n"
-            f"سفارش: {release.id}\n"
-            f"آهنگ: {release.song_name}\n"
-            f"کار: {mode}\n"
-            f"شناسه DMB: {release.dmb_release_id or '-'}\n"
-            f"تلاش: {attempt}\n"
-            f"خطا: {error}\n"
-            "ساخت دوباره قفل است."
+            "🟠 بررسی انسانی DMB لازم است\n\n"
+            f"🎵 نام آهنگ: {title}\n"
+            f"👤 هنرمند: {artist}\n"
+            f"🆔 ID سفارش: {order_id}\n"
+            f"👥 ID کاربر: {_short_report_value(release.user_id)}\n"
+            f"🔗 ID ذخیره‌شده DMB: {dmb_id}\n"
+            f"🏷 EAN/UPC: {ean}\n"
+            f"🎧 ISRC: {isrcs}\n"
+            f"🛠 نوع کار: {mode}\n"
+            f"🔢 تلاش: {attempt}/{DMB_MAX_ATTEMPTS}\n"
+            f"⚠️ علت: {error}\n\n"
+            f"➡️ کار بعدی: {next_action}\n"
+            "🛡 ساخت آلبوم تازه تا روشن‌شدن نتیجه قفل است."
         )
     else:
         topic_id = DMB_ERROR_TOPIC_ID
+        stage = (
+            "پس از شروع ثبت؛ ساخت دوباره قفل است"
+            if release.dmb_submission_started_at is not None
+            else "پیش از ثبت نهایی"
+        )
         retry_line = (
-            "دکمه تلاش دوباره آماده است."
+            "دکمه تلاش مجدد آماده است."
             if reply_markup is not None
-            else "تلاش خودکار قفل است."
+            else "تلاش مجدد خودکار قفل است."
         )
         text = (
-            "❌ DMB خطا\n"
-            f"سفارش: {release.id}\n"
-            f"آهنگ: {release.song_name}\n"
-            f"کار: {mode}\n"
-            f"تلاش: {attempt}/{DMB_MAX_ATTEMPTS}\n"
-            f"خطا: {error}\n"
-            f"{retry_line}"
+            "❌ خطا در DMB\n\n"
+            f"🎵 نام آهنگ: {title}\n"
+            f"👤 هنرمند: {artist}\n"
+            f"🆔 ID سفارش: {order_id}\n"
+            f"🛠 نوع کار: {mode}\n"
+            f"📍 مرحله: {stage}\n"
+            f"🔢 تلاش: {attempt}/{DMB_MAX_ATTEMPTS}\n"
+            f"⚠️ خطا: {error}\n\n"
+            f"➡️ وضعیت: {retry_line}"
         )
     if topic_id is None:
         raise RuntimeError("dmb_report_topic_missing")
-    evidence = _dmb_evidence_image(
-        payload.get("evidence_path") or release.dmb_evidence_path,
-        release.id,
-    )
-    if event != "success" and evidence is not None:
-        image_bytes, image_name = evidence
+    if len(text) > 1000:
+        raise RuntimeError("dmb_report_caption_too_long")
+    return topic_id, text, reply_markup
+
+
+async def _send_dmb_report_image(
+    *,
+    topic_id: int,
+    text: str,
+    reply_markup: types.InlineKeyboardMarkup | None,
+    evidence: tuple[bytes, str],
+) -> None:
+    image_bytes, image_name = evidence
+    try:
         await _send_photo(
             strict_thread=True,
             chat_id=ADMIN_GROUP_ID,
@@ -807,6 +865,39 @@ async def notify_admin_dmb_report(
             photo=BufferedInputFile(image_bytes, filename=image_name),
             caption=text,
             reply_markup=reply_markup,
+        )
+    except TelegramBadRequest as exc:
+        if _is_missing_message_thread(exc):
+            raise
+        await _send_document(
+            strict_thread=True,
+            chat_id=ADMIN_GROUP_ID,
+            message_thread_id=topic_id,
+            document=BufferedInputFile(image_bytes, filename=image_name),
+            caption=text,
+            reply_markup=reply_markup,
+        )
+
+
+async def notify_admin_dmb_report(
+    release: Release,
+    event: str,
+    payload: dict,
+) -> None:
+    topic_id, text, reply_markup = _dmb_report_content(release, event, payload)
+    evidence = _dmb_evidence_image(
+        payload.get("evidence_path") or release.dmb_evidence_path,
+        release.id,
+        event,
+    )
+    if event == "success" and evidence is None:
+        raise RuntimeError("dmb_success_evidence_missing")
+    if evidence is not None:
+        await _send_dmb_report_image(
+            topic_id=topic_id,
+            text=text,
+            reply_markup=reply_markup,
+            evidence=evidence,
         )
         return
     await _send_message(

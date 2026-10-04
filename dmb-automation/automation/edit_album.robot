@@ -59,8 +59,8 @@ Then User Verifies Saves And Publishes Edit
     ${CURRENT_URL}=    Get Location
     ${DMB_RELEASE_ID}=    Extract Dmb Release Id    ${CURRENT_URL}
     Should Be Equal As Strings    ${DMB_RELEASE_ID}    ${JOB}[source_dmb_release_id]
-    ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}submitted.png
-    Capture Page Screenshot    ${SCREENSHOT}
+    ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}final-page-full.png
+    Capture Element Screenshot    xpath=//html    ${SCREENSHOT}
     Write Dmb Result
     ...    %{DMB_RESULT_FILE}
     ...    ${JOB}[release_id]
