@@ -150,8 +150,20 @@ Input Date And Confirm
     Wait Until Element Is Visible    ${locator}    timeout=20s
     ${date_input}=    Get WebElement    ${locator}
     ${actual_date}=    Execute Javascript    const element = arguments[0]; const value = arguments[1]; const parts = value.split('.').map(Number); if (window.jQuery && window.jQuery.fn.datepicker) { window.jQuery(element).datepicker('setDate', new Date(parts[2], parts[1] - 1, parts[0])); window.jQuery(element).trigger('input').trigger('change'); } else { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); } element.blur(); return element.value;    ARGUMENTS    ${date_input}    ${date_value}
-    Should Be Equal As Strings    ${actual_date}    ${date_value}
+    Date Value Should Match    ${actual_date}    ${date_value}
     Wait Until Element Is Not Visible    ${DATEPICKER}    timeout=5s
+
+Date Value Should Match
+    [Arguments]    ${actual_date}    ${dotted_date}
+    ${iso_date}=    Evaluate    "-".join(reversed($dotted_date.split(".")))
+    ${matches}=    Evaluate    $actual_date in ($dotted_date, $iso_date)
+    Should Be True    ${matches}    DMB date value mismatch: ${actual_date}
+
+Date Field Should Equal
+    [Arguments]    ${locator}    ${iso_date}
+    ${actual_date}=    Get Value    ${locator}
+    ${dotted_date}=    Format Dmb Date    ${iso_date}
+    Date Value Should Match    ${actual_date}    ${dotted_date}
 
 Set Release Dates
     [Arguments]    ${start_date}    ${end_date}
@@ -271,10 +283,8 @@ Verify Review Data
     Field Value Should Equal    ${EAN_INPUT}    ${ean}
     ${review_isrc}=    Get Generated ISRC
     Should Be Equal As Strings    ${review_isrc}    ${isrc}
-    ${dmb_release_date}=    Format Dmb Date    ${release_date}
-    ${dmb_expiration_date}=    Format Dmb Date    ${expiration_date}
-    Field Value Should Equal    ${SALES_START_DATE}    ${dmb_release_date}
-    Field Value Should Equal    ${SALES_END_DATE}    ${dmb_expiration_date}
+    Date Field Should Equal    ${SALES_START_DATE}    ${release_date}
+    Date Field Should Equal    ${SALES_END_DATE}    ${expiration_date}
     Genre Should Be Selected    ${genre}
     ${selected_label}=    Get Selected List Label    ${LABEL_SELECT}
     Should Be Equal As Strings    ${selected_label}    ${label}

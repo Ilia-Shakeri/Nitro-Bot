@@ -638,7 +638,9 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "Field Value Should Equal" in album_page
     assert "window.jQuery(element).datepicker('setDate'" in album_page
     assert "window.jQuery(element).trigger('input').trigger('change')" in album_page
-    assert "Should Be Equal As Strings    ${actual_date}    ${date_value}" in album_page
+    assert "Date Value Should Match    ${actual_date}    ${date_value}" in album_page
+    assert '"-".join(reversed($dotted_date.split(".")))' in album_page
+    assert "$actual_date in ($dotted_date, $iso_date)" in album_page
     assert "Wait Until Element Is Not Visible    ${DATEPICKER}" in album_page
     assert "${DATEPICKER}                  xpath=//*[@id='ui-datepicker-div']" in locators
     assert "Capture Final Page Source" in album_page
@@ -652,8 +654,8 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${source}=    Get Source" not in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page
     assert "${JOB}[expiration_date]" in create_suite
-    assert "${dmb_expiration_date}=    Format Dmb Date" in album_page
-    assert "Field Value Should Equal    ${SALES_END_DATE}" in album_page
+    assert "Date Field Should Equal    ${SALES_START_DATE}" in album_page
+    assert "Date Field Should Equal    ${SALES_END_DATE}" in album_page
     assert "Page Should Contain    ${title}" not in album_page
     assert "Page Should Contain    ${ean}" not in album_page
     assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
