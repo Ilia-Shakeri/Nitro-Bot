@@ -69,7 +69,7 @@ Select DMB Genre
     ${choice_clicked}=    Run Keyword And Return Status    Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
     IF    not ${choice_clicked}
         ${genre_picker}=    Get WebElement    ${GENRE_PICKER}
-        Execute Javascript    arguments[0].click();    ARGUMENTS    ${genre_picker}
+        Execute Javascript    arguments[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));    ARGUMENTS    ${genre_picker}
         Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
     END
     Wait Until Keyword Succeeds    10s    1s    Genre Should Be Selected    ${dmb_genre}

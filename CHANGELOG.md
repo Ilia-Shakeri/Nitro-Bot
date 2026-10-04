@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.37] - 2026-10-04
+
+### Fixed
+
+- Genre picker activation now dispatches a bubbling mouse event because the
+  live Firefox SVG element does not expose a click function.
+
+### Deployment
+
+- The alpha.36 live no-save preflight reached the picker icon and stopped on
+  the SVG click mismatch. Database submission state remained unchanged.
+
 ## [0.9.0-alpha.36] - 2026-10-04
 
 ### Fixed
@@ -575,7 +587,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.36...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.37...HEAD
+[0.9.0-alpha.37]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.36...v0.9.0-alpha.37
 [0.9.0-alpha.36]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.35...v0.9.0-alpha.36
 [0.9.0-alpha.35]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.34...v0.9.0-alpha.35
 [0.9.0-alpha.34]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.33...v0.9.0-alpha.34

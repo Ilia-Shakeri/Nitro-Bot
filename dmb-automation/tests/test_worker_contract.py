@@ -624,6 +624,7 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${GENRE_PICKER}" in album_page
     assert "@name='genre_id'" in locators
     assert "dmb-icon--extract" in locators
+    assert "dispatchEvent(new MouseEvent('click'" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
     assert "Press Keys    ${locator}    ENTER" in album_page
