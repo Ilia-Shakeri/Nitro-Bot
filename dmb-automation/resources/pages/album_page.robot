@@ -7,8 +7,9 @@ Resource   ../locators/login_locators.robot
 
 *** Keywords ***
 Navigate To Album Creation Form
-    Wait Until Element Is Visible    ${MUSIC_MENU}    timeout=30s
-    Click Element    ${MUSIC_MENU}
+    Wait Until Page Contains Element    ${MUSIC_MENU}    timeout=30s
+    ${music_menu}=    Get WebElement    ${MUSIC_MENU}
+    Execute Javascript    arguments[0].click();    ARGUMENTS    ${music_menu}
     Wait Until Element Is Visible    ${CREATE_ALBUM_LINK}    timeout=20s
     ${create_link}=    Get WebElement    ${CREATE_ALBUM_LINK}
     Execute Javascript    arguments[0].click();    ARGUMENTS    ${create_link}

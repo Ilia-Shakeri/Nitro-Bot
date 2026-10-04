@@ -26,7 +26,7 @@ Given User Is Logged In
     Input Username    ${username}
     Input DMB Password    ${password}
     Click Login Button
-    Wait Until Element Is Visible    ${MUSIC_MENU}    timeout=30s
+    Wait Until Page Contains Element    ${MUSIC_MENU}    timeout=30s
 
 And User Loads Isolated Job Data
     ${JOB}=    Load Dmb Job    %{DMB_JOB_FILE}
