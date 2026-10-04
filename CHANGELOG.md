@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.32] - 2026-10-04
+
+### Fixed
+
+- Platform selection now uses the live titled double-right control and proves
+  at least one DMB outlet is assigned before continuing.
+
+### Deployment
+
+- The nineteenth live no-save preflight completed territory selection and
+  exposed the obsolete text-only platform locator.
+
 ## [0.9.0-alpha.31] - 2026-10-04
 
 ### Fixed
@@ -511,7 +523,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.31...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.32...HEAD
+[0.9.0-alpha.32]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.31...v0.9.0-alpha.32
 [0.9.0-alpha.31]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.30...v0.9.0-alpha.31
 [0.9.0-alpha.30]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.29...v0.9.0-alpha.30
 [0.9.0-alpha.29]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.28...v0.9.0-alpha.29

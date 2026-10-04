@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.31`
+Current release: `0.9.0-alpha.32`
 
 Target release: `1.0.0`
 
@@ -47,6 +47,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.29` | Read generated ISRC state | Generated ISRC proof reads the live visible input instead of its stale HTML value attribute |
 | `0.9.0-alpha.30` | Resolve duplicate ISRC inputs | Generated ISRC proof selects the live non-empty value among duplicate DMB form controls |
 | `0.9.0-alpha.31` | Fill visible track title | Track title updates the visible duplicate control and emits the form input events |
+| `0.9.0-alpha.32` | Match live outlet selector | All platforms use the titled double-right control and assigned outlet proof |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
