@@ -329,10 +329,11 @@ Submit Album And Verify Success
     Should Be Equal    %{DMB_SUBMIT_ENABLED}    true
     Should Be Equal    %{DMB_PUBLISH_ENABLED=false}    true
     Wait Until Element Is Enabled    ${SAVE_BUTTON}    timeout=30s
-    Scroll Element Into View    ${SAVE_BUTTON}
+    ${save_button}=    Get WebElement    ${SAVE_BUTTON}
+    Execute Javascript    arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});    ARGUMENTS    ${save_button}
     ${before_url}=    Get Location
     Write Submit Checkpoint    %{DMB_SUBMIT_CHECKPOINT}    ${release_id}    ${ean}    ${isrc}    ${title}
-    Click Element    ${SAVE_BUTTON}
+    Execute Javascript    arguments[0].click();    ARGUMENTS    ${save_button}
     Wait Until Keyword Succeeds    60s    2s    Submission Should Be Confirmed    ${before_url}
     Unselect Frame
     ${saved_url}=    Get Location

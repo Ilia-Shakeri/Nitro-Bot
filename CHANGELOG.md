@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.46] - 2026-10-04
+
+### Fixed
+
+- The final create Save action now scrolls and clicks through the DOM. Headless
+  Firefox no longer moves a pointer below the iframe viewport.
+
+### Safety
+
+- The durable submit checkpoint is still written immediately before the DOM
+  click. A crash after the click remains a manual-verification event.
+
 ## [0.9.0-alpha.45] - 2026-10-04
 
 ### Added
@@ -24,6 +36,11 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Publication needs the create delivery gate and a per-run publication gate.
 - Completion evidence is written only after the exact saved album no longer
   exposes its Publish action or DMB shows a publication success message.
+
+### Deployment
+
+- The first targeted live run stopped before the submit checkpoint because
+  Firefox could not move to the Save button. No DMB Save or Publish occurred.
 
 ## [0.9.0-alpha.44] - 2026-10-04
 
@@ -699,7 +716,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.45...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.46...HEAD
+[0.9.0-alpha.46]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.45...v0.9.0-alpha.46
 [0.9.0-alpha.45]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.44...v0.9.0-alpha.45
 [0.9.0-alpha.44]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.43...v0.9.0-alpha.44
 [0.9.0-alpha.43]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.42...v0.9.0-alpha.43

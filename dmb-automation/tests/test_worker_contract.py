@@ -733,9 +733,17 @@ def test_create_submission_saves_then_publishes_exact_album():
     )
 
     assert "DMB_PUBLISH_ENABLED=false" in page
-    assert page.index("Click Element    ${SAVE_BUTTON}") < page.index(
-        "Click Element    ${CREATE_PUBLISH_ACTION}"
+    assert "arguments[0].scrollIntoView({block: 'center'" in page
+    assert "Scroll Element Into View    ${SAVE_BUTTON}" not in page
+    save_click = (
+        "Execute Javascript    arguments[0].click();    ARGUMENTS    ${save_button}"
     )
+    submit = page.index("Submit Album And Verify Success")
+    checkpoint = page.index("Write Submit Checkpoint", submit)
+    save = page.index(save_click)
+    publish = page.index("Click Element    ${CREATE_PUBLISH_ACTION}")
+    assert save_click in page
+    assert checkpoint < save < publish
     assert "Extract Dmb Release Id    ${saved_url}" in page
     assert "Should Be Equal As Strings    ${saved_ean}    ${ean}" in page
     assert "Created Album Publication Should Be Confirmed" in page
