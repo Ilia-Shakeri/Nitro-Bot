@@ -613,6 +613,9 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${OUTPUT DIR}${/}final-state.html" in album_page
     assert "Capture Active Form Source" in create_suite
     assert "${OUTPUT DIR}${/}form-state.html" in album_page
+    assert "Restore Album Frame After Contributor" in create_suite
+    assert "Wait Until Element Is Visible    ${MAIN_IFRAME}" in album_page
+    assert "Select Frame    ${MAIN_IFRAME}" in album_page
     assert "return document.documentElement.outerHTML;" in album_page
     assert "${source}=    Get Source" not in album_page
     assert "Select From List By Label    ${LABEL_SELECT}" in album_page

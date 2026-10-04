@@ -163,6 +163,11 @@ Keep Only Performer Role
     Should Be Equal As Integers    ${role_count}    1
     Should Be Equal As Strings    ${selected_roles}[0]    Performer
 
+Restore Album Frame After Contributor
+    Unselect Frame
+    Wait Until Element Is Visible    ${MAIN_IFRAME}    timeout=30s
+    Select Frame    ${MAIN_IFRAME}
+
 Capture Active Form Source
     ${source}=    Execute Javascript    return document.documentElement.outerHTML;
     Create File    ${OUTPUT DIR}${/}form-state.html    ${source}

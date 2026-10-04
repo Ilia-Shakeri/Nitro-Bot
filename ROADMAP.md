@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.25`
+Current release: `0.9.0-alpha.26`
 
 Target release: `1.0.0`
 
@@ -41,6 +41,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.23` | Drop stale contributor toggle | Create follows the live form where album contributors carry forward without the removed checkbox |
 | `0.9.0-alpha.24` | Capture live iframe DOM | Failure evidence records the active DMB form instead of only the outer shell |
 | `0.9.0-alpha.25` | Pin pre-navigation form DOM | Filled album-form evidence is retained before DMB changes browsing context |
+| `0.9.0-alpha.26` | Restore DMB frame context | Contributor refresh returns automation to the live album iframe before navigation |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
