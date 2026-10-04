@@ -78,15 +78,31 @@ Select Genre From Picker
     Execute Javascript    arguments[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));    ARGUMENTS    ${genre_picker}
     Wait Until Element Is Visible    ${GENRE_CHOOSER_IFRAME}    timeout=20s
     Select Frame    ${GENRE_CHOOSER_IFRAME}
-    Wait Until Element Is Visible    ${GENRE_SEARCH_INPUT}    timeout=20s
-    Input Text    ${GENRE_SEARCH_INPUT}    ${dmb_genre}
-    Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
+    ${has_parent}=    Evaluate    " [" in $dmb_genre and $dmb_genre.endswith("]")
+    IF    ${has_parent}
+        ${tree_value}=    Evaluate    $dmb_genre.rsplit(" [", 1)[0]
+        ${tree_parent}=    Evaluate    $dmb_genre.rsplit(" [", 1)[1][:-1]
+        Expand Genre Tree Parent    ${tree_parent}
+        Wait Until Keyword Succeeds    10s    500ms    Select Genre Tree Value    ${tree_value}
+    ELSE
+        Wait Until Keyword Succeeds    10s    500ms    Select Genre Tree Value    ${dmb_genre}
+    END
     Wait Until Element Is Enabled    ${GENRE_PICKER_OK}    timeout=10s
     Click Element    ${GENRE_PICKER_OK}
     Unselect Frame
     Wait Until Element Is Visible    ${MAIN_IFRAME}    timeout=30s
     Select Frame    ${MAIN_IFRAME}
     Wait Until Element Is Not Visible    ${GENRE_CHOOSER_IFRAME}    timeout=20s
+
+Expand Genre Tree Parent
+    [Arguments]    ${parent}
+    ${expanded}=    Execute Javascript    const expected = arguments[0]; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')); const label = labels.find((node) => { const text = node.textContent.trim(); return text === expected || text.includes(expected); }); if (!label) { return false; } const row = label.closest('mat-tree-node'); if (row.getAttribute('aria-expanded') === 'true') { return true; } const button = row.querySelector('.collapsible button'); if (!button) { return false; } button.click(); return true;    ARGUMENTS    ${parent}
+    Should Be True    ${expanded}    DMB genre parent not found: ${parent}
+
+Select Genre Tree Value
+    [Arguments]    ${value}
+    ${selected}=    Execute Javascript    const expected = arguments[0]; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')); const label = labels.find((node) => { const text = node.textContent.trim(); return text === expected || text.includes(expected); }); if (!label) { return false; } const radio = label.closest('mat-tree-node').querySelector('input[type="radio"]:not([disabled])'); if (!radio) { return false; } radio.click(); return radio.checked;    ARGUMENTS    ${value}
+    Should Be True    ${selected}    DMB genre value not found: ${value}
 
 Click Visible Exact Choice
     [Arguments]    ${value}

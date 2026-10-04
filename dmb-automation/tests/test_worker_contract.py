@@ -625,8 +625,11 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "@name='genre_id'" in locators
     assert "dmb-icon--extract" in locators
     assert "/product/genre-chooser" in locators
-    assert "${GENRE_SEARCH_INPUT}" in album_page
     assert "Select Frame    ${GENRE_CHOOSER_IFRAME}" in album_page
+    assert "Expand Genre Tree Parent    ${tree_parent}" in album_page
+    assert "Select Genre Tree Value    ${tree_value}" in album_page
+    assert "mat-tree-node .node-value span" in album_page
+    assert 'input[type="radio"]:not([disabled])' in album_page
     assert "Wait Until Element Is Enabled    ${GENRE_PICKER_OK}" in album_page
     assert "dispatchEvent(new MouseEvent('click'" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page

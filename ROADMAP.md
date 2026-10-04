@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.38`
+Current release: `0.9.0-alpha.39`
 
 Target release: `1.0.0`
 
@@ -54,6 +54,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.36` | Fix genre picker locator | Picker locator uses one valid XPath rooted at the create form |
 | `0.9.0-alpha.37` | Open SVG genre picker | Firefox receives a bubbling mouse event on the picker icon |
 | `0.9.0-alpha.38` | Use nested genre chooser | Search and select the exact genre inside the live picker iframe |
+| `0.9.0-alpha.39` | Traverse live genre tree | Expand the parent and select the child radio from the DMB taxonomy |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
