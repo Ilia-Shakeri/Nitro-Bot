@@ -66,13 +66,27 @@ Select DMB Genre
     [Arguments]    ${dmb_genre}
     Wait Until Element Is Visible    ${GENRE_INPUT}    timeout=20s
     Input Text    ${GENRE_INPUT}    ${dmb_genre}
-    ${choice_clicked}=    Run Keyword And Return Status    Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
+    ${choice_clicked}=    Run Keyword And Return Status    Wait Until Keyword Succeeds    3s    500ms    Click Visible Exact Choice    ${dmb_genre}
     IF    not ${choice_clicked}
-        ${genre_picker}=    Get WebElement    ${GENRE_PICKER}
-        Execute Javascript    arguments[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));    ARGUMENTS    ${genre_picker}
-        Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
+        Select Genre From Picker    ${dmb_genre}
     END
     Wait Until Keyword Succeeds    10s    1s    Genre Should Be Selected    ${dmb_genre}
+
+Select Genre From Picker
+    [Arguments]    ${dmb_genre}
+    ${genre_picker}=    Get WebElement    ${GENRE_PICKER}
+    Execute Javascript    arguments[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));    ARGUMENTS    ${genre_picker}
+    Wait Until Element Is Visible    ${GENRE_CHOOSER_IFRAME}    timeout=20s
+    Select Frame    ${GENRE_CHOOSER_IFRAME}
+    Wait Until Element Is Visible    ${GENRE_SEARCH_INPUT}    timeout=20s
+    Input Text    ${GENRE_SEARCH_INPUT}    ${dmb_genre}
+    Wait Until Keyword Succeeds    10s    500ms    Click Visible Exact Choice    ${dmb_genre}
+    Wait Until Element Is Enabled    ${GENRE_PICKER_OK}    timeout=10s
+    Click Element    ${GENRE_PICKER_OK}
+    Unselect Frame
+    Wait Until Element Is Visible    ${MAIN_IFRAME}    timeout=30s
+    Select Frame    ${MAIN_IFRAME}
+    Wait Until Element Is Not Visible    ${GENRE_CHOOSER_IFRAME}    timeout=20s
 
 Click Visible Exact Choice
     [Arguments]    ${value}
