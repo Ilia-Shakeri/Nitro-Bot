@@ -10,6 +10,21 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.45] - 2026-10-04
+
+### Added
+
+- A live worker can be pinned to one explicit release ID without claiming older
+  queued releases.
+- New DMB albums are reopened by their returned ID, matched by EAN, and
+  published after `Save & View Audio Product`.
+
+### Safety
+
+- Publication needs the create delivery gate and a per-run publication gate.
+- Completion evidence is written only after the exact saved album no longer
+  exposes its Publish action or DMB shows a publication success message.
+
 ## [0.9.0-alpha.44] - 2026-10-04
 
 ### Fixed
@@ -684,7 +699,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.44...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.45...HEAD
+[0.9.0-alpha.45]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.44...v0.9.0-alpha.45
 [0.9.0-alpha.44]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.43...v0.9.0-alpha.44
 [0.9.0-alpha.43]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.42...v0.9.0-alpha.43
 [0.9.0-alpha.42]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.41...v0.9.0-alpha.42

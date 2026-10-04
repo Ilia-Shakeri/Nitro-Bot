@@ -327,12 +327,34 @@ Submission Should Be Confirmed
 Submit Album And Verify Success
     [Arguments]    ${release_id}    ${ean}    ${isrc}    ${title}
     Should Be Equal    %{DMB_SUBMIT_ENABLED}    true
+    Should Be Equal    %{DMB_PUBLISH_ENABLED=false}    true
     Wait Until Element Is Enabled    ${SAVE_BUTTON}    timeout=30s
     Scroll Element Into View    ${SAVE_BUTTON}
     ${before_url}=    Get Location
     Write Submit Checkpoint    %{DMB_SUBMIT_CHECKPOINT}    ${release_id}    ${ean}    ${isrc}    ${title}
     Click Element    ${SAVE_BUTTON}
     Wait Until Keyword Succeeds    60s    2s    Submission Should Be Confirmed    ${before_url}
+    Unselect Frame
+    ${saved_url}=    Get Location
+    ${dmb_release_id}=    Extract Dmb Release Id    ${saved_url}
+    Go To    ${LOGIN_URL}page/album/${dmb_release_id}
+    Wait Until Element Is Visible    ${CREATED_ALBUM_IFRAME}    timeout=60s
+    Select Frame    ${CREATED_ALBUM_IFRAME}
+    Wait Until Element Is Visible    ${CREATED_ALBUM_FORM}    timeout=60s
+    ${saved_ean}=    Get Value    ${CREATED_ALBUM_EAN}
+    Should Be Equal As Strings    ${saved_ean}    ${ean}
+    Wait Until Element Is Visible    ${CREATE_PUBLISH_ACTION}    timeout=30s
+    Click Element    ${CREATE_PUBLISH_ACTION}
+    Wait Until Keyword Succeeds    60s    2s    Created Album Publication Should Be Confirmed    ${ean}
+
+Created Album Publication Should Be Confirmed
+    [Arguments]    ${ean}
+    ${success}=    Run Keyword And Return Status    Page Should Contain Element    ${PUBLICATION_SUCCESS}
+    ${form_present}=    Run Keyword And Return Status    Page Should Contain Element    ${CREATED_ALBUM_FORM}
+    ${publish_present}=    Run Keyword And Return Status    Page Should Contain Element    ${CREATE_PUBLISH_ACTION}
+    ${saved_ean}=    Run Keyword If    ${form_present}    Get Value    ${CREATED_ALBUM_EAN}    ELSE    Set Variable    ${EMPTY}
+    ${confirmed}=    Evaluate    $success or ($form_present and not $publish_present and $saved_ean == $ean)
+    Should Be True    ${confirmed}    DMB did not confirm album publication
 
 Capture Failure Evidence And Close Browser
     Run Keyword And Ignore Error    Capture Page Screenshot    ${OUTPUT DIR}${/}final-state.png

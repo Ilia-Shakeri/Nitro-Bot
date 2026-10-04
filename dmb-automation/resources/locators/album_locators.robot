@@ -43,3 +43,8 @@ ${SAVE_BUTTON}                 xpath=${CREATE_FORM_XPATH}//button[normalize-spac
 ${REVIEW_EAN_INPUT}            xpath=${CREATE_FORM_XPATH}//label[normalize-space()='EAN/UPC']/following::input[1]
 ${REVIEW_WIZARD_DATA}          xpath=${CREATE_FORM_XPATH}//input[@name='_wizData']
 ${SUBMISSION_SUCCESS}          xpath=//*[contains(@class,'success') and (contains(normalize-space(.),'created') or contains(normalize-space(.),'saved'))]
+${CREATED_ALBUM_IFRAME}        xpath=//iframe[contains(@src, '/page/album/')]
+${CREATED_ALBUM_FORM}          xpath=//form[.//input[@name='editMode']]
+${CREATED_ALBUM_EAN}           xpath=${CREATED_ALBUM_FORM}//input[@name='ean' and @readonly]
+${CREATE_PUBLISH_ACTION}       xpath=//a[contains(@onclick,'"action":"publish"')]
+${PUBLICATION_SUCCESS}         xpath=//*[contains(@class,'success') and contains(normalize-space(.),'published')]

@@ -83,6 +83,16 @@ def test_dmb_release_claim_uses_skip_locked_row_lock():
     assert "dmb_attempts" in compiled
 
 
+def test_dmb_release_claim_can_target_one_release():
+    compiled = str(
+        claimable_release_statement(
+            "create", datetime(2026, 9, 13), release_id=11
+        ).compile(dialect=postgresql.dialect())
+    )
+    assert "releases.id =" in compiled
+    assert "FOR UPDATE SKIP LOCKED" in compiled
+
+
 def test_release_job_claim_recovers_expired_leases_with_row_lock():
     statement = claimable_job_statement(datetime(2026, 9, 12))
     compiled = str(statement.compile(dialect=postgresql.dialect()))

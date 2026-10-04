@@ -63,6 +63,8 @@ PostgreSQL و MinIO منبع اصلی داده‌اند. DMB worker دیتابی
 می‌ماند و هیچ صف زنده‌ای را نمی‌خواند. اگر هر گیت تحویل روشن باشد، startup رد می‌شود.
 برای تست یک سفارش بدون claim و Save، runner جدا با `DMB_PREFLIGHT_RELEASE_ID` اجرا
 می‌شود. این runner فقط release صریح را می‌خواند و در صفحه review مدرک می‌سازد.
+برای اجرای زنده یک سفارش مشخص، `DMB_TARGET_RELEASE_ID` را روی شناسه همان سفارش
+بگذارید. worker هیچ سفارش دیگری را claim نمی‌کند. مقدار خالی، صف عادی را فعال می‌کند.
 برای edit هر دو مقدار `DMB_EDIT_ENABLED=true` و `DMB_EDIT_SUBMIT_ENABLED=true`
 لازم است. هر دو پیش‌فرض خاموش‌اند.
 
@@ -77,6 +79,7 @@ publish نمی‌شود.
 set DMB_JOB_FILE=C:\path\to\job.json
 set DMB_RESULT_FILE=C:\path\to\result.json
 set DMB_SUBMIT_ENABLED=true
+set DMB_PUBLISH_ENABLED=true
 robot --outputdir results automation/create_album.robot
 ```
 
@@ -98,7 +101,8 @@ robot --outputdir results automation/create_album.robot
 8. Worldwide، Next، دکمه `<<` برای همه پلتفرم‌ها، Next.
 9. بررسی Title، EAN، ISRC، تاریخ، ژانر، Label و Contributorها.
 10. نوشتن checkpoint، سپس `Save & View Audio Product`.
-11. ذخیره DMB ID، EAN، ISRC، URL و اسکرین‌شات PNG معتبر.
+11. بازکردن شناسه دقیق آلبوم ذخیره‌شده، تطبیق EAN، سپس Publish و ثبت مدرک.
+12. ذخیره DMB ID، EAN، ISRC، URL و اسکرین‌شات PNG معتبر.
 
 ## ترتیب edit
 

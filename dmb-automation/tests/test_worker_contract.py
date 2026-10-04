@@ -231,6 +231,36 @@ def test_worker_rejects_unknown_browser_mode(monkeypatch):
         worker.validate_config()
 
 
+def test_worker_rejects_invalid_target_release(monkeypatch):
+    monkeypatch.setattr(worker, "SECRET", "worker-secret")
+    monkeypatch.setattr(worker, "S3_ACCESS_KEY", "access")
+    monkeypatch.setattr(worker, "S3_SECRET_KEY", "secret")
+    monkeypatch.setattr(worker, "DMB_USERNAME", "user")
+    monkeypatch.setattr(worker, "DMB_PASSWORD", "pass")
+    monkeypatch.setattr(worker, "DRY_RUN", False)
+    monkeypatch.setattr(worker, "CREATE_ENABLED", True)
+    monkeypatch.setattr(worker, "EDIT_ENABLED", False)
+    monkeypatch.setattr(worker, "DMB_BROWSER_MODE", "headless")
+    monkeypatch.setattr(worker, "TARGET_RELEASE_ID_RAW", "bad")
+    monkeypatch.setattr(worker, "TARGET_RELEASE_ID", None)
+    with pytest.raises(worker.DeliveryError, match="DMB_target_release_id_invalid"):
+        worker.validate_config()
+
+
+def test_worker_requests_only_target_release(monkeypatch):
+    response = MagicMock()
+    response.json.return_value = []
+    monkeypatch.setattr(worker._http, "get", MagicMock(return_value=response))
+    monkeypatch.setattr(worker, "TARGET_RELEASE_ID", 11)
+
+    assert worker.get_pending("create") == []
+    worker._http.get.assert_called_once_with(
+        f"{worker.API_BASE_URL}/internal/releases/pending",
+        params={"mode": "create", "release_id": 11},
+        timeout=30,
+    )
+
+
 def test_worker_health_requires_poll_and_closed_circuit(tmp_path, monkeypatch):
     monkeypatch.setattr(worker, "CIRCUIT_STATE_PATH", tmp_path / "circuit.json")
     worker.update_health(poll_ok=False, last_error="starting")
@@ -694,6 +724,22 @@ def test_preflight_path_stops_before_submit_and_writes_no_checkpoint():
     assert branch < submit
     assert "Write Submit Checkpoint" not in suite[branch:submit]
     assert '"DMB_SUBMIT_ENABLED": "false"' in preflight
+
+
+def test_create_submission_saves_then_publishes_exact_album():
+    suite = (ROOT / "automation" / "create_album.robot").read_text(encoding="utf-8")
+    page = (ROOT / "resources" / "pages" / "album_page.robot").read_text(
+        encoding="utf-8"
+    )
+
+    assert "DMB_PUBLISH_ENABLED=false" in page
+    assert page.index("Click Element    ${SAVE_BUTTON}") < page.index(
+        "Click Element    ${CREATE_PUBLISH_ACTION}"
+    )
+    assert "Extract Dmb Release Id    ${saved_url}" in page
+    assert "Should Be Equal As Strings    ${saved_ean}    ${ean}" in page
+    assert "Created Album Publication Should Be Confirmed" in page
+    assert "Submit Album And Verify Success" in suite
 
 
 def test_preflight_evidence_is_explicitly_not_submitted(tmp_path):

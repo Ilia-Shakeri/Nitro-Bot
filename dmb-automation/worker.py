@@ -51,6 +51,12 @@ DMB_PASSWORD = os.getenv("DMB_PASSWORD", "")
 DMB_ALLOWED_HOST = os.getenv("DMB_ALLOWED_HOST", "dmb.kontornewmedia.com").lower()
 WORKER_ID = os.getenv("DMB_WORKER_ID", f"{socket.gethostname()}:{os.getpid()}")
 CIRCUIT_FAILURE_LIMIT = max(1, int(os.getenv("DMB_CIRCUIT_FAILURES", "3")))
+TARGET_RELEASE_ID_RAW = os.getenv("DMB_TARGET_RELEASE_ID", "").strip()
+TARGET_RELEASE_ID = (
+    int(TARGET_RELEASE_ID_RAW)
+    if re.fullmatch(r"[1-9][0-9]*", TARGET_RELEASE_ID_RAW)
+    else None
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 DOWNLOAD_DIR = BASE_DIR / "downloads"
@@ -112,6 +118,7 @@ def health_snapshot() -> dict:
         "delivery_enabled": bool(CREATE_ENABLED or EDIT_ENABLED),
         "worker_id": WORKER_ID,
         "browser_mode": DMB_BROWSER_MODE,
+        "target_release_id": TARGET_RELEASE_ID,
     }
 
 
@@ -163,14 +170,19 @@ def validate_config() -> None:
         raise DeliveryError("DMB_edit_submit_disabled")
     if DMB_BROWSER_MODE not in {"headless", "visible"}:
         raise DeliveryError("DMB_browser_mode_invalid")
+    if TARGET_RELEASE_ID_RAW and TARGET_RELEASE_ID is None:
+        raise DeliveryError("DMB_target_release_id_invalid")
     if not HEALTH_HOST or not 1 <= HEALTH_PORT <= 65535:
         raise DeliveryError("DMB_health_bind_invalid")
 
 
 def get_pending(mode: str = "create") -> list[dict]:
+    params: dict[str, str | int] = {"mode": mode}
+    if TARGET_RELEASE_ID is not None:
+        params["release_id"] = TARGET_RELEASE_ID
     response = _http.get(
         f"{API_BASE_URL}/internal/releases/pending",
-        params={"mode": mode},
+        params=params,
         timeout=30,
     )
     response.raise_for_status()
@@ -541,6 +553,7 @@ def run_robot(
         "DMB_RESULT_FILE": str(result_file),
         "DMB_SUBMIT_CHECKPOINT": str(checkpoint_file),
         "DMB_SUBMIT_ENABLED": "true",
+        "DMB_PUBLISH_ENABLED": "true" if mode == "create" else "false",
         "DMB_EDIT_SUBMIT_ENABLED": "true" if mode == "edit" else "false",
         "DMB_BROWSER_MODE": DMB_BROWSER_MODE,
     }

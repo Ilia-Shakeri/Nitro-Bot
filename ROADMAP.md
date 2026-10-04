@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.44`
+Current release: `0.9.0-alpha.45`
 
 Target release: `1.0.0`
 
@@ -60,6 +60,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.42` | Verify final DMB review | Read the live read-only review fields and serialized wizard data before submit |
 | `0.9.0-alpha.43` | Verify review genre state | Read the final visible genre and its committed ID from the active wizard data |
 | `0.9.0-alpha.44` | Harden final proof images | Accept numeric committed IDs and exclude runtime evidence from container images |
+| `0.9.0-alpha.45` | Prove targeted live publication | Claim one exact release, save it, verify its identity, and publish it |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |

@@ -29,6 +29,7 @@ DMB_HEALTH_PORT=8081
 DMB_CREATE_ENABLED=false
 DMB_EDIT_ENABLED=false
 DMB_EDIT_SUBMIT_ENABLED=false
+DMB_TARGET_RELEASE_ID=
 DMB_USERNAME=replace_me
 DMB_PASSWORD=replace_me
 SELENIUM_SECRET_KEY=replace_with_long_random_value
@@ -38,6 +39,11 @@ DMB_REVIEW_SECRET_KEY=replace_with_different_long_random_value
 Keep all delivery flags false for the first deployment. Turn on create only
 after an approved staging submission. Turn on edit only after its own approved
 staging submission.
+
+For one approved live test, set `DMB_TARGET_RELEASE_ID` to that release ID.
+The backend then leases only that exact row. Leave it empty for normal FIFO
+queue work. A create is complete only after the worker saves the album, reopens
+the returned DMB ID, matches its EAN, clicks Publish, and records final proof.
 
 ## Safe VPS rollout
 

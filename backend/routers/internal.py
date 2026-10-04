@@ -88,9 +88,10 @@ def _mode_enabled(mode: Literal["create", "edit"]) -> bool:
 def claimable_release_statement(
     mode: Literal["create", "edit"] = "create",
     now: datetime | None = None,
+    release_id: int | None = None,
 ):
     claim_time = now or utc_now()
-    return (
+    statement = (
         select(Release)
         .where(
             Release.is_edit.is_(mode == "edit"),
@@ -106,7 +107,11 @@ def claimable_release_statement(
                 ),
             ),
         )
-        .order_by(Release.created_at.asc())
+    )
+    if release_id is not None:
+        statement = statement.where(Release.id == release_id)
+    return (
+        statement.order_by(Release.created_at.asc())
         .limit(1)
         .options(selectinload(Release.source_release))
         .with_for_update(skip_locked=True)
@@ -116,8 +121,9 @@ def claimable_release_statement(
 def exhausted_release_statement(
     mode: Literal["create", "edit"],
     now: datetime,
+    release_id: int | None = None,
 ):
-    return (
+    statement = (
         select(Release)
         .where(
             Release.is_edit.is_(mode == "edit"),
@@ -133,7 +139,11 @@ def exhausted_release_statement(
                 ),
             ),
         )
-        .order_by(Release.created_at.asc())
+    )
+    if release_id is not None:
+        statement = statement.where(Release.id == release_id)
+    return (
+        statement.order_by(Release.created_at.asc())
         .limit(1)
         .with_for_update(skip_locked=True)
     )
@@ -220,6 +230,7 @@ def _parse_submit_checkpoint(
 @router.get("/releases/pending", response_model=list[PendingReleaseOut])
 async def get_pending_releases(
     mode: Literal["create", "edit"] = Query("create"),
+    release_id: int | None = Query(None, ge=1),
     worker_id_header: str | None = Header(None, alias="X-DMB-Worker-ID"),
     _: None = Depends(_require_secret),
     db: AsyncSession = Depends(get_db),
@@ -229,7 +240,9 @@ async def get_pending_releases(
     worker_id = _validated_worker_id(worker_id_header)
     now = utc_now()
 
-    exhausted_result = await db.execute(exhausted_release_statement(mode, now))
+    exhausted_result = await db.execute(
+        exhausted_release_statement(mode, now, release_id)
+    )
     exhausted = exhausted_result.scalars().first()
     if exhausted is not None:
         exhausted.dmb_last_error = "dmb_attempts_exhausted"
@@ -242,7 +255,7 @@ async def get_pending_releases(
             allowed_statuses={"pending", "manual_staging", "processing", "failed"},
         )
 
-    result = await db.execute(claimable_release_statement(mode, now))
+    result = await db.execute(claimable_release_statement(mode, now, release_id))
     release = result.scalars().first()
     if release is None:
         await db.rollback()
