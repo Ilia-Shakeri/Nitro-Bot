@@ -10,6 +10,18 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.29] - 2026-10-04
+
+### Fixed
+
+- Generated ISRC proof now reads the visible track input property instead of
+  filtering on a stale HTML value attribute.
+
+### Deployment
+
+- The sixteenth live no-save preflight visibly generated a valid ISRC, then
+  exposed the stale attribute locator without saving the product.
+
 ## [0.9.0-alpha.28] - 2026-10-04
 
 ### Fixed
@@ -475,7 +487,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.28...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.29...HEAD
+[0.9.0-alpha.29]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.28...v0.9.0-alpha.29
 [0.9.0-alpha.28]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.27...v0.9.0-alpha.28
 [0.9.0-alpha.27]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.26...v0.9.0-alpha.27
 [0.9.0-alpha.26]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.25...v0.9.0-alpha.26

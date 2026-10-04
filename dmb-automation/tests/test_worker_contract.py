@@ -601,6 +601,8 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${music_dir}    ${music_name}=    Split Path" in album_page
     assert album_page.count("document.body.innerText.includes(arguments[0])") == 2
     assert "Track Input Should Have File" not in album_page
+    assert "not(contains(@style,'display: none'))]//input[@name='track:isrc[]']" in locators
+    assert "normalize-space(@value)!=''" not in locators
     assert "Choose Ajax Result Or Confirm Text    ${GENRE_INPUT}" in album_page
     assert "Run Keyword And Return Status    Wait Until Element Is Visible" in album_page
     assert "Press Keys    ${locator}    ARROW_DOWN" in album_page
