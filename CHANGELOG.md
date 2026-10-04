@@ -10,6 +10,22 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.47] - 2026-10-04
+
+### Added
+
+- A recovery suite publishes one exact saved DMB album from its durable create
+  checkpoint without running the create wizard again.
+
+### Fixed
+
+- Created-album EAN checks now compose one valid XPath instead of nesting an
+  `xpath=` prefix inside another XPath locator.
+- Album-edit and track-edit controls now use bare XPath roots. Their form and
+  contributor locators no longer create invalid nested locator prefixes.
+- Recovery and normal create publication use DOM scrolling and clicking for
+  the Publish action in headless Firefox.
+
 ## [0.9.0-alpha.46] - 2026-10-04
 
 ### Fixed
@@ -21,6 +37,12 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 
 - The durable submit checkpoint is still written immediately before the DOM
   click. A crash after the click remains a manual-verification event.
+
+### Deployment
+
+- The targeted live run saved DMB album `2255903`, then stopped before Publish
+  because the saved-album EAN locator was malformed. The backend correctly
+  moved release 11 to manual verification and blocked automatic retry.
 
 ## [0.9.0-alpha.45] - 2026-10-04
 
@@ -716,7 +738,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.46...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.47...HEAD
+[0.9.0-alpha.47]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.46...v0.9.0-alpha.47
 [0.9.0-alpha.46]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.45...v0.9.0-alpha.46
 [0.9.0-alpha.45]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.44...v0.9.0-alpha.45
 [0.9.0-alpha.44]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.43...v0.9.0-alpha.44

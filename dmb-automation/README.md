@@ -104,6 +104,16 @@ robot --outputdir results automation/create_album.robot
 11. بازکردن شناسه دقیق آلبوم ذخیره‌شده، تطبیق EAN، سپس Publish و ثبت مدرک.
 12. ذخیره DMB ID، EAN، ISRC، URL و اسکرین‌شات PNG معتبر.
 
+اگر Save انجام شده ولی worker پیش از اثبات Publish متوقف شد، create را دوباره اجرا
+نکنید. شناسه آلبوم ذخیره‌شده را از مدرک بگیرید و recovery صریح را اجرا کنید:
+
+```bash
+DMB_RECOVERY_RELEASE_ID=11 DMB_RECOVERY_DMB_ID=2255903 python recover_publish.py
+```
+
+recovery فقط checkpoint پایدار را می‌خواند، EAN همان آلبوم را تطبیق می‌دهد و Publish
+را اجرا می‌کند. نتیجه باید بعد از بازبینی با endpoint جداگانه verification ثبت شود.
+
 ## ترتیب edit
 
 1. رد سفارش بدون Source DMB ID، EAN، یا دقیقاً یک ISRC.

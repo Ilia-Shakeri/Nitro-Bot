@@ -338,6 +338,11 @@ Submit Album And Verify Success
     Unselect Frame
     ${saved_url}=    Get Location
     ${dmb_release_id}=    Extract Dmb Release Id    ${saved_url}
+    Publish Created Album And Verify Identity    ${dmb_release_id}    ${ean}
+
+Publish Created Album And Verify Identity
+    [Arguments]    ${dmb_release_id}    ${ean}
+    Should Be Equal    %{DMB_PUBLISH_ENABLED=false}    true
     Go To    ${LOGIN_URL}page/album/${dmb_release_id}
     Wait Until Element Is Visible    ${CREATED_ALBUM_IFRAME}    timeout=60s
     Select Frame    ${CREATED_ALBUM_IFRAME}
@@ -345,7 +350,9 @@ Submit Album And Verify Success
     ${saved_ean}=    Get Value    ${CREATED_ALBUM_EAN}
     Should Be Equal As Strings    ${saved_ean}    ${ean}
     Wait Until Element Is Visible    ${CREATE_PUBLISH_ACTION}    timeout=30s
-    Click Element    ${CREATE_PUBLISH_ACTION}
+    ${publish_button}=    Get WebElement    ${CREATE_PUBLISH_ACTION}
+    Execute Javascript    arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});    ARGUMENTS    ${publish_button}
+    Execute Javascript    arguments[0].click();    ARGUMENTS    ${publish_button}
     Wait Until Keyword Succeeds    60s    2s    Created Album Publication Should Be Confirmed    ${ean}
 
 Created Album Publication Should Be Confirmed

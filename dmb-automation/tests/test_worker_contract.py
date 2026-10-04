@@ -23,6 +23,13 @@ dmb_job_module = importlib.util.module_from_spec(LIB_SPEC)
 assert LIB_SPEC.loader is not None
 LIB_SPEC.loader.exec_module(dmb_job_module)
 
+RECOVERY_SPEC = importlib.util.spec_from_file_location(
+    "dmb_recover_publish", ROOT / "recover_publish.py"
+)
+recover_publish = importlib.util.module_from_spec(RECOVERY_SPEC)
+assert RECOVERY_SPEC.loader is not None
+RECOVERY_SPEC.loader.exec_module(recover_publish)
+
 
 def sample_release() -> dict:
     return {
@@ -741,13 +748,91 @@ def test_create_submission_saves_then_publishes_exact_album():
     submit = page.index("Submit Album And Verify Success")
     checkpoint = page.index("Write Submit Checkpoint", submit)
     save = page.index(save_click)
-    publish = page.index("Click Element    ${CREATE_PUBLISH_ACTION}")
+    publish_click = (
+        "Execute Javascript    arguments[0].click();    ARGUMENTS    ${publish_button}"
+    )
+    publish = page.index(publish_click)
     assert save_click in page
+    assert publish_click in page
     assert checkpoint < save < publish
     assert "Extract Dmb Release Id    ${saved_url}" in page
     assert "Should Be Equal As Strings    ${saved_ean}    ${ean}" in page
     assert "Created Album Publication Should Be Confirmed" in page
     assert "Submit Album And Verify Success" in suite
+
+
+def test_publish_recovery_uses_checkpoint_and_exact_saved_album(tmp_path, monkeypatch):
+    results = tmp_path / "results"
+    checkpoint_path = results / "11" / "submit-started.json"
+    checkpoint_path.parent.mkdir(parents=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                "release_id": 11,
+                "ean_upc": "1234567890123",
+                "isrcs": ["USABC2600001"],
+                "title": "Safe Song",
+                "started_at": "2026-10-04T12:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    checkpoint = recover_publish.load_checkpoint(checkpoint_path, 11)
+    screenshot = results / "11" / "recovery" / "published.png"
+    screenshot.parent.mkdir(parents=True)
+    screenshot.write_bytes(b"png")
+    result_path = screenshot.parent / "result.json"
+    result_path.write_text(
+        json.dumps(
+            {
+                "submitted": True,
+                "release_id": 11,
+                "dmb_release_id": "2255903",
+                "ean_upc": "1234567890123",
+                "isrcs": ["USABC2600001"],
+                "current_url": "https://dmb.kontornewmedia.com/page/album/2255903",
+                "screenshot_path": str(screenshot),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(recover_publish, "RESULTS_DIR", results)
+
+    payload = recover_publish.validate_result(
+        result_path, 11, "2255903", checkpoint
+    )
+    assert payload["dmb_release_id"] == "2255903"
+
+
+def test_publish_recovery_suite_cannot_create_or_save_an_album():
+    suite = (ROOT / "automation" / "recover_publish.robot").read_text(
+        encoding="utf-8"
+    )
+    locators = (ROOT / "resources" / "locators" / "album_locators.robot").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Publish Created Album And Verify Identity" in suite
+    assert "Write Dmb Result" in suite
+    assert "Navigate To Album Creation Form" not in suite
+    assert "SAVE_BUTTON" not in suite
+    assert "${CREATED_ALBUM_FORM_XPATH}" in locators
+    assert "xpath=${CREATED_ALBUM_FORM}//" not in locators
+
+
+def test_edit_locators_compose_bare_xpath_roots():
+    locators = (ROOT / "resources" / "locators" / "edit_album_locators.robot").read_text(
+        encoding="utf-8"
+    )
+
+    assert "${EDIT_FORM_XPATH}" in locators
+    assert "${TRACK_EDIT_FORM_XPATH}" in locators
+    assert "${EDIT_CONTRIBUTOR_ROW_XPATH}" in locators
+    assert "${TRACK_EDIT_CONTRIBUTOR_ROW_XPATH}" in locators
+    assert "xpath=${EDIT_FORM}//" not in locators
+    assert "xpath=${TRACK_EDIT_FORM}//" not in locators
+    assert "xpath=(${EDIT_CONTRIBUTOR_ROW}//" not in locators
+    assert "xpath=(${TRACK_EDIT_CONTRIBUTOR_ROW}//" not in locators
 
 
 def test_preflight_evidence_is_explicitly_not_submitted(tmp_path):
