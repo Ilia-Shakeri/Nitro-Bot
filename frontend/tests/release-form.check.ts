@@ -39,6 +39,7 @@ const multiValueInputSource = readFileSync('src/components/MultiValueInput.tsx',
 const metadataFieldsSource = readFileSync('src/components/ReleaseMetadataFields.tsx', 'utf8');
 const paymentModalSource = readFileSync('src/components/PaymentModal.tsx', 'utf8');
 const apiSource = readFileSync('src/api.ts', 'utf8');
+const userContextSource = readFileSync('src/context/UserContext.tsx', 'utf8');
 const packageLockSource = readFileSync('package-lock.json', 'utf8');
 for (const route of ['users', 'releases', 'transactions', 'support', 'pricing']) {
   assert(proxyConfig.includes(route), `Nginx must proxy ${route}`);
@@ -73,6 +74,13 @@ try {
   invalidResponseError = error instanceof Error ? error.message : '';
 }
 assert(invalidResponseError === 'api_response_invalid', 'HTML response must not enter JSON parser');
+assert(apiSource.includes("request<User>('/users/me', { cache: 'no-store' })"), 'User balance must bypass HTTP cache');
+assert(
+  userContextSource.includes("window.addEventListener('focus', refreshWhenVisible)")
+    && userContextSource.includes("document.addEventListener('visibilitychange', refreshWhenVisible)")
+    && userContextSource.includes('USER_REFRESH_INTERVAL_MS = 15_000'),
+  'User balance must refresh after return and while Mini App stays open',
+);
 
 let validationResponseError = '';
 try {

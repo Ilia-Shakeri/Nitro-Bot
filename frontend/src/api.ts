@@ -55,7 +55,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 let userRequest: Promise<User> | null = null;
 
 export const getUser = () => {
-  userRequest ??= request<User>('/users/me').finally(() => {
+  userRequest ??= request<User>('/users/me', { cache: 'no-store' }).finally(() => {
     userRequest = null;
   });
   return userRequest;

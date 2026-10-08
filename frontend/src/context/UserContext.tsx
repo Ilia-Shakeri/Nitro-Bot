@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getUser } from '../api';
 import type { User } from '../types/api';
@@ -12,44 +12,52 @@ interface UserContextValue {
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
+const USER_REFRESH_INTERVAL_MS = 15_000;
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser]     = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { i18n } = useTranslation();
   const { toast } = useToast();
+  const mountedRef = useRef(true);
 
-  const refreshUser = useCallback(async () => {
+  const loadUser = useCallback(async (showError: boolean) => {
     try {
       const u = await getUser();
+      if (!mountedRef.current) return;
       setUser(u);
-      i18n.changeLanguage(u.language_preference);
+      await i18n.changeLanguage(u.language_preference);
     } catch (error) {
-      toast(errorText(error, i18n.t), 'error');
+      if (mountedRef.current && showError) toast(errorText(error, i18n.t), 'error');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [i18n, toast]);
 
+  const refreshUser = useCallback(() => loadUser(true), [loadUser]);
+
   useEffect(() => {
-    let active = true;
-    const loadUser = async () => {
-      try {
-        const next = await getUser();
-        if (!active) return;
-        setUser(next);
-        await i18n.changeLanguage(next.language_preference);
-      } catch (error) {
-        if (active) toast(errorText(error, i18n.t), 'error');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void loadUser();
+    mountedRef.current = true;
+    const initialLoad = globalThis.setTimeout(() => void loadUser(true), 0);
     return () => {
-      active = false;
+      mountedRef.current = false;
+      globalThis.clearTimeout(initialLoad);
     };
-  }, [i18n, toast]);
+  }, [loadUser]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadUser(false);
+    };
+    const timer = globalThis.setInterval(refreshWhenVisible, USER_REFRESH_INTERVAL_MS);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      globalThis.clearInterval(timer);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [loadUser]);
 
   return (
     <UserContext.Provider value={{ user, loading, refreshUser }}>

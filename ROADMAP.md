@@ -1,6 +1,6 @@
 # Nitro Bot Roadmap
 
-Current release: `0.9.0-alpha.54`
+Current release: `0.9.0-alpha.55`
 
 Target release: `1.0.0`
 
@@ -70,6 +70,7 @@ Passing unit tests alone does not complete a version.
 | `0.9.0-alpha.52` | Keep review action visible | Always show the safe-retry action and explain any safety lock after the click |
 | `0.9.0-alpha.53` | Restore receipt upload | Deploy the matching Mini App form, lock reachable package sources, and translate validation failures |
 | `0.9.0-alpha.54` | Throttle payment quotes | Debounce crypto quote requests, cancel stale work, and localize request-limit feedback |
+| `0.9.0-alpha.55` | Refresh approved balance | Bypass stale user cache and refresh Nitro after focus, visibility, or a short polling interval |
 | `0.9.0` | Correct DMB delivery | New and edited releases reach the right DMB state |
 | `0.9.1` | Safe payment and support operations | Only allowed staff can mutate money or contact users |
 | `0.9.2` | Operable deployment | Health, retry, alert, backup, and recovery work |
