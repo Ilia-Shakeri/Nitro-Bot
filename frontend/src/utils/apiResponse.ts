@@ -1,6 +1,7 @@
 const responseDetail = (body: unknown): string | null => {
   if (!body || typeof body !== 'object' || !('detail' in body)) return null;
-  return typeof body.detail === 'string' ? body.detail : null;
+  if (typeof body.detail === 'string') return body.detail;
+  return Array.isArray(body.detail) ? 'request_validation_failed' : null;
 };
 
 export const parseApiResponse = async <T>(response: Response): Promise<T> => {

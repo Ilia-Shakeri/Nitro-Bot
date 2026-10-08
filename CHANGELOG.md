@@ -10,6 +10,19 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.53] - 2026-10-08
+
+### Fixed
+
+- Receipt upload now deploys the Mini App build that sends the required
+  idempotency token expected by the backend.
+- Validation responses no longer surface as a raw HTTP 422 message.
+- Frontend package URLs no longer depend on an unreachable third-party mirror.
+
+### Tests
+
+- The frontend contract test now checks the receipt token and package registry.
+
 ## [0.9.0-alpha.52] - 2026-10-04
 
 ### Changed
@@ -805,7 +818,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.52...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.53...HEAD
+[0.9.0-alpha.53]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.52...v0.9.0-alpha.53
 [0.9.0-alpha.52]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.51...v0.9.0-alpha.52
 [0.9.0-alpha.51]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.50...v0.9.0-alpha.51
 [0.9.0-alpha.50]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.49...v0.9.0-alpha.50

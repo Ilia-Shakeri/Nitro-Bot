@@ -37,6 +37,8 @@ const proxyConfig = readFileSync('nginx.conf', 'utf8');
 const artistInputSource = readFileSync('src/components/ArtistInput.tsx', 'utf8');
 const multiValueInputSource = readFileSync('src/components/MultiValueInput.tsx', 'utf8');
 const metadataFieldsSource = readFileSync('src/components/ReleaseMetadataFields.tsx', 'utf8');
+const apiSource = readFileSync('src/api.ts', 'utf8');
+const packageLockSource = readFileSync('package-lock.json', 'utf8');
 for (const route of ['users', 'releases', 'transactions', 'support', 'pricing']) {
   assert(proxyConfig.includes(route), `Nginx must proxy ${route}`);
 }
@@ -70,6 +72,21 @@ try {
   invalidResponseError = error instanceof Error ? error.message : '';
 }
 assert(invalidResponseError === 'api_response_invalid', 'HTML response must not enter JSON parser');
+
+let validationResponseError = '';
+try {
+  await parseApiResponse(new Response(JSON.stringify({
+    detail: [{ type: 'missing', loc: ['body', 'submission_id'], msg: 'Field required' }],
+  }), {
+    status: 422,
+    headers: { 'content-type': 'application/json' },
+  }));
+} catch (error) {
+  validationResponseError = error instanceof Error ? error.message : '';
+}
+assert(validationResponseError === 'request_validation_failed', 'validation errors must be useful');
+assert(apiSource.includes("form.append('submission_id', submissionId)"), 'receipt idempotency token must be sent');
+assert(!packageLockSource.includes('mirror-npm.runflare.com'), 'package lock must use reachable registry');
 
 const initial = emptyReleaseMetadata();
 assert(!initial.copyrightRequested, 'copyright must start off');
