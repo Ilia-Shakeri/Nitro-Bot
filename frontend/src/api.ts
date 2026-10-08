@@ -125,9 +125,14 @@ export const submitReceipt = (
   });
 };
 
-export const getPaymentQuote = (amount: number, paymentMethod: string) =>
+export const getPaymentQuote = (
+  amount: number,
+  paymentMethod: string,
+  signal?: AbortSignal,
+) =>
   request<CryptoQuote>(
     `/transactions/quote?amount=${encodeURIComponent(amount)}&payment_method=${encodeURIComponent(paymentMethod)}`,
+    { signal },
   );
 
 export const createStarsInvoice = (amount: number) => {

@@ -99,15 +99,27 @@ export const PaymentModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   useEffect(() => {
     if (!isOpen || !validAmount || !isManualCrypto(method)) return;
     let cancelled = false;
-    getPaymentQuote(validAmount, method)
-      .then(response => {
-        if (!cancelled) setQuote(response);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setQuoteError(errorText(error, t));
-      })
+    const controller = new AbortController();
+    const timer = globalThis.setTimeout(() => {
+      setQuote(null);
+      setQuoteError('');
+      getPaymentQuote(validAmount, method, controller.signal)
+        .then(response => {
+          if (!cancelled) setQuote(response);
+        })
+        .catch((error: unknown) => {
+          if (
+            !cancelled
+            && !(error instanceof Error && error.name === 'AbortError')
+          ) {
+            setQuoteError(errorText(error, t));
+          }
+        });
+    }, 400);
     return () => {
       cancelled = true;
+      globalThis.clearTimeout(timer);
+      controller.abort();
     };
   }, [isOpen, method, validAmount, t]);
 

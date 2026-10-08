@@ -37,6 +37,7 @@ const proxyConfig = readFileSync('nginx.conf', 'utf8');
 const artistInputSource = readFileSync('src/components/ArtistInput.tsx', 'utf8');
 const multiValueInputSource = readFileSync('src/components/MultiValueInput.tsx', 'utf8');
 const metadataFieldsSource = readFileSync('src/components/ReleaseMetadataFields.tsx', 'utf8');
+const paymentModalSource = readFileSync('src/components/PaymentModal.tsx', 'utf8');
 const apiSource = readFileSync('src/api.ts', 'utf8');
 const packageLockSource = readFileSync('package-lock.json', 'utf8');
 for (const route of ['users', 'releases', 'transactions', 'support', 'pricing']) {
@@ -87,6 +88,9 @@ try {
 assert(validationResponseError === 'request_validation_failed', 'validation errors must be useful');
 assert(apiSource.includes("form.append('submission_id', submissionId)"), 'receipt idempotency token must be sent');
 assert(!packageLockSource.includes('mirror-npm.runflare.com'), 'package lock must use reachable registry');
+assert(paymentModalSource.includes('}, 400);'), 'payment quote requests must be debounced');
+assert(paymentModalSource.includes('controller.abort()'), 'stale payment quote requests must be cancelled');
+assert(paymentModalSource.includes("setQuote(null)"), 'stale payment quotes must clear before refresh');
 
 const initial = emptyReleaseMetadata();
 assert(!initial.copyrightRequested, 'copyright must start off');
