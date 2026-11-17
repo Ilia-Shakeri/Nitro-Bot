@@ -19,6 +19,13 @@ _GENRE_PATH = _LOCAL_GENRES if _LOCAL_GENRES.is_file() else _CONTAINER_GENRES
 _GENRE_TREE: dict[str, list[str]] = json.loads(_GENRE_PATH.read_text(encoding="utf-8"))
 
 _LEGACY_GENRE_MAP: dict[str, dict[str | None, str]] = {
+    "Children": {
+        None: "Music [Kids and youth program (Children)]",
+        "Lullabies": "Lullabies [Kids and youth program (Children)]",
+        "Music": "Music [Kids and youth program (Children)]",
+        "Sing-Along": "Sing-Along [Kids and youth program (Children)]",
+        "Spoken Word": "Spoken Word [Kids and youth program (Children)]",
+    },
     "HipHop / Rap [Urban]": {
         None: "HipHop / Rap [Urban]",
         "Trap": "HipHop / Rap [Urban]",

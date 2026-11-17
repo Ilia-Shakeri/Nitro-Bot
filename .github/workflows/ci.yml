@@ -34,7 +34,7 @@ jobs:
         env:
           DMB_USERNAME: dry-run-user
           DMB_PASSWORD: dry-run-password
-        run: robot --dryrun --output NONE --log NONE --report NONE automation/create_album.robot automation/edit_album.robot
+        run: robot --dryrun --output NONE --log NONE --report NONE automation/create_album.robot automation/edit_album.robot automation/recover_publish.robot automation/repair_saved.robot automation/verify_navigation.robot automation/verify_confirmation_guard.robot
       - name: Check Compose file
         run: docker compose config --quiet
       - name: Install frontend packages

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import xml.etree.ElementTree as ElementTree
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -626,7 +627,7 @@ def run_robot(
         "DMB_SUBMIT_CHECKPOINT": str(checkpoint_file),
         "DMB_SAVED_CHECKPOINT": str(saved_checkpoint_file),
         "DMB_SUBMIT_ENABLED": "true",
-        "DMB_PUBLISH_ENABLED": "true" if mode == "create" else "false",
+        "DMB_PUBLISH_ENABLED": "true",
         "DMB_EDIT_SUBMIT_ENABLED": "true" if mode == "edit" else "false",
         "DMB_BROWSER_MODE": DMB_BROWSER_MODE,
     }
@@ -654,10 +655,30 @@ def run_robot(
             raise DeliveryError("dmb_lease_heartbeat_failed") from None
         next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
     if process.returncode != 0:
-        raise DeliveryError(f"robot_exit_{process.returncode}")
+        raise DeliveryError(robot_failure_reason(output_dir, process.returncode))
     result = load_result(result_file, release_id)
     checkpoint = load_submit_checkpoint(checkpoint_file, release_id, expected_title)
     return bind_result_to_checkpoint(result, checkpoint)
+
+
+def robot_failure_reason(output_dir: Path, exit_code: int) -> str:
+    message = f"robot_exit_{exit_code}"
+    output = output_dir / 'output.xml'
+    try:
+        if output.stat().st_size > 20 * 1024 * 1024:
+            return message
+        tree = ElementTree.parse(output)
+        failures = [node.text for node in tree.findall('.//test/status')
+                    if node.get('status') == 'FAIL' and node.text]
+        if failures:
+            message += ': ' + failures[-1]
+    except (OSError, ElementTree.ParseError):
+        return message
+    for private in (DMB_PASSWORD, DMB_USERNAME, SECRET, S3_ACCESS_KEY, S3_SECRET_KEY):
+        if private and len(private) >= 4:
+            message = message.replace(private, '[private]')
+    message = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', message)
+    return message[:1800]
 
 
 def run_recovery_robot(checkpoint: dict, result_file: Path) -> dict:
@@ -699,7 +720,7 @@ def run_recovery_robot(checkpoint: dict, result_file: Path) -> dict:
             raise DeliveryError("dmb_lease_heartbeat_failed") from None
         next_heartbeat = time.monotonic() + HEARTBEAT_INTERVAL
     if process.returncode != 0:
-        raise DeliveryError(f"robot_exit_{process.returncode}")
+        raise DeliveryError(robot_failure_reason(output_dir, process.returncode))
     return bind_result_to_checkpoint(load_result(result_file, release_id), checkpoint)
 
 

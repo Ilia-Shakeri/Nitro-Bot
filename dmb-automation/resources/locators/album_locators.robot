@@ -27,9 +27,12 @@ ${P_LINE_YEAR}                 xpath=${CREATE_FORM_XPATH}//input[@name='p_line_y
 ${C_LINE_TEXT}                 xpath=${CREATE_FORM_XPATH}//input[@name='c_line_text']
 ${P_LINE_TEXT}                 xpath=${CREATE_FORM_XPATH}//input[@name='p_line_text']
 
-${CONTRIBUTOR_NAME_INPUT}      xpath=${CREATE_FORM_XPATH}//input[@name='newArtist']
-${CONTRIBUTOR_ROLES_SELECT}    xpath=(${CREATE_FORM_XPATH}//select[@name='cce_roles[][]'])[last()]
+${CONTRIBUTOR_NAME_INPUT}      xpath=${CREATE_FORM_XPATH}//input[@name='newArtist' or @name='cce_newArtist']
+${CONTRIBUTOR_ROLES_SELECT}    xpath=(${CREATE_FORM_XPATH}//select[@name='cce_roles[][]' or starts-with(@name,'cce_aRoles[')])[last()]
 ${ADD_CONTRIBUTOR_BUTTON}      xpath=${CREATE_FORM_XPATH}//button[contains(@class, 'dmb-js-cce__add-btn')]
+${CONTRIBUTOR_ROW_XPATH}       ${CREATE_FORM_XPATH}//tr[contains(@class,'js-dmb-cce__item') and not(contains(@style,'display: none')) and normalize-space(.//*[contains(@class,'dmb-js-artist-name')])!='']
+${CONTRIBUTOR_PRIMARY}         xpath=(${CONTRIBUTOR_ROW_XPATH}//input[@name='cce_primary[]'])[last()]
+${APPLY_CONTRIBUTORS_TO_TRACKS}    xpath=${CREATE_FORM_XPATH}//label[contains(normalize-space(.),'Apply contributors for tracks')]
 
 ${ADD_TRACKS_BUTTON}           xpath=//*[self::button or self::a][normalize-space()='Add Tracks']
 ${TRACK_FILE_INPUT}            xpath=//input[@type='file' and not(contains(@accept,'image'))]

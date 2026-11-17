@@ -22,11 +22,7 @@ End-to-End Album Creation From Isolated Job
 *** Keywords ***
 Given User Is Logged In
     [Arguments]    ${username}    ${password}
-    Wait Until Element Is Visible    ${USERNAME_FIELD}    timeout=20s
-    Input Username    ${username}
-    Input DMB Password    ${password}
-    Click Login Button
-    Wait Until Page Contains Element    ${MUSIC_MENU}    timeout=30s
+    Login With Credentials    ${username}    ${password}
 
 And User Loads Isolated Job Data
     ${JOB}=    Load Dmb Job    %{DMB_JOB_FILE}
@@ -51,6 +47,7 @@ And User Fills Album Form
         Add DMB Contributor    ${contributor}[name]    ${contributor}[has_account]
     END
     Restore Album Frame After Contributor
+    Apply Contributors To Tracks
     Capture Active Form Source
     Click Ready Next
     Wait Until Element Is Visible    ${ADD_TRACKS_BUTTON}    timeout=120s
@@ -89,7 +86,7 @@ Then User Verifies Album
         ...    ${SCREENSHOT}
         RETURN
     END
-    Submit Album And Verify Success    ${JOB}[release_id]    ${EAN}    ${ISRC}    ${JOB}[song_name]
+    Submit Album And Verify Success    ${JOB}[release_id]    ${EAN}    ${ISRC}    ${JOB}[song_name]    ${JOB}
     ${CURRENT_URL}=    Get Location
     ${DMB_RELEASE_ID}=    Extract Dmb Release Id    ${CURRENT_URL}
     ${SCREENSHOT}=    Set Variable    ${OUTPUT DIR}${/}final-page-full.png

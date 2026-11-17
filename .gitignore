@@ -16,3 +16,6 @@ full_Nitro-Bot_project_code.txt
 # DB dumps + bot artifacts hold critical/private data — never commit
 backups
 dmb-results
+
+# Private authenticated browser state
+dmb-session/

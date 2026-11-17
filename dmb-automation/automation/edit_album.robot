@@ -4,6 +4,7 @@ Library    OperatingSystem
 Library    ../libraries/dmb_job.py
 Resource   ../resources/pages/login_page.robot
 Resource   ../resources/pages/edit_album_page.robot
+Resource   ../resources/pages/album_page.robot
 Resource   ../resources/locators/login_locators.robot
 
 *** Test Cases ***
@@ -20,11 +21,7 @@ Edit Existing Album From Isolated Job
 *** Keywords ***
 Given User Is Logged In For Edit
     [Arguments]    ${username}    ${password}
-    Wait Until Element Is Visible    ${USERNAME_FIELD}    timeout=20s
-    Input Username    ${username}
-    Input DMB Password    ${password}
-    Click Login Button
-    Wait Until Page Contains Element    ${MUSIC_MENU}    timeout=30s
+    Login With Credentials    ${username}    ${password}
 
 And User Loads Isolated Edit Job
     ${JOB}=    Load Dmb Job    %{DMB_JOB_FILE}

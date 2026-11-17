@@ -1,19 +1,12 @@
 *** Settings ***
 Library    SeleniumLibrary
+Library    ../../libraries/dmb_session.py
 Resource   ../locators/login_locators.robot
 
 *** Keywords ***
 Open Login Page
-    ${options}=    Evaluate    selenium.webdriver.FirefoxOptions()    modules=selenium.webdriver
-    IF    '${BROWSER_MODE}' == 'headless'
-        Call Method    ${options}    add_argument    -headless
-    ELSE IF    '${BROWSER_MODE}' != 'visible'
-        Fail    DMB_browser_mode_invalid
-    END
-    Call Method    ${options}    set_preference    browser.cache.disk.enable    ${FALSE}
-    Call Method    ${options}    set_preference    browser.sessionstore.resume_from_crash    ${FALSE}
-    Open Browser    ${LOGIN_URL}    firefox    options=${options}
-    Set Window Size    1366    768
+    Acquire Dmb Session
+    Open Persistent Dmb Browser    ${BROWSER_MODE}
 
 Input Username
     [Arguments]    ${username}
@@ -31,9 +24,16 @@ Click Login Button
 
 Login With Credentials
     [Arguments]    ${username}    ${password}
-    Input Username    ${username}
-    Input DMB Password    ${password}
-    Click Login Button
+    ${previous_level}=    Set Log Level    NONE
+    TRY
+        Ensure Dmb Authenticated
+    FINALLY
+        Set Log Level    ${previous_level}
+    END
 
 Close Browser Session
-    Close Browser
+    TRY
+        Save Dmb Session
+    FINALLY
+        Release Dmb Session
+    END

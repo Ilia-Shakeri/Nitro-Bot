@@ -141,9 +141,15 @@ def test_job_payload_carries_full_release_contract(tmp_path):
 def test_every_canonical_genre_builds_exact_dmb_text():
     genre_tree = json.loads((ROOT.parent / "shared" / "release-genres.json").read_text(encoding="utf-8"))
     for genre, sub_genres in genre_tree.items():
-        assert worker.dmb_genre_text(genre, None) == genre
+        expected_default = (
+            "Music [Kids and youth program (Children)]"
+            if genre == "Children"
+            else genre
+        )
+        assert worker.dmb_genre_text(genre, None) == expected_default
         for sub_genre in sub_genres:
-            assert worker.dmb_genre_text(genre, sub_genre) == f"{sub_genre} [{genre}]"
+            dmb_parent = "Kids and youth program (Children)" if genre == "Children" else genre
+            assert worker.dmb_genre_text(genre, sub_genre) == f"{sub_genre} [{dmb_parent}]"
 
 
 def test_contributor_account_is_not_inferred_from_streaming_profile():
@@ -535,6 +541,15 @@ def test_every_mini_app_genre_has_a_dmb_mapping():
             assert worker.dmb_genre_text(genre, sub_genre)
 
 
+def test_children_genre_uses_selectable_dmb_leaf():
+    assert worker.dmb_genre_text("Children", None) == (
+        "Music [Kids and youth program (Children)]"
+    )
+    assert worker.dmb_genre_text("Children", "Lullabies") == (
+        "Lullabies [Kids and youth program (Children)]"
+    )
+
+
 def test_cover_is_exact_3000_square_jpeg(tmp_path):
     source = tmp_path / "source.png"
     destination = tmp_path / "cover.jpg"
@@ -571,7 +586,7 @@ def test_robot_flow_contains_attachment_steps():
         "Verify Review Data",
     ):
         assert step in suite or step in page
-    assert "Apply Contributors To Tracks" not in suite
+    assert "Apply Contributors To Tracks" in suite
     assert "contributors2tracks" not in locators
     assert "Save & View Audio Product" in locators
     assert "    Sleep" not in page
@@ -618,16 +633,21 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     edit_suite = (ROOT / "automation" / "edit_album.robot").read_text(
         encoding="utf-8"
     )
+    edit_page = (ROOT / "resources" / "pages" / "edit_album_page.robot").read_text(
+        encoding="utf-8"
+    )
     assert "normalize-space()='Audio'" in login_locators
     assert "normalize-space()='Create audio product'" in login_locators
+    assert "normalize-space()='Music'" in login_locators
+    assert "normalize-space()='Create album'" in login_locators
     assert "//iframe[contains(@src, 'album.create')]" in login_locators
     assert "not(self::option) and normalize-space()='(Maxi-) Single'" in locators
     assert "SeleniumLibrary.Input Password    ${PASSWORD_FIELD}" in login_page
     assert "Input Text    ${PASSWORD_FIELD}" not in login_page
     for suite in (create_suite, edit_suite):
-        assert "Input DMB Password    ${password}" in suite
+        assert "Login With Credentials    ${username}    ${password}" in suite
         assert "Input Password    ${password}" not in suite
-        assert "Wait Until Page Contains Element    ${MUSIC_MENU}" in suite
+        assert "Click Login Button" not in suite
         assert "Wait Until Element Is Visible    ${MUSIC_MENU}" not in suite
     assert "ARGUMENTS    ${music_menu}" in album_page
     assert "Execute Javascript    arguments[0].click();" in album_page
@@ -661,6 +681,8 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "${LOADING_OVERLAY}             id=vc_loading_layer_overlay" in locators
     assert album_page.count("Wait Until Element Is Not Visible    ${LOADING_OVERLAY}") == 2
     assert "Click Visible Exact Choice    ${dmb_genre}" in album_page
+    assert "Run Keyword And Return Status    Wait Until Element Is Visible    ${option}    timeout=3s" in edit_page
+    assert "Commit Edit Input    ${locator}" in edit_page
     assert "${GENRE_ID_INPUT}" in album_page
     assert "DMB genre ID was not committed" in album_page
     assert "${GENRE_PICKER}" in album_page
@@ -668,9 +690,12 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "dmb-icon--extract" in locators
     assert "/product/genre-chooser" in locators
     assert "Select Frame    ${GENRE_CHOOSER_IFRAME}" in album_page
-    assert "Wait Until Keyword Succeeds    20s    500ms    Expand Genre Tree Parent    ${tree_parent}" in album_page
+    assert "Genre Tree Value Is Selectable    ${tree_value}" in album_page
+    assert "Expand Genre Tree Parent    ${tree_parent}" in album_page
     assert "Select Genre Tree Value    ${tree_value}" in album_page
     assert "mat-tree-node .node-value span" in album_page
+    assert "Genre Tree Parent Should Be Expanded" in album_page
+    assert "document.getElementById('300000000')" in album_page
     assert 'input[type="radio"]:not([disabled])' in album_page
     assert "Wait Until Element Is Enabled    ${GENRE_PICKER_OK}" in album_page
     assert "dispatchEvent(new MouseEvent('click'" in album_page
@@ -710,11 +735,13 @@ def test_live_verified_navigation_and_field_locators_are_pinned():
     assert "JSON.parse(arguments[0].value)" in album_page
     assert "@name='_wizData'" in locators
     assert "normalize-space()='EAN/UPC'" in locators
-    assert "Page Should Contain    ${title}" not in album_page
+    review_section = album_page.split("Verify Review Data\n", 1)[1].split("Submission Should Be Confirmed\n", 1)[0]
+    assert "Page Should Contain    ${title}" not in review_section
     assert "Page Should Contain    ${ean}" not in album_page
-    assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 2
+    assert album_page.count("Replace String    ${AJAX_EXACT_OPTION}") == 1
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB" in album_page
     assert "Press Keys    ${CONTRIBUTOR_NAME_INPUT}    ESC" not in album_page
+    assert "@name='newArtist' or @name='cce_newArtist'" in locators
     assert "const select = arguments[0]" in album_page
     assert "option.textContent.trim() === 'Performer'" in album_page
     assert "select.dispatchEvent(new Event('change', { bubbles: true }))" in album_page
@@ -848,6 +875,7 @@ def test_edit_locators_compose_bare_xpath_roots():
     assert "xpath=(${TRACK_EDIT_CONTRIBUTOR_ROW}//" not in locators
     assert "input[@name='ean']" in locators
     assert "input[@name='ean' and @readonly]" not in locators
+    assert locators.count("@name='newArtist' or @name='cce_newArtist'") == 2
 
 
 def test_preflight_evidence_is_explicitly_not_submitted(tmp_path):
@@ -878,8 +906,10 @@ def test_linux_worker_uses_native_headless_firefox_without_xvfb():
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     compose = (ROOT.parent / "docker-compose.yml").read_text(encoding="utf-8")
 
-    assert "FirefoxOptions" in login_page
-    assert "-headless" in login_page
+    session_source = (ROOT / "libraries" / "dmb_session.py").read_text(encoding="utf-8")
+    assert "Open Persistent Dmb Browser" in login_page
+    assert "FirefoxOptions" in session_source
+    assert "-headless" in session_source
     assert "DMB_BROWSER_MODE" in worker_source
     assert '"xvfb-run"' not in worker_source
     assert "xvfb" not in dockerfile
@@ -1045,3 +1075,28 @@ def test_recovery_reuses_verified_result_without_new_browser(tmp_path, monkeypat
     monkeypatch.setattr(worker, "set_status", report)
     assert worker.process_recovery_release(release) == "completed"
     assert report.call_args.args == (42, "completed")
+
+
+def test_text_checks_keep_the_active_delivery_frame():
+    import re
+    for name in ("album_page.robot", "edit_album_page.robot"):
+        source = (ROOT / "resources/pages" / name).read_text(encoding="utf-8")
+        assert not re.search(r"Page Should Contain {2,}", source)
+    helper = (ROOT / "resources/pages/form_ready.robot").read_text(encoding="utf-8")
+    assert "Active Form Should Contain" in helper
+    assert "return document.body.innerText" in helper
+    assert "Unselect Frame" not in helper
+
+
+def test_worker_failure_report_keeps_site_reason_and_hides_credentials(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker, 'DMB_PASSWORD', 'private-pass')
+    (tmp_path / 'output.xml').write_text('<robot><suite><test><status status="FAIL">DMB track confirmation rejected: Audio language is required; private-pass</status></test></suite></robot>', encoding='utf-8')
+    reason = worker.robot_failure_reason(tmp_path, 1)
+    assert 'Audio language is required' in reason
+    assert 'private-pass' not in reason
+    assert '[private]' in reason
+
+
+def test_worker_failure_report_survives_truncated_output(tmp_path):
+    (tmp_path / 'output.xml').write_text('<robot>', encoding='utf-8')
+    assert worker.robot_failure_reason(tmp_path, 1) == 'robot_exit_1'

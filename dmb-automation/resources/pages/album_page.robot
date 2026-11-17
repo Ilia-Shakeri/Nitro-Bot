@@ -2,8 +2,11 @@
 Library    SeleniumLibrary
 Library    OperatingSystem
 Library    String
+Library    ../../libraries/dmb_profiles.py
 Resource   ../locators/album_locators.robot
 Resource   ../locators/login_locators.robot
+Resource   form_ready.robot
+Resource   edit_album_page.robot
 
 *** Keywords ***
 Navigate To Album Creation Form
@@ -17,6 +20,7 @@ Navigate To Album Creation Form
 
 Select Album Format And Next
     Select Frame    ${MAIN_IFRAME}
+    Wait For DMB Form Ready
     Wait Until Element Is Visible    ${MAXI_SINGLE_OPTION}    timeout=30s
     Click Element    ${MAXI_SINGLE_OPTION}
     Click Ready Next
@@ -73,8 +77,8 @@ Select DMB Genre
     Wait Until Keyword Succeeds    10s    1s    Genre Should Be Selected    ${dmb_genre}
 
 Select Genre From Picker
-    [Arguments]    ${dmb_genre}
-    ${genre_picker}=    Get WebElement    ${GENRE_PICKER}
+    [Arguments]    ${dmb_genre}    ${picker_locator}=${GENRE_PICKER}    ${frame_locator}=${MAIN_IFRAME}
+    ${genre_picker}=    Get WebElement    ${picker_locator}
     Execute Javascript    arguments[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));    ARGUMENTS    ${genre_picker}
     Wait Until Element Is Visible    ${GENRE_CHOOSER_IFRAME}    timeout=20s
     Select Frame    ${GENRE_CHOOSER_IFRAME}
@@ -82,7 +86,10 @@ Select Genre From Picker
     IF    ${has_parent}
         ${tree_value}=    Evaluate    $dmb_genre.rsplit(" [", 1)[0]
         ${tree_parent}=    Evaluate    $dmb_genre.rsplit(" [", 1)[1][:-1]
-        Wait Until Keyword Succeeds    20s    500ms    Expand Genre Tree Parent    ${tree_parent}
+        ${tree_value_visible}=    Run Keyword And Return Status    Wait Until Keyword Succeeds    2s    250ms    Genre Tree Value Is Selectable    ${tree_value}
+        IF    not ${tree_value_visible}
+            Expand Genre Tree Parent    ${tree_parent}
+        END
         Wait Until Keyword Succeeds    10s    500ms    Select Genre Tree Value    ${tree_value}
     ELSE
         Wait Until Keyword Succeeds    10s    500ms    Select Genre Tree Value    ${dmb_genre}
@@ -90,18 +97,30 @@ Select Genre From Picker
     Wait Until Element Is Enabled    ${GENRE_PICKER_OK}    timeout=10s
     Click Element    ${GENRE_PICKER_OK}
     Unselect Frame
-    Wait Until Element Is Visible    ${MAIN_IFRAME}    timeout=30s
-    Select Frame    ${MAIN_IFRAME}
+    Wait Until Element Is Visible    ${frame_locator}    timeout=30s
+    Select Frame    ${frame_locator}
+    Wait For DMB Form Ready
     Wait Until Element Is Not Visible    ${GENRE_CHOOSER_IFRAME}    timeout=20s
 
 Expand Genre Tree Parent
     [Arguments]    ${parent}
-    ${expanded}=    Execute Javascript    const expected = arguments[0]; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')); const label = labels.find((node) => { const text = node.textContent.trim(); return text === expected || text.includes(expected); }); if (!label) { return false; } const row = label.closest('mat-tree-node'); if (row.getAttribute('aria-expanded') === 'true') { return true; } const button = row.querySelector('.collapsible button'); if (!button) { return false; } button.click(); return true;    ARGUMENTS    ${parent}
+    ${expanded}=    Execute Javascript    const expected = arguments[0].trim(); const aliases = { 'Kids- and Youthprogramm (Children)': 'Kids and youth program (Children)' }; const alias = aliases[expected] || expected; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')); const label = labels.find((node) => { const text = node.textContent.trim(); return text === expected || text === alias || text.includes(alias); }); let row = label?.closest('mat-tree-node'); if (!row && alias === 'Kids and youth program (Children)') row = document.getElementById('300000000'); if (!row) return false; if (row.getAttribute('aria-expanded') !== 'true') { const button = row.querySelector('.collapsible button'); if (!button) return false; button.click(); } return true;    ARGUMENTS    ${parent}
     Should Be True    ${expanded}    DMB genre parent not found: ${parent}
+    Wait Until Keyword Succeeds    10s    250ms    Genre Tree Parent Should Be Expanded    ${parent}
+
+Genre Tree Parent Should Be Expanded
+    [Arguments]    ${parent}
+    ${expanded}=    Execute Javascript    const expected = arguments[0].trim(); const alias = expected === 'Kids- and Youthprogramm (Children)' ? 'Kids and youth program (Children)' : expected; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')); const label = labels.find((node) => { const text = node.textContent.trim(); return text === expected || text === alias; }); const row = label?.closest('mat-tree-node') || (alias === 'Kids and youth program (Children)' ? document.getElementById('300000000') : null); return row?.getAttribute('aria-expanded') === 'true';    ARGUMENTS    ${parent}
+    Should Be True    ${expanded}    DMB genre parent did not expand: ${parent}
+
+Genre Tree Value Is Selectable
+    [Arguments]    ${value}
+    ${selectable}=    Execute Javascript    const expected = arguments[0].trim(); return Array.from(document.querySelectorAll('mat-tree-node')).some((row) => { const label = row.querySelector('.node-value'); const radio = row.querySelector('input[type="radio"]:not([disabled])'); const rect = row.getBoundingClientRect(); return label?.textContent.trim() === expected && !!radio && rect.width > 0 && rect.height > 0; });    ARGUMENTS    ${value}
+    Should Be True    ${selectable}    DMB genre value is not selectable: ${value}
 
 Select Genre Tree Value
     [Arguments]    ${value}
-    ${selected}=    Execute Javascript    const expected = arguments[0]; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')); const label = labels.find((node) => { const text = node.textContent.trim(); return text === expected || text.includes(expected); }); if (!label) { return false; } const radio = label.closest('mat-tree-node').querySelector('input[type="radio"]:not([disabled])'); if (!radio) { return false; } radio.click(); return radio.checked;    ARGUMENTS    ${value}
+    ${selected}=    Execute Javascript    const expected = arguments[0]; const labels = Array.from(document.querySelectorAll('mat-tree-node .node-value span')).filter((node) => { const text = node.textContent.trim(); return text === expected || text.includes(expected); }); const selectable = labels.map((label) => label.closest('mat-tree-node')).find((row) => row.querySelector('input[type="radio"]:not([disabled])')); if (selectable) { const radio = selectable.querySelector('input[type="radio"]:not([disabled])'); radio.click(); return radio.checked; } const expandable = labels.map((label) => label.closest('mat-tree-node')).find((row) => row.getAttribute('aria-expanded') !== 'true' && row.querySelector('.collapsible button')); if (expandable) { expandable.querySelector('.collapsible button').click(); } return false;    ARGUMENTS    ${value}
     Should Be True    ${selected}    DMB genre value not found: ${value}
 
 Click Visible Exact Choice
@@ -193,16 +212,15 @@ Add DMB Contributor
     Wait Until Element Is Visible    ${CONTRIBUTOR_NAME_INPUT}    timeout=20s
     Input Text    ${CONTRIBUTOR_NAME_INPUT}    ${name}
     IF    ${has_account}
-        ${contributor_option}=    Replace String    ${AJAX_EXACT_OPTION}    __VALUE__    ${name}
-        Wait Until Element Is Visible    ${contributor_option}    timeout=20s
-        Click Element    ${contributor_option}
+        Select Contributor Suggestion    ${name}
     ELSE
         Press Keys    ${CONTRIBUTOR_NAME_INPUT}    TAB
-        Keep Only Performer Role
     END
+    Keep Only Performer Role
     Wait Until Element Is Enabled    ${ADD_CONTRIBUTOR_BUTTON}    timeout=20s
     Click Element    ${ADD_CONTRIBUTOR_BUTTON}
-    Wait Until Keyword Succeeds    20s    1s    Page Should Contain    ${name}
+    Wait Until Keyword Succeeds    20s    1s    Active Form Should Contain    ${name}
+    Set DMB Checkbox    ${CONTRIBUTOR_PRIMARY}
 
 Keep Only Performer Role
     ${roles_select}=    Get WebElement    ${CONTRIBUTOR_ROLES_SELECT}
@@ -216,6 +234,19 @@ Restore Album Frame After Contributor
     Unselect Frame
     Wait Until Element Is Visible    ${MAIN_IFRAME}    timeout=30s
     Select Frame    ${MAIN_IFRAME}
+    Wait For DMB Form Ready
+
+Apply Contributors To Tracks
+    Wait Until Element Is Visible    ${APPLY_CONTRIBUTORS_TO_TRACKS}    timeout=20s
+    ${label}=    Get WebElement    ${APPLY_CONTRIBUTORS_TO_TRACKS}
+    ${checkbox}=    Execute Javascript    const label = arguments[0]; return label.control || label.querySelector('input[type="checkbox"]') || document.getElementById(label.htmlFor);    ARGUMENTS    ${label}
+    Should Not Be Equal    ${checkbox}    ${None}    Track contributor checkbox missing
+    ${checked}=    Execute Javascript    return arguments[0].checked;    ARGUMENTS    ${checkbox}
+    IF    not ${checked}
+        Click Element    ${APPLY_CONTRIBUTORS_TO_TRACKS}
+    END
+    ${checked}=    Execute Javascript    return arguments[0].checked;    ARGUMENTS    ${checkbox}
+    Should Be True    ${checked}    Track contributors were not enabled
 
 Capture Active Form Source
     ${source}=    Execute Javascript    return document.documentElement.outerHTML;
@@ -289,6 +320,7 @@ Verify Review Data
     Field Value Should Equal    ${GENRE_INPUT}    ${genre}
     Review Wizard Value Should Equal    genre    ${genre}
     Review Wizard Value Should Not Be Empty    genre_id
+    Review Wizard Value Should Equal    contributors2tracks    1
     ${selected_label}=    Get Selected List Label    ${LABEL_SELECT}
     Should Be Equal As Strings    ${selected_label}    ${label}
     FOR    ${contributor}    IN    @{contributors}
@@ -325,7 +357,7 @@ Submission Should Be Confirmed
     Should Be True    ${confirmed}    DMB did not confirm album submission
 
 Submit Album And Verify Success
-    [Arguments]    ${release_id}    ${ean}    ${isrc}    ${title}
+    [Arguments]    ${release_id}    ${ean}    ${isrc}    ${title}    ${job}
     Should Be Equal    %{DMB_SUBMIT_ENABLED}    true
     Should Be Equal    %{DMB_PUBLISH_ENABLED=false}    true
     Wait Until Element Is Enabled    ${SAVE_BUTTON}    timeout=30s
@@ -346,7 +378,97 @@ Submit Album And Verify Success
     ...    ${isrc}
     ...    ${title}
     ...    ${saved_url}
+    Prepare Saved Single For Publication    ${job}    ${dmb_release_id}    ${ean}    ${isrc}
     Publish Created Album And Verify Identity    ${dmb_release_id}    ${ean}
+
+Prepare Saved Single For Publication
+    [Arguments]    ${job}    ${dmb_release_id}    ${ean}    ${isrc}
+    Configure Saved Album Profiles    ${job}    ${dmb_release_id}    ${ean}    ${TRUE}
+    ${track_job}=    Evaluate    dict($job, source_dmb_release_id=$dmb_release_id, source_dmb_ean_upc=$ean, source_dmb_isrcs=[$isrc])
+    Unselect Frame
+    Open Single Track Metadata Editor    ${dmb_release_id}
+    Fill Single Track Metadata    ${track_job}    ${FALSE}
+    Save Single Track Metadata
+    Open Source Album In Edit Mode    ${dmb_release_id}
+    Verify Source Album Identity    ${dmb_release_id}    ${ean}
+    Set Edit Album Metadata    ${track_job}
+    Verify Edit Form Data    ${track_job}
+    ${save}=    Get WebElement    ${EDIT_SAVE_ACTION}
+    Click Element    ${EDIT_SAVE_ACTION}
+    Wait For Saved Form    ${save}
+    Confirm Exact Saved Track    ${dmb_release_id}    ${ean}    ${isrc}    ${job}[song_name]
+
+Confirm Exact Saved Track
+    [Arguments]    ${dmb_release_id}    ${ean}    ${isrc}    ${title}
+    Should Be Equal    %{DMB_PUBLISH_ENABLED=false}    true
+    Preserve Exact Saved Track Title    ${dmb_release_id}    ${ean}    ${isrc}    ${title}
+    Unselect Frame
+    Go To    ${LOGIN_URL}page/album-confirm-tracks/${dmb_release_id}?successUrl=page%2Falbum%2F${dmb_release_id}
+    Wait Until Element Is Visible    xpath=//iframe    timeout=60s
+    Select Frame    xpath=//iframe
+    Wait For DMB Form Ready
+    ${count}=    Get Element Count    xpath=//input[@name='all_tracks[]']
+    Should Be Equal As Integers    ${count}    1    Only a single exact track can be confirmed
+    Active Form Should Contain    ${isrc}
+    Active Form Should Contain    ${title}
+    ${checkbox}=    Get WebElement    xpath=//input[@name='selectedProductId[]']
+    ${track_id}=    Get Element Attribute    ${checkbox}    value
+    ${all_track_id}=    Get Value    xpath=//input[@name='all_tracks[]']
+    Should Be Equal As Strings    ${track_id}    ${all_track_id}
+    ${selected}=    Execute Javascript    if (!arguments[0].checked) { arguments[0].click(); } return arguments[0].checked;    ARGUMENTS    ${checkbox}
+    Should Be True    ${selected}
+    ${confirm}=    Get WebElement    xpath=//button[contains(@onclick,'"action":"confirm"')]
+    Click Element    ${confirm}
+    Wait For Saved Form    ${confirm}
+    Wait For DMB Form Ready
+    ${confirmation_issues}=    Execute Javascript    return Array.from(document.querySelectorAll('.dmb-message--error .dmb-message__text')).filter(e => e.offsetParent !== null).map(e => e.textContent.trim()).join(' | ');
+    Should Be Empty    ${confirmation_issues}    DMB track confirmation rejected: ${confirmation_issues}
+    Unselect Frame
+    Go To    ${LOGIN_URL}page/album/${dmb_release_id}
+    Wait Until Element Is Visible    ${CREATED_ALBUM_IFRAME}    timeout=60s
+    Select Frame    ${CREATED_ALBUM_IFRAME}
+    Wait For DMB Form Ready
+    ${actual_ean}=    Get Value    ${CREATED_ALBUM_EAN}
+    Should Be Equal As Strings    ${actual_ean}    ${ean}
+    Wait Until Keyword Succeeds    30s    1s    Exact Saved Track Should Remain Identical    ${track_id}    ${isrc}    ${title}
+
+Preserve Exact Saved Track Title
+    [Arguments]    ${dmb_release_id}    ${ean}    ${isrc}    ${title}
+    Unselect Frame
+    Open Source Album In Edit Mode    ${dmb_release_id}
+    Verify Source Album Identity    ${dmb_release_id}    ${ean}
+    ${track_url}=    Execute Javascript    const infos = Array.from(document.querySelectorAll('.dmb-module-tracks__track-info')).filter(e => e.textContent.includes(arguments[0])); if (infos.length !== 1) return ''; let row = infos[0]; while (row && !row.querySelector('a[href*="page/track/"]')) row = row.parentElement; const links = Array.from(row?.querySelectorAll('a[href*="page/track/"]') || []).map(a => a.href); const unique = [...new Set(links)]; return unique.length === 1 ? unique[0] : '';    ARGUMENTS    ${isrc}
+    Should Match Regexp    ${track_url}    ^https://dmb[.]kontornewmedia[.]com/page/track/[0-9]+([?].*)?$
+    Unselect Frame
+    Go To    ${track_url}
+    Wait Until Element Is Visible    xpath=//iframe    timeout=60s
+    Select Frame    xpath=//iframe
+    Wait For DMB Form Ready
+    ${saved_isrc}=    Get Value    xpath=//input[@name='isrc']
+    Should Be Equal As Strings    ${saved_isrc}    ${isrc}
+    ${actual_title}=    Get Value    xpath=//input[@name='title']
+    IF    $actual_title == $title
+        RETURN
+    END
+    Set DMB Checkbox    xpath=//input[@name='withTitleCheck']    ${FALSE}
+    Replace Edit Text    xpath=//input[@name='title']    ${title}
+    ${save}=    Get WebElement    xpath=//a[contains(@onclick,'"action":"save"')]
+    Click Element    ${save}
+    Wait For Saved Form    ${save}
+    Unselect Frame
+    Go To    ${track_url}
+    Wait Until Element Is Visible    xpath=//iframe    timeout=60s
+    Select Frame    xpath=//iframe
+    Wait For DMB Form Ready
+    ${saved_isrc}=    Get Value    xpath=//input[@name='isrc']
+    ${saved_title}=    Get Value    xpath=//input[@name='title']
+    Should Be Equal As Strings    ${saved_isrc}    ${isrc}
+    Should Be Equal As Strings    ${saved_title}    ${title}
+
+Exact Saved Track Should Remain Identical
+    [Arguments]    ${track_id}    ${isrc}    ${title}
+    ${matched}=    Execute Javascript    const rows = Array.from(document.querySelectorAll('.dmb-module-tracks__track-row')).filter(e => e.dataset.trackId === arguments[0]); return rows.length === 1 && rows[0].textContent.includes(arguments[1]) && rows[0].textContent.includes(arguments[2]);    ARGUMENTS    ${track_id}    ${isrc}    ${title}
+    Should Be True    ${matched}    Exact saved track identity changed after confirmation
 
 Publish Created Album And Verify Identity
     [Arguments]    ${dmb_release_id}    ${ean}
@@ -354,17 +476,30 @@ Publish Created Album And Verify Identity
     Go To    ${LOGIN_URL}page/album/${dmb_release_id}
     Wait Until Element Is Visible    ${CREATED_ALBUM_IFRAME}    timeout=60s
     Select Frame    ${CREATED_ALBUM_IFRAME}
+    Wait For DMB Form Ready
     Wait Until Element Is Visible    ${CREATED_ALBUM_FORM}    timeout=60s
     ${saved_ean}=    Get Value    ${CREATED_ALBUM_EAN}
     Should Be Equal As Strings    ${saved_ean}    ${ean}
+    ${issues}=    Execute Javascript    return Array.from(document.querySelectorAll('.dmb-message__text')).filter(e => e.offsetParent !== null).map(e => e.textContent.trim()).filter(text => /assigned Spotify Artist ID|primary artist is missing|genre at the album level|tracks are still unconfirmed/i.test(text)).join(' | ');
+    Should Be Empty    ${issues}    DMB validation requires review: ${issues}
     Wait Until Element Is Visible    ${CREATE_PUBLISH_ACTION}    timeout=30s
     ${publish_button}=    Get WebElement    ${CREATE_PUBLISH_ACTION}
     Execute Javascript    arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});    ARGUMENTS    ${publish_button}
     Execute Javascript    arguments[0].click();    ARGUMENTS    ${publish_button}
+    Wait Until Keyword Succeeds    60s    1s    Publication Response Should Be Ready
     Wait Until Keyword Succeeds    60s    2s    Created Album Publication Should Be Confirmed    ${ean}
+
+Publication Response Should Be Ready
+    ${issues}=    Execute Javascript    return Array.from(document.querySelectorAll('.dmb-message--error .dmb-message__text')).filter(e => e.offsetParent !== null).map(e => e.textContent.trim()).join(' | ');
+    IF    $issues
+        Fatal Error    DMB publication rejected: ${issues}
+    END
+    ${loading}=    Execute Javascript    return !!window.jQuery && jQuery.active > 0;
+    Should Not Be True    ${loading}    DMB publication request is still pending
 
 Created Album Publication Should Be Confirmed
     [Arguments]    ${ean}
+    Publication Response Should Be Ready
     ${success}=    Run Keyword And Return Status    Page Should Contain Element    ${PUBLICATION_SUCCESS}
     ${form_present}=    Run Keyword And Return Status    Page Should Contain Element    ${CREATED_ALBUM_FORM}
     ${publish_present}=    Run Keyword And Return Status    Page Should Contain Element    ${CREATE_PUBLISH_ACTION}

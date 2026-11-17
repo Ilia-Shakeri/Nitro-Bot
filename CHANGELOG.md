@@ -10,6 +10,33 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Durable release processing and exact-once refund behavior for `0.8.0`.
 - Verified DMB create and edit delivery for `0.9.0`.
 
+## [0.9.0-alpha.56] - 2026-11-17
+
+### Fixed
+
+- Reuse one authenticated Firefox session across delivery processes and persist
+  private cookies across container recreation. Serialize access per account and
+  block repeated failed logins for 30 minutes.
+- Keep text assertions inside the active form; the previous text search changed
+  frame context and lost contributor, review, and confirmation controls.
+- Follow Music / Create album / (Maxi-) Single, with the existing account's Audio
+  and Create audio product labels supported.
+- Apply primary Performer contributors to tracks, align album/track genres,
+  preserve title spelling, and confirm the exact ISRC before publication.
+- Use the live artist suggestion list and record explicit new Apple artist ID
+  confirmations so a retry reuses the created identity. Recognize pending
+  Spotify profile requests without submitting duplicates.
+
+### Validation scope
+
+- Local backend and frontend checks pass. Live diagnostics use one retained
+  browser and disable further credential submissions after initial login.
+- Live navigation to the Single form and rejection of incomplete track metadata
+  pass. Audio language, track pricing, creator roles and rights declarations
+  still need collection and mapping before publication can be accepted.
+- Full publication and fresh-create acceptance remain gated by live receipts;
+  this is an alpha release, not production acceptance.
+
 ## [0.9.0-alpha.55] - 2026-10-08
 
 ### Fixed
@@ -844,7 +871,8 @@ Versioning and release states follow `RELEASE_POLICY.md`.
 - Manual crypto claims need payment proof.
 - Full staging, backup/restore, and production gates remain open.
 
-[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.55...HEAD
+[Unreleased]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.56...HEAD
+[0.9.0-alpha.56]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.55...v0.9.0-alpha.56
 [0.9.0-alpha.55]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.54...v0.9.0-alpha.55
 [0.9.0-alpha.54]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.53...v0.9.0-alpha.54
 [0.9.0-alpha.53]: https://github.com/Ilia-Shakeri/Nitro-Bot/compare/v0.9.0-alpha.52...v0.9.0-alpha.53

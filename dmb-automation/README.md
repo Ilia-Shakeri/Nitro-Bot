@@ -151,3 +151,26 @@ checkpoint کامل باشد، دکمه ادامه امن همان آلبوم ر
 `DMB_REVIEW_SECRET_KEY` در هدر Authorization داشته باشد. این کلید به worker داده نمی‌شود.
 تصمیم و زمان بازبینی در رکورد سفارش ذخیره می‌شود. فعال‌سازی مسیر create پیش از تست زنده
 selectorها مجاز نیست.
+
+
+## Persistent delivery session
+
+The worker reuses one running Firefox session across orders. Isolated Robot
+processes attach to the same local driver. Browser cookies are also saved in
+`/app/session` and restored after container recreation. Only an expired session
+may submit credentials; a failed login blocks further attempts for 30 minutes.
+An account lock prevents concurrent orders from sharing the browser at once.
+The directory is mounted from `./dmb-session`, mode 0700, with private 0600
+state files. Keep it out of backups shared with others, evidence, and Git.
+Do not remove this directory to troubleshoot an order: that forces a new login.
+For diagnostic retries set `DMB_LOGIN_ALLOWED=false` so they cannot send another
+login request. Keep the diagnostic container running between invocations.
+Navigation selects Music (older account label: Audio), then Create album
+(older account label: Create audio product), then (Maxi-) Single.
+
+Generated Apple identities are recorded only after the page explicitly confirms
+`New iTunes Artist with ID ... has been created` and a fresh contributor page
+shows that same ID. Receipts live under `results/<release_id>/profile-requests.json`.
+Spotify requests remain pending until delivery; the explicit pending-request
+message is the acknowledgment. A retry preserves both states. Conflicting
+existing identities without a matching receipt stop for review.

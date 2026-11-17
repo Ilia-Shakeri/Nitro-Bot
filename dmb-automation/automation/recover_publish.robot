@@ -15,11 +15,7 @@ Publish Exact Saved Album From Checkpoint
 
 *** Keywords ***
 User Logs In For Publish Recovery
-    Wait Until Element Is Visible    ${USERNAME_FIELD}    timeout=20s
-    Input Username    ${VALID_USERNAME}
-    Input DMB Password    ${VALID_PASSWORD}
-    Click Login Button
-    Wait Until Page Contains Element    ${MUSIC_MENU}    timeout=30s
+    Login With Credentials    ${VALID_USERNAME}    ${VALID_PASSWORD}
 
 User Publishes Exact Saved Album
     Publish Created Album And Verify Identity
